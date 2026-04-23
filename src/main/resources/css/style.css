@@ -1,152 +1,170 @@
 /*
- * NyleLauncher — Linear/Apple-inspired premium dark theme.
- * Flat, type-forward, precision spacing. No glows, no drop shadows.
+ * NyleLauncher — Apple/iOS glassmorphism, flat, content-first.
+ * Fonts: Montserrat TTF bundled in /fonts (loaded at startup).
  */
 
 .root {
-    -fx-font-family: "Montserrat", "SF Pro Display", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    -fx-font-family: "Montserrat", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
     -fx-font-smoothing-type: gray;
 
-    -c-bg:         #0C0C10;
-    -c-bg-elev:    #141418;
-    -c-bg-elev-2:  #1B1B21;
-    -c-border:     #23232C;
-    -c-border-hi:  #32323C;
+    -c-bg:          #08080B;
+    -c-bg-2:        #0E0E13;
+    -c-glass:       rgba(255,255,255,0.04);
+    -c-glass-hi:    rgba(255,255,255,0.07);
+    -c-glass-brd:   rgba(255,255,255,0.08);
+    -c-glass-brd-hi:rgba(255,255,255,0.14);
 
-    -c-text:       #F2F2F5;
-    -c-text-2:     #9B9BA5;
-    -c-text-3:     #646470;
-    -c-text-4:     #3A3A44;
+    -c-text:        #F4F4F7;
+    -c-text-2:      #A2A2AC;
+    -c-text-3:      #6A6A74;
+    -c-text-4:      #3E3E48;
 
-    -c-accent:     #FF6A1A;
-    -c-accent-hi:  #FF8340;
-    -c-accent-lo:  #D15015;
+    -c-accent:      #FF6A1A;
+    -c-accent-hi:   #FF8340;
+    -c-accent-lo:   #D15015;
 
-    -c-ok:         #22C55E;
+    -c-ok:          #22C55E;
 }
 
 /* ─── Login ─────────────────────────────────────────────────────────── */
 
 .login-root {
-    -fx-background-color: -c-bg;
+    -fx-background-color:
+        radial-gradient(center 32% 18%, radius 45%, rgba(255,106,26,0.06), transparent 70%),
+        radial-gradient(center 72% 88%, radius 40%, rgba(79,70,229,0.05), transparent 70%),
+        -c-bg;
+}
+
+.login-card {
+    -fx-background-color: -c-glass;
+    -fx-background-radius: 20;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 20;
+    -fx-border-width: 1;
 }
 
 .hd-title {
     -fx-fill: -c-text;
-    -fx-font-size: 42px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 38px;
     -fx-font-weight: 700;
-    -fx-letter-spacing: -0.028em;
 }
 .hd-title-em {
     -fx-fill: -c-accent;
-    -fx-font-size: 42px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 38px;
     -fx-font-weight: 800;
-    -fx-letter-spacing: -0.028em;
 }
 .hd-sub {
     -fx-text-fill: -c-text-2;
-    -fx-font-size: 14px;
-    -fx-font-weight: 500;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
 }
 
 .btn-ms {
     -fx-background-color: -c-text;
     -fx-text-fill: #0A0A0E;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 14px;
     -fx-font-weight: 600;
-    -fx-background-radius: 10;
+    -fx-background-radius: 12;
     -fx-cursor: hand;
     -fx-padding: 0 20 0 20;
 }
 .btn-ms:hover  { -fx-background-color: #FFFFFF; }
-.btn-ms:pressed{ -fx-background-color: #D8D8DE; }
+.btn-ms:pressed{ -fx-background-color: #D0D0D8; }
 
 .btn-ghost {
-    -fx-background-color: transparent;
-    -fx-border-color: -c-border;
-    -fx-border-radius: 10;
-    -fx-background-radius: 10;
-    -fx-text-fill: -c-text-2;
+    -fx-background-color: rgba(255,255,255,0.02);
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-text-fill: -c-text;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 14px;
     -fx-font-weight: 600;
     -fx-cursor: hand;
 }
 .btn-ghost:hover {
-    -fx-text-fill: -c-text;
-    -fx-border-color: -c-border-hi;
+    -fx-background-color: rgba(255,255,255,0.06);
+    -fx-border-color: -c-glass-brd-hi;
 }
 
 .field-label {
     -fx-text-fill: -c-text-3;
-    -fx-font-size: 11px;
-    -fx-font-weight: 600;
-    -fx-letter-spacing: 0.12em;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-letter-spacing: 0.14em;
 }
 .field-input {
-    -fx-background-color: transparent;
-    -fx-border-color: -c-border;
-    -fx-border-radius: 10;
-    -fx-background-radius: 10;
+    -fx-background-color: rgba(255,255,255,0.03);
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
     -fx-text-fill: -c-text;
     -fx-prompt-text-fill: -c-text-4;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 15px;
-    -fx-font-weight: 500;
+    -fx-font-weight: 600;
     -fx-padding: 0 16 0 16;
 }
 .field-input:focused {
     -fx-border-color: -c-accent;
+    -fx-background-color: rgba(255,106,26,0.05);
 }
 
-.divider-line {
-    -fx-background-color: -c-border;
-}
+.divider-line { -fx-background-color: -c-glass-brd; }
 .divider-label {
     -fx-text-fill: -c-text-3;
-    -fx-font-size: 11px;
-    -fx-font-weight: 600;
-    -fx-letter-spacing: 0.16em;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-letter-spacing: 0.18em;
 }
 
 .foot-ver {
     -fx-text-fill: -c-text-3;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 11px;
-    -fx-font-weight: 500;
-    -fx-letter-spacing: 0.05em;
+    -fx-font-weight: 600;
 }
 
 /* ─── Main ──────────────────────────────────────────────────────────── */
 
 .main-root {
-    -fx-background-color: -c-bg;
+    -fx-background-color:
+        radial-gradient(center 85% 15%, radius 50%, rgba(255,106,26,0.05), transparent 70%),
+        radial-gradient(center 10% 95%, radius 40%, rgba(79,70,229,0.04), transparent 70%),
+        -c-bg;
 }
 
 .top-bar {
     -fx-background-color: transparent;
-    -fx-border-color: transparent transparent -c-border transparent;
+    -fx-border-color: transparent transparent -c-glass-brd transparent;
     -fx-border-width: 0 0 1 0;
 }
 
 .brand {
     -fx-text-fill: -c-text;
-    -fx-font-size: 13px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 12px;
     -fx-font-weight: 800;
     -fx-letter-spacing: 0.22em;
 }
 
-.nav-link {
-    -fx-text-fill: -c-text-2;
+.nav-link, .nav-link-active {
+    -fx-font-family: "Montserrat";
     -fx-font-size: 13px;
-    -fx-font-weight: 500;
+    -fx-font-weight: 600;
     -fx-cursor: hand;
     -fx-padding: 8 0 8 0;
 }
+.nav-link { -fx-text-fill: -c-text-2; }
 .nav-link:hover { -fx-text-fill: -c-text; }
 .nav-link-active {
     -fx-text-fill: -c-text;
-    -fx-font-size: 13px;
-    -fx-font-weight: 500;
-    -fx-cursor: hand;
-    -fx-padding: 8 0 8 0;
     -fx-border-color: transparent transparent -c-accent transparent;
     -fx-border-width: 0 0 1 0;
     -fx-border-insets: 0 0 4 0;
@@ -163,134 +181,122 @@
     -fx-max-width: 36; -fx-max-height: 36;
 }
 .icon-btn:hover {
-    -fx-background-color: -c-bg-elev;
-    -fx-border-color: -c-border;
+    -fx-background-color: -c-glass;
+    -fx-border-color: -c-glass-brd;
+}
+.icon-btn-emphasis {
+    -fx-background-color: -c-glass;
+    -fx-border-color: -c-glass-brd;
+    -fx-min-width: 40; -fx-min-height: 40;
+    -fx-max-width: 40; -fx-max-height: 40;
+}
+.icon-btn-emphasis:hover {
+    -fx-background-color: -c-glass-hi;
+    -fx-border-color: -c-glass-brd-hi;
 }
 
 .user-pill {
-    -fx-background-color: -c-bg-elev;
+    -fx-background-color: -c-glass;
     -fx-background-radius: 999;
-    -fx-border-color: -c-border;
+    -fx-border-color: -c-glass-brd;
     -fx-border-radius: 999;
     -fx-border-width: 1;
     -fx-cursor: hand;
 }
 .user-pill:hover {
-    -fx-background-color: -c-bg-elev-2;
-    -fx-border-color: -c-border-hi;
+    -fx-background-color: -c-glass-hi;
+    -fx-border-color: -c-glass-brd-hi;
 }
-.user-name { -fx-text-fill: -c-text;   -fx-font-size: 13px; -fx-font-weight: 600; }
-.user-type { -fx-text-fill: -c-text-3; -fx-font-size: 9px;  -fx-font-weight: 700; -fx-letter-spacing: 0.14em; }
+.user-name { -fx-text-fill: -c-text;   -fx-font-family: "Montserrat"; -fx-font-size: 13px; -fx-font-weight: 600; }
+.user-type { -fx-text-fill: -c-text-3; -fx-font-family: "Montserrat"; -fx-font-size: 9px;  -fx-font-weight: 700; -fx-letter-spacing: 0.14em; }
 
 /* Hero */
 .kicker {
     -fx-text-fill: -c-accent;
-    -fx-font-size: 11px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 10px;
     -fx-font-weight: 700;
     -fx-letter-spacing: 0.20em;
 }
+.online-label {
+    -fx-text-fill: -c-ok;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-letter-spacing: 0.14em;
+}
+
 .hero-t {
     -fx-fill: -c-text;
-    -fx-font-size: 62px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 64px;
     -fx-font-weight: 800;
-    -fx-letter-spacing: -0.035em;
 }
 .hero-t-em {
     -fx-fill: -c-accent;
-    -fx-font-size: 62px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 64px;
     -fx-font-weight: 900;
-    -fx-letter-spacing: -0.035em;
 }
 .hero-sub {
     -fx-text-fill: -c-text-2;
-    -fx-font-size: 15px;
-    -fx-font-weight: 400;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
     -fx-line-spacing: 2px;
 }
 
-/* Stats */
-.stat-k {
-    -fx-text-fill: -c-text-3;
-    -fx-font-size: 10px;
-    -fx-font-weight: 700;
-    -fx-letter-spacing: 0.18em;
-}
-.stat-v {
-    -fx-text-fill: -c-text;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
-    -fx-font-size: 18px;
-    -fx-font-weight: 500;
-}
-.stat-v-ok {
-    -fx-text-fill: -c-ok;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
-    -fx-font-size: 15px;
-    -fx-font-weight: 500;
-}
-
-/* News card */
-.news-card {
-    -fx-background-color: -c-bg-elev;
+/* Feature card (glass) */
+.feature-card {
+    -fx-background-color: -c-glass;
     -fx-background-radius: 16;
-    -fx-border-color: -c-border;
+    -fx-border-color: -c-glass-brd;
     -fx-border-radius: 16;
     -fx-border-width: 1;
     -fx-cursor: hand;
 }
-.news-card:hover {
-    -fx-border-color: -c-border-hi;
-    -fx-background-color: -c-bg-elev-2;
+.feature-card:hover {
+    -fx-background-color: -c-glass-hi;
+    -fx-border-color: -c-glass-brd-hi;
 }
-.news-tag {
-    -fx-background-color: rgba(255,106,26,0.10);
-    -fx-text-fill: -c-accent;
-    -fx-font-size: 9px;
-    -fx-font-weight: 800;
-    -fx-letter-spacing: 0.20em;
-    -fx-background-radius: 999;
-    -fx-padding: 4 10 4 10;
-}
-.news-title {
+.feature-title {
     -fx-text-fill: -c-text;
-    -fx-font-size: 20px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 14px;
     -fx-font-weight: 700;
-    -fx-letter-spacing: -0.015em;
 }
-.news-body {
+.feature-desc {
     -fx-text-fill: -c-text-2;
-    -fx-font-size: 13px;
-    -fx-font-weight: 400;
-}
-.news-meta {
-    -fx-text-fill: -c-text-3;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
-    -fx-font-size: 10px;
-    -fx-font-weight: 500;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-line-spacing: 1px;
 }
 
 /* Bottom bar */
 .bottom-bar {
-    -fx-background-color: -c-bg;
-    -fx-border-color: -c-border transparent transparent transparent;
+    -fx-background-color: transparent;
+    -fx-border-color: -c-glass-brd transparent transparent transparent;
     -fx-border-width: 1 0 0 0;
 }
 .micro {
     -fx-text-fill: -c-text-3;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 10px;
     -fx-font-weight: 700;
     -fx-letter-spacing: 0.20em;
 }
 .ram-val {
     -fx-text-fill: -c-text;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
-    -fx-font-size: 16px;
-    -fx-font-weight: 500;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 15px;
+    -fx-font-weight: 600;
 }
-
 .status {
     -fx-text-fill: -c-text-2;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 12px;
-    -fx-font-weight: 500;
+    -fx-font-weight: 600;
 }
 .progress .bar {
     -fx-background-color: -c-accent;
@@ -298,17 +304,19 @@
     -fx-background-radius: 2;
 }
 .progress .track {
-    -fx-background-color: -c-bg-elev-2;
+    -fx-background-color: rgba(255,255,255,0.05);
     -fx-background-radius: 2;
 }
 
+/* PLAY button — white text, large, bold */
 .btn-play {
     -fx-background-color: -c-accent;
-    -fx-text-fill: #140A00;
-    -fx-font-size: 26px;
+    -fx-text-fill: #FFFFFF;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 28px;
     -fx-font-weight: 900;
     -fx-letter-spacing: 0.18em;
-    -fx-background-radius: 10;
+    -fx-background-radius: 14;
     -fx-cursor: hand;
 }
 .btn-play:hover   { -fx-background-color: -c-accent-hi; }
@@ -319,37 +327,38 @@
 
 .settings-h {
     -fx-text-fill: -c-text;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 20px;
     -fx-font-weight: 700;
-    -fx-letter-spacing: -0.015em;
 }
 .settings-p {
     -fx-text-fill: -c-text-2;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 13px;
-    -fx-font-weight: 400;
+    -fx-font-weight: 600;
 }
 
 .ram-huge-num {
     -fx-text-fill: -c-text;
-    -fx-font-size: 68px;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 64px;
     -fx-font-weight: 800;
-    -fx-letter-spacing: -0.045em;
 }
 .ram-huge-unit {
     -fx-text-fill: -c-text-2;
-    -fx-font-size: 20px;
-    -fx-font-weight: 500;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
 }
 .ram-max {
     -fx-text-fill: -c-text-3;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 12px;
-    -fx-font-weight: 500;
-    -fx-letter-spacing: 0.05em;
+    -fx-font-weight: 600;
 }
 
 .ram-slider-big .track {
-    -fx-background-color: -c-bg-elev-2;
+    -fx-background-color: rgba(255,255,255,0.05);
     -fx-background-radius: 999;
     -fx-pref-height: 4;
 }
@@ -366,36 +375,29 @@
 
 .ram-tick {
     -fx-text-fill: -c-text-4;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
+    -fx-font-family: "Montserrat";
     -fx-font-size: 10px;
-    -fx-font-weight: 500;
-}
-
-/* Mod rows */
-.mod-row {
-    -fx-background-color: -c-bg-elev;
-    -fx-background-radius: 10;
-    -fx-border-color: -c-border;
-    -fx-border-radius: 10;
-    -fx-border-width: 1;
-}
-.mod-row:hover { -fx-border-color: -c-border-hi; }
-.mod-title {
-    -fx-text-fill: -c-text;
-    -fx-font-size: 14px;
     -fx-font-weight: 600;
 }
-.mod-desc {
-    -fx-text-fill: -c-text-2;
-    -fx-font-size: 12px;
-    -fx-font-weight: 400;
-}
 
-/* Pill-style switch from a CheckBox */
+.mod-row {
+    -fx-background-color: -c-glass;
+    -fx-background-radius: 14;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+}
+.mod-row:hover {
+    -fx-background-color: -c-glass-hi;
+    -fx-border-color: -c-glass-brd-hi;
+}
+.mod-title { -fx-text-fill: -c-text;  -fx-font-family: "Montserrat"; -fx-font-size: 14px; -fx-font-weight: 600; }
+.mod-desc  { -fx-text-fill: -c-text-2;-fx-font-family: "Montserrat"; -fx-font-size: 12px; -fx-font-weight: 600; }
+
 .pill-switch > .box {
-    -fx-background-color: -c-bg-elev-2;
+    -fx-background-color: rgba(255,255,255,0.06);
     -fx-background-radius: 999;
-    -fx-border-color: -c-border;
+    -fx-border-color: -c-glass-brd;
     -fx-border-radius: 999;
     -fx-border-width: 1;
     -fx-min-width: 40; -fx-max-width: 40;
@@ -422,7 +424,7 @@
 
 .about-v {
     -fx-text-fill: -c-text;
-    -fx-font-family: "JetBrains Mono", "Menlo", monospace;
-    -fx-font-size: 15px;
-    -fx-font-weight: 500;
+    -fx-font-family: "Montserrat";
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
 }

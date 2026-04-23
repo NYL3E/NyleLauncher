@@ -7,9 +7,9 @@ import fr.nylerp.launcher.launch.MinecraftLauncher;
 import fr.nylerp.launcher.update.ModpackUpdater;
 import javafx.animation.*;
 import javafx.application.Platform;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.HPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -17,9 +17,9 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.SVGPath;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
-import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 
 public class MainView extends BorderPane {
@@ -30,29 +30,15 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        // Layered background with ambient orbs
-        StackPane root = new StackPane();
-        Circle orb = new Circle(210, Color.web("#FF6A1A", 0.14));
-        orb.setTranslateX(340);
-        orb.setTranslateY(-180);
-        orb.setMouseTransparent(true);
-        Circle orb2 = new Circle(160, Color.web("#4F46E5", 0.08));
-        orb2.setTranslateX(-340);
-        orb2.setTranslateY(160);
-        orb2.setMouseTransparent(true);
+        setTop(buildTopBar(account, onLogout, onSettings));
+        setCenter(buildContent());
+        setBottom(buildBottomBar());
 
-        BorderPane layout = new BorderPane();
-        layout.setTop(buildTopBar(account, onLogout, onSettings));
-        layout.setCenter(buildHero(account));
-        layout.setBottom(buildBottomBar());
-
-        root.getChildren().addAll(orb, orb2, layout);
-        setCenter(root);
-
-        // Stagger in center kids
-        if (layout.getCenter() instanceof HBox h) {
+        if (getCenter() instanceof VBox v) {
             int i = 0;
-            for (Node n : h.getChildren()) Animations.enter(n, Duration.millis(120 + (i++) * 90));
+            for (Node n : v.getChildren()) {
+                Animations.enter(n, Duration.millis(100 + (i++) * 80));
+            }
         }
     }
 
@@ -71,8 +57,8 @@ public class MainView extends BorderPane {
         nav.setAlignment(Pos.CENTER);
 
         Button settingsBtn = new Button();
-        settingsBtn.getStyleClass().add("icon-btn");
-        settingsBtn.setGraphic(Icons.gear(17, Color.web("#9B9BA5")));
+        settingsBtn.getStyleClass().addAll("icon-btn", "icon-btn-emphasis");
+        settingsBtn.setGraphic(Icons.gear(20, Color.web("#F4F4F7")));
         settingsBtn.setOnAction(e -> { if (onSettings != null) onSettings.run(); });
 
         HBox userPill = new HBox(10,
@@ -97,14 +83,9 @@ public class MainView extends BorderPane {
         bar.add(left, 0, 0);
         bar.add(nav, 1, 0);
         bar.add(right, 2, 0);
-        ColumnConstraints c1 = new ColumnConstraints();
-        c1.setHgrow(Priority.ALWAYS);
-        c1.setHalignment(HPos.LEFT);
-        ColumnConstraints c2 = new ColumnConstraints();
-        c2.setHalignment(HPos.CENTER);
-        ColumnConstraints c3 = new ColumnConstraints();
-        c3.setHgrow(Priority.ALWAYS);
-        c3.setHalignment(HPos.RIGHT);
+        ColumnConstraints c1 = new ColumnConstraints(); c1.setHgrow(Priority.ALWAYS); c1.setHalignment(HPos.LEFT);
+        ColumnConstraints c2 = new ColumnConstraints(); c2.setHalignment(HPos.CENTER);
+        ColumnConstraints c3 = new ColumnConstraints(); c3.setHgrow(Priority.ALWAYS); c3.setHalignment(HPos.RIGHT);
         bar.getColumnConstraints().addAll(c1, c2, c3);
         bar.setPadding(new Insets(0, 24, 0, 24));
         bar.setPrefHeight(64);
@@ -134,104 +115,136 @@ public class MainView extends BorderPane {
         return l;
     }
 
-    // ── Hero ────────────────────────────────────────────────────────────────
+    // ── Content ─────────────────────────────────────────────────────────────
 
-    private Region buildHero(Account account) {
-        // Text block
-        Label kicker = labelOf("SAISON 0  ·  FABRIC 1.21.1", "kicker");
+    private Region buildContent() {
+        // Kicker + server status
+        HBox meta = new HBox(14);
+        meta.setAlignment(Pos.CENTER_LEFT);
 
-        Text t1 = new Text("Le jeu\ntel que ");     t1.getStyleClass().add("hero-t");
-        Text t2 = new Text("vous ");                t2.getStyleClass().add("hero-t-em");
-        Text t3 = new Text("\nl'imaginez.");        t3.getStyleClass().add("hero-t");
-        TextFlow title = new TextFlow(t1, t2, t3);
-        title.setMaxWidth(500);
+        Label kicker = labelOf("ROLEPLAY · FRANCE · SAISON 0", "kicker");
+        HBox dotBox = new HBox(6);
+        dotBox.setAlignment(Pos.CENTER_LEFT);
+        Circle dot = new Circle(4, Color.web("#22C55E"));
+        Label online = labelOf("42 JOUEURS EN LIGNE", "online-label");
+        dotBox.getChildren().addAll(dot, online);
+        pulse(dot);
+
+        Region sep = new Region();
+        sep.setMinWidth(1); sep.setPrefWidth(1); sep.setMaxWidth(1);
+        sep.setPrefHeight(12);
+        sep.setStyle("-fx-background-color: #32323C;");
+
+        meta.getChildren().addAll(kicker, sep, dotBox);
+
+        // Title
+        Text t1 = new Text("Rejoignez\nl'"); t1.getStyleClass().add("hero-t");
+        Text t2 = new Text("aventure.");      t2.getStyleClass().add("hero-t-em");
+        TextFlow title = new TextFlow(t1, t2);
+        title.setMaxWidth(700);
         title.setLineSpacing(-8);
 
-        Label hsub = new Label(
-                "Un serveur roleplay exigeant et artisanal. Le launcher synchronise " +
-                "les mods automatiquement — il vous suffit de jouer.");
-        hsub.setWrapText(true);
-        hsub.setMaxWidth(500);
-        hsub.getStyleClass().add("hero-sub");
+        Label sub = new Label("Un serveur roleplay exigeant et artisanal. Du vrai jeu, pas du grind.");
+        sub.getStyleClass().add("hero-sub");
+        sub.setWrapText(true);
+        sub.setMaxWidth(560);
 
-        HBox stats = new HBox(40,
-                stat("Mods", "78", false),
-                stat("Version", "1.21.1", false),
-                stat("Loader", "Fabric", false),
-                stat("Serveur", "En ligne", true));
-        stats.setAlignment(Pos.CENTER_LEFT);
+        // Feature grid — 4 glass tiles
+        GridPane features = new GridPane();
+        features.setHgap(16);
+        features.setVgap(16);
+        features.setMaxWidth(Double.MAX_VALUE);
+        features.add(featureCard(voiceIcon(),  "Chat vocal",      "Voix proche entre joueurs."), 0, 0);
+        features.add(featureCard(maskIcon(),   "Roleplay",        "Lore profond, events hebdo."), 1, 0);
+        features.add(featureCard(coinIcon(),   "Économie joueur", "Commerces et gemmes premium."), 2, 0);
+        features.add(featureCard(sparkIcon(),  "Cosmétiques",     "Pets, lootbox, skins exclus."), 3, 0);
+        ColumnConstraints eq = new ColumnConstraints();
+        eq.setPercentWidth(25);
+        features.getColumnConstraints().addAll(eq, eq, eq, eq);
 
-        VBox textCol = new VBox(18, kicker, title, hsub,
-                spacer(6), stats);
-        textCol.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(textCol, Priority.ALWAYS);
-
-        // News card
-        VBox newsCard = new VBox(12);
-        newsCard.getStyleClass().add("news-card");
-        newsCard.setPadding(new Insets(22, 22, 22, 22));
-        newsCard.setMaxWidth(280);
-        newsCard.setPrefWidth(280);
-
-        Label tag = new Label("NOUVEAU");
-        tag.getStyleClass().add("news-tag");
-
-        Label ttl = new Label("Lootbox animées");
-        ttl.getStyleClass().add("news-title");
-        ttl.setWrapText(true);
-
-        Label body = new Label(
-                "Trois nouvelles lootbox GeckoLib rejoignent le serveur : classique, " +
-                "légendaire et ultime. Cours le découvrir.");
-        body.getStyleClass().add("news-body");
-        body.setWrapText(true);
-
-        Label meta = new Label("v1.3.3  ·  Il y a 2 jours");
-        meta.getStyleClass().add("news-meta");
-
-        newsCard.getChildren().addAll(tag, ttl, body, meta);
-        Animations.hoverLift(newsCard, 3);
-
-        HBox row = new HBox(40, textCol, newsCard);
-        row.setAlignment(Pos.CENTER);
-        row.setPadding(new Insets(48, 48, 24, 48));
-        return row;
+        VBox col = new VBox(20,
+                meta,
+                title,
+                sub,
+                spacer(8),
+                features);
+        col.setAlignment(Pos.CENTER_LEFT);
+        col.setPadding(new Insets(36, 48, 28, 48));
+        return col;
     }
 
-    private VBox stat(String k, String v, boolean online) {
-        Label key = labelOf(k.toUpperCase(), "stat-k");
-        Label val = new Label(v);
-        val.getStyleClass().add(online ? "stat-v-ok" : "stat-v");
-        if (online) {
-            Circle dot = new Circle(4, Color.web("#22C55E"));
-            HBox inline = new HBox(8, dot, val);
-            inline.setAlignment(Pos.CENTER_LEFT);
-            VBox box = new VBox(4, key, inline);
-            Timeline pulse = new Timeline(
-                    new KeyFrame(Duration.ZERO, new KeyValue(dot.scaleXProperty(), 1.0),
-                            new KeyValue(dot.scaleYProperty(), 1.0), new KeyValue(dot.opacityProperty(), 1.0)),
-                    new KeyFrame(Duration.seconds(0.9), new KeyValue(dot.scaleXProperty(), 1.35),
-                            new KeyValue(dot.scaleYProperty(), 1.35), new KeyValue(dot.opacityProperty(), 0.55)),
-                    new KeyFrame(Duration.seconds(1.8), new KeyValue(dot.scaleXProperty(), 1.0),
-                            new KeyValue(dot.scaleYProperty(), 1.0), new KeyValue(dot.opacityProperty(), 1.0))
-            );
-            pulse.setCycleCount(Timeline.INDEFINITE); pulse.play();
-            return box;
-        }
-        VBox box = new VBox(4, key, val);
-        return box;
+    private VBox featureCard(SVGPath icon, String title, String desc) {
+        icon.setFill(Color.web("#FF6A1A"));
+        StackPane iconWrap = new StackPane(icon);
+        iconWrap.setMinHeight(28);
+        iconWrap.setAlignment(Pos.CENTER_LEFT);
+
+        Label h = new Label(title);
+        h.getStyleClass().add("feature-title");
+        Label d = new Label(desc);
+        d.getStyleClass().add("feature-desc");
+        d.setWrapText(true);
+        d.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        VBox v = new VBox(6, iconWrap, spacer(4), h, d);
+        v.getStyleClass().add("feature-card");
+        v.setPadding(new Insets(16, 16, 16, 16));
+        v.setPrefHeight(150);
+        Animations.hoverLift(v, 3);
+        return v;
+    }
+
+    // Small icons — Heroicons solid, orange fill
+    private SVGPath voiceIcon() {
+        SVGPath p = new SVGPath();
+        p.setContent("M8 3.75a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0v-6Z M5 9.75a.75.75 0 0 1 1.5 0 5.5 5.5 0 0 0 11 0 .75.75 0 0 1 1.5 0 7 7 0 0 1-6.25 6.957V19a.75.75 0 0 1-1.5 0v-2.293A7 7 0 0 1 5 9.75Z");
+        p.setScaleX(1.1); p.setScaleY(1.1);
+        return p;
+    }
+    private SVGPath maskIcon() {
+        SVGPath p = new SVGPath();
+        p.setContent("M12 2C7 2 3 6 3 11c0 4 2.5 7 5 8 1 .4 2 .5 3 .2V19c-.5-.3-1-.8-1-1.5 0-1 1-1.5 2-1.5s2 .5 2 1.5c0 .7-.5 1.2-1 1.5v.2c1 .3 2 .2 3-.2 2.5-1 5-4 5-8 0-5-4-9-9-9Zm-3.5 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z");
+        p.setScaleX(1.1); p.setScaleY(1.1);
+        return p;
+    }
+    private SVGPath coinIcon() {
+        SVGPath p = new SVGPath();
+        p.setContent("M12 2.25a9.75 9.75 0 1 0 0 19.5 9.75 9.75 0 0 0 0-19.5Zm.75 4.5v.5c1.1.2 2 1 2 2h-1.5c0-.3-.4-.75-1.25-.75s-1.25.45-1.25.75c0 .35.35.6 1.7.95 1.6.4 2.8 1.05 2.8 2.55 0 1-.9 1.8-2 2v.5a.75.75 0 1 1-1.5 0v-.5c-1.1-.2-2-1-2-2h1.5c0 .3.4.75 1.25.75s1.25-.45 1.25-.75c0-.35-.35-.6-1.7-.95-1.6-.4-2.8-1.05-2.8-2.55 0-1 .9-1.8 2-2v-.5a.75.75 0 1 1 1.5 0Z");
+        p.setScaleX(1.1); p.setScaleY(1.1);
+        return p;
+    }
+    private SVGPath sparkIcon() {
+        SVGPath p = new SVGPath();
+        p.setContent("M9 2l1.2 3.8L14 7l-3.8 1.2L9 12 7.8 8.2 4 7l3.8-1.2L9 2Zm8 6l.9 2.6L20.5 12l-2.6.9L17 15.5l-.9-2.6L13.5 12l2.6-.9L17 8Zm-4 7l.7 2.2L15.9 18l-2.2.7L13 21l-.7-2.3L10.1 18l2.2-.8L13 15Z");
+        p.setScaleX(1.1); p.setScaleY(1.1);
+        return p;
+    }
+
+    private void pulse(Circle dot) {
+        Timeline tl = new Timeline(
+                new KeyFrame(Duration.ZERO,
+                        new KeyValue(dot.scaleXProperty(), 1.0),
+                        new KeyValue(dot.scaleYProperty(), 1.0),
+                        new KeyValue(dot.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.seconds(0.9),
+                        new KeyValue(dot.scaleXProperty(), 1.35),
+                        new KeyValue(dot.scaleYProperty(), 1.35),
+                        new KeyValue(dot.opacityProperty(), 0.55)),
+                new KeyFrame(Duration.seconds(1.8),
+                        new KeyValue(dot.scaleXProperty(), 1.0),
+                        new KeyValue(dot.scaleYProperty(), 1.0),
+                        new KeyValue(dot.opacityProperty(), 1.0))
+        );
+        tl.setCycleCount(Timeline.INDEFINITE); tl.play();
     }
 
     // ── Bottom bar ──────────────────────────────────────────────────────────
 
     private Region buildBottomBar() {
-        // RAM display
         Label memKey = labelOf("MÉMOIRE", "micro");
         Label memVal = new Label((Settings.get().ramMb / 1024) + " Go");
         memVal.getStyleClass().add("ram-val");
         VBox mem = new VBox(4, memKey, memVal);
 
-        // Status + progress
         status.getStyleClass().add("status");
         progress.getStyleClass().add("progress");
         progress.setPrefHeight(3);
@@ -240,7 +253,6 @@ public class MainView extends BorderPane {
         mid.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(mid, Priority.ALWAYS);
 
-        // Play button
         Button play = new Button("JOUER");
         play.getStyleClass().add("btn-play");
         play.setPrefWidth(260);
@@ -261,14 +273,7 @@ public class MainView extends BorderPane {
         return r;
     }
 
-    private Account currentAccount() {
-        // Walked up when needed
-        return currentAcc;
-    }
-
-    private Account currentAcc;
-
-    // ── Launch pipeline ─────────────────────────────────────────────────────
+    // ── Launch ──────────────────────────────────────────────────────────────
 
     private void startPlay(Button play) {
         play.setDisable(true);
@@ -283,8 +288,7 @@ public class MainView extends BorderPane {
                             Platform.runLater(() -> status.setText(line));
                         }
                         @Override public void onProgress(int d, int t, long bd, long bt) {
-                            Platform.runLater(() ->
-                                    progress.setProgress(t == 0 ? 0 : (double) d / t));
+                            Platform.runLater(() -> progress.setProgress(t == 0 ? 0 : (double) d / t));
                         }
                     });
                     updater.sync();
@@ -292,7 +296,7 @@ public class MainView extends BorderPane {
                     org.slf4j.LoggerFactory.getLogger("ModpackSync")
                             .warn("Modpack sync failed, continuing local: {}", syncErr.toString(), syncErr);
                     Platform.runLater(() -> status.setText(
-                            "Sync KO (" + syncErr.getClass().getSimpleName() + "), lancement local…"));
+                            "Sync KO, lancement local…"));
                 }
 
                 Account account = fr.nylerp.launcher.auth.AuthManager.loadSaved();
@@ -302,8 +306,7 @@ public class MainView extends BorderPane {
                         Platform.runLater(() -> status.setText(s));
                     }
                     @Override public void onProgress(long d, long t) {
-                        Platform.runLater(() ->
-                                progress.setProgress(t <= 0 ? -1 : (double) d / t));
+                        Platform.runLater(() -> progress.setProgress(t <= 0 ? -1 : (double) d / t));
                     }
                 });
 

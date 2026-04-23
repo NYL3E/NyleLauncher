@@ -21,11 +21,12 @@ public class LauncherApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        loadFonts();
         this.stage = stage;
         stage.setTitle(Constants.APP_NAME);
         stage.setResizable(false);
         stage.setWidth(1000);
-        stage.setHeight(620);
+        stage.setHeight(720);
 
         Account saved = AuthManager.loadSaved();
         if (saved != null) {
@@ -67,5 +68,24 @@ public class LauncherApp extends Application {
         Scene s = new Scene(root);
         s.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         stage.setScene(s);
+    }
+
+    private static void loadFonts() {
+        String[] files = {
+                "Montserrat-Regular.ttf",
+                "Montserrat-Medium.ttf",
+                "Montserrat-SemiBold.ttf",
+                "Montserrat-Bold.ttf",
+                "Montserrat-Black.ttf"
+        };
+        for (String f : files) {
+            try {
+                javafx.scene.text.Font.loadFont(
+                        LauncherApp.class.getResourceAsStream("/fonts/" + f), 14);
+                LOG.debug("Loaded font: {}", f);
+            } catch (Exception e) {
+                LOG.warn("Could not load font {}: {}", f, e.toString());
+            }
+        }
     }
 }
