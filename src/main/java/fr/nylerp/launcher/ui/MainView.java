@@ -115,8 +115,8 @@ public class MainView extends BorderPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox row = new HBox(12, capsule, spacer, updateBanner);
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(10, 20, 0, 20));
-        row.setPrefHeight(54);
+        row.setPadding(new Insets(4, 20, 0, 20));
+        row.setPrefHeight(44);
         row.getStyleClass().add("top-bar-clean");
         return row;
     }
@@ -173,11 +173,13 @@ public class MainView extends BorderPane {
         StackPane stack = new StackPane();
         // Use CSS background so the image auto-fits via -fx-background-size: cover.
         String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
-        // Anchor the image to the BOTTOM of the body — so the bottom edge of the
-        // picture always hugs the top of the bottom bar (no black gap below).
+        // Anchor the image so its BOTTOM edge lines up with the top of the play bar.
+        // We pin the image to the bottom of the body region and size it by width
+        // so we never crop the bottom (what the user sees is the full bottom strip
+        // of the picture, landing right above the JOUER container).
         stack.setStyle(
                 "-fx-background-image: url('" + imgUrl + "');" +
-                "-fx-background-size: cover;" +
+                "-fx-background-size: 100% auto;" +
                 "-fx-background-position: center bottom;" +
                 "-fx-background-repeat: no-repeat;"
         );
@@ -196,7 +198,7 @@ public class MainView extends BorderPane {
         HBox leftBlock = new HBox(18, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        StackPane.setMargin(leftBlock, new Insets(2, 0, 0, 40));
+        StackPane.setMargin(leftBlock, new Insets(0, 0, 0, 36));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
@@ -232,20 +234,13 @@ public class MainView extends BorderPane {
                         "Vendredi soir au dimanche — profitez-en pour monter.")
         );
 
-        ScrollPane scroll = new ScrollPane(body);
-        scroll.setFitToWidth(true);
-        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scroll.setPannable(true);
-        scroll.getStyleClass().add("settings-scroll");
-        VBox.setVgrow(scroll, Priority.ALWAYS);
-
-        VBox panel = new VBox(header, divider, scroll);
+        // 3 items fit — no scrollbar/chevrons needed
+        VBox panel = new VBox(header, divider, body);
         panel.getStyleClass().add("glass-news-panel");
         panel.setPrefWidth(320);
         panel.setMaxWidth(320);
-        panel.setPrefHeight(420);
-        panel.setMaxHeight(420);
+        panel.setPrefHeight(340);
+        panel.setMaxHeight(340);
         return panel;
     }
 
