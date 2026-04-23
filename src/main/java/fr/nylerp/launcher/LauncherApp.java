@@ -27,6 +27,12 @@ public class LauncherApp extends Application {
         stage.setResizable(false);
         stage.setWidth(1000);
         stage.setHeight(596);
+        try {
+            stage.getIcons().add(new javafx.scene.image.Image(
+                    getClass().getResourceAsStream("/images/app_icon.png")));
+        } catch (Exception e) {
+            LOG.warn("Could not load app icon: {}", e.toString());
+        }
 
         Account saved = AuthManager.loadSaved();
         if (saved != null) {
