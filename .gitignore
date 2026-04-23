@@ -10,6 +10,9 @@ bin/
 pack-dist/
 local.properties
 .env
-pack/mods/
+# pack/ contents are pushed directly to the GH release by scripts/upload-pack.py,
+# not via git (hundreds of MBs of jars + configs would bloat history).
+pack/*
+!pack/README.md
 manifest.json
 dist/

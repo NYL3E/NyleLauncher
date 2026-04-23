@@ -22,6 +22,7 @@ import datetime as _dt
 import hashlib
 import json
 import pathlib
+import re
 import sys
 
 ROOT   = pathlib.Path(__file__).resolve().parents[1]
@@ -43,13 +44,22 @@ def flat_asset_name(rel: pathlib.Path) -> str:
     return str(rel).replace("/", "__").replace("\\", "__")
 
 
+def gh_safe_asset_name(name: str) -> str:
+    """Mirror GitHub Releases asset-name sanitization. GH replaces anything
+    outside [A-Za-z0-9._-] (notably '+') with '.' on upload, and rejects
+    consecutive dots / trailing dots with 422. Collapse runs and trim."""
+    safe = re.sub(r"[^A-Za-z0-9._\-]+", ".", name)
+    safe = re.sub(r"\.{2,}", ".", safe)
+    return safe.strip(".")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--release", default="pack-latest", help="GitHub Release tag")
     ap.add_argument("--repo", default=DEFAULT_REPO, help="GitHub repo (owner/name)")
     ap.add_argument("--mc", default="1.21.1")
     ap.add_argument("--loader-type", default="fabric")
-    ap.add_argument("--loader-version", default="0.16.5")
+    ap.add_argument("--loader-version", default="0.18.4")
     args = ap.parse_args()
 
     if not PACK.is_dir():
@@ -60,10 +70,12 @@ def main():
     for p in sorted(PACK.rglob("*")):
         if p.is_file():
             rel = p.relative_to(PACK)
-            # Skip README / dotfiles
+            # Skip README / dotfiles / empty files (GitHub releases reject 0-byte assets)
             if rel.name.startswith(".") or rel.name.lower() == "readme.md":
                 continue
-            asset = flat_asset_name(rel)
+            if p.stat().st_size == 0:
+                continue
+            asset = gh_safe_asset_name(flat_asset_name(rel))
             url = f"https://github.com/{args.repo}/releases/download/{args.release}/{asset}"
             files.append({
                 "path":   str(rel).replace("\\", "/"),

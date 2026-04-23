@@ -38,6 +38,29 @@ public final class ModpackUpdater {
         this.listener = listener;
     }
 
+    /**
+     * Checks whether the remote manifest's version differs from the cached one.
+     * Returns true when an update is available (including the first-run case
+     * where the local cache doesn't exist yet). Network failures are treated
+     * as "no update" so the UI stays usable offline.
+     */
+    public static boolean hasUpdate() {
+        try {
+            String remoteJson = Downloader.toString(Constants.MANIFEST_URL);
+            Manifest remote = GSON.fromJson(remoteJson, Manifest.class);
+            if (remote == null || remote.version == null) return false;
+
+            Path cache = AppPaths.manifestCache();
+            if (!Files.exists(cache)) return true;
+            Manifest local = GSON.fromJson(Files.readString(cache), Manifest.class);
+            if (local == null || local.version == null) return true;
+            return !remote.version.equals(local.version);
+        } catch (Exception e) {
+            LOG.warn("Modpack update check failed: {}", e.toString());
+            return false;
+        }
+    }
+
     public void sync() throws IOException {
         status("Téléchargement du manifest…");
         String json = Downloader.toString(Constants.MANIFEST_URL);
