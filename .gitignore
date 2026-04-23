@@ -10,3 +10,6 @@ bin/
 pack-dist/
 local.properties
 .env
+pack/mods/
+manifest.json
+dist/

@@ -19,9 +19,11 @@ public final class MicrosoftAuth {
      * Must be called from the JavaFX application thread.
      */
     public static CompletableFuture<Account> loginWithWebview() {
+        LOG.info("Microsoft login starting (OpenAuth async webview)…");
         return CompletableFuture.supplyAsync(() -> {
             MicrosoftAuthenticator authenticator = new MicrosoftAuthenticator();
             try {
+                LOG.debug("Calling loginWithAsyncWebview()…");
                 MicrosoftAuthResult result = authenticator.loginWithAsyncWebview().get();
                 MinecraftProfile profile = result.getProfile();
                 LOG.info("Microsoft login OK — {} ({})", profile.getName(), profile.getId());
@@ -33,7 +35,11 @@ public final class MicrosoftAuth {
                         result.getRefreshToken()
                 );
             } catch (Exception e) {
-                throw new RuntimeException("Connexion Microsoft échouée: " + e.getMessage(), e);
+                LOG.error("Microsoft login FAILED: {}", e.toString(), e);
+                // Unwrap ExecutionException to get the real cause message
+                Throwable cause = e;
+                while (cause.getCause() != null && cause.getCause() != cause) cause = cause.getCause();
+                throw new RuntimeException("Connexion Microsoft échouée: " + cause.getMessage(), cause);
             }
         });
     }

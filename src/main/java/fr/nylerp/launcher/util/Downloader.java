@@ -25,15 +25,17 @@ public final class Downloader {
     public static void toFile(String url, Path dest, Progress progress) throws IOException {
         Files.createDirectories(dest.getParent());
         Path tmp = dest.resolveSibling(dest.getFileName() + ".part");
-        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofMinutes(5))
-                .GET()
-                .build();
-        try {
-            HttpResponse<InputStream> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofInputStream());
-            if (resp.statusCode() != 200) {
-                throw new IOException("HTTP " + resp.statusCode() + " on " + url);
-            }
+
+        // First attempt
+        HttpResponse<InputStream> resp = doGet(url);
+        // GitHub Releases occasionally caches a 404 on download URLs. Cache-bust + retry once.
+        if (resp.statusCode() == 404 && !url.contains("?")) {
+            String bust = url + "?cb=" + System.currentTimeMillis();
+            resp = doGet(bust);
+        }
+        if (resp.statusCode() != 200) {
+            throw new IOException("HTTP " + resp.statusCode() + " on " + url);
+        }
             long total = resp.headers().firstValueAsLong("content-length").orElse(-1);
             try (InputStream in = resp.body()) {
                 try (var out = Files.newOutputStream(tmp)) {
@@ -48,6 +50,17 @@ public final class Downloader {
                 }
             }
             Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    private static HttpResponse<InputStream> doGet(String url) throws IOException {
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMinutes(5))
+                .header("User-Agent", "NyleLauncher/0.1.0")
+                .header("Accept", "*/*")
+                .GET()
+                .build();
+        try {
+            return HTTP.send(req, HttpResponse.BodyHandlers.ofInputStream());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Download interrupted", e);
@@ -57,6 +70,8 @@ public final class Downloader {
     public static String toString(String url) throws IOException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(30))
+                .header("User-Agent", "NyleLauncher/0.1.0")
+                .header("Accept", "*/*")
                 .GET()
                 .build();
         try {
