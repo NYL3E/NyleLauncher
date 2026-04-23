@@ -15,13 +15,13 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.SVGPath;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
 
 import java.awt.Desktop;
@@ -169,75 +169,84 @@ public class MainView extends BorderPane {
         return l;
     }
 
-    // ── Content ─────────────────────────────────────────────────────────────
+    // ── Content (maquette: fond image + logo left + glass news right) ──────
 
     private Region buildContent() {
-        Label kicker = labelOf("ROLEPLAY · FRANCE · SAISON 0", "kicker");
-        HBox dotBox = new HBox(6);
-        dotBox.setAlignment(Pos.CENTER_LEFT);
+        StackPane stack = new StackPane();
+        // Use CSS background so the image auto-fits via -fx-background-size: cover.
+        String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
+        stack.setStyle(
+                "-fx-background-image: url('" + imgUrl + "');" +
+                "-fx-background-size: cover;" +
+                "-fx-background-position: center center;" +
+                "-fx-background-repeat: no-repeat;"
+        );
+
+        // ── Left overlay: logo + player count ──────────────────────────────
+        NyleLogo logo = new NyleLogo(64, Color.web("#FF6A1A"));
         Circle dot = new Circle(4, Color.web("#22C55E"));
-        Label online = labelOf("42 JOUEURS EN LIGNE", "online-label");
-        dotBox.getChildren().addAll(dot, online);
         pulse(dot);
+        Label online = new Label("42 JOUEURS EN LIGNE");
+        online.setFont(Fonts.black(11));
+        online.setTextFill(Color.web("#F4F4F7"));
+        online.setStyle("-fx-letter-spacing: 0.18em;");
+        HBox onlineRow = new HBox(8, dot, online);
+        onlineRow.setAlignment(Pos.CENTER_LEFT);
 
-        Region sep = new Region();
-        sep.setMinWidth(1); sep.setPrefWidth(1); sep.setMaxWidth(1);
-        sep.setPrefHeight(12);
-        sep.setStyle("-fx-background-color: rgba(255,255,255,0.08);");
-        HBox meta = new HBox(14, kicker, sep, dotBox);
-        meta.setAlignment(Pos.CENTER_LEFT);
+        HBox leftBlock = new HBox(16, logo, onlineRow);
+        leftBlock.setAlignment(Pos.CENTER_LEFT);
+        StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
+        StackPane.setMargin(leftBlock, new Insets(30, 0, 0, 40));
 
-        Text t1 = new Text("Rejoignez\nl'"); t1.setFont(Fonts.semi(50));  t1.setFill(Color.web("#F4F4F7"));
-        Text t2 = new Text("aventure.");     t2.setFont(Fonts.bold(50));  t2.setFill(Color.web("#FF6A1A"));
-        TextFlow title = new TextFlow(t1, t2);
-        title.setMaxWidth(520);
-        title.setLineSpacing(-6);
+        // ── Right overlay: Glass Actualité panel ───────────────────────────
+        Region newsPanel = buildGlassNewsPanel();
+        StackPane.setAlignment(newsPanel, Pos.TOP_RIGHT);
+        StackPane.setMargin(newsPanel, new Insets(20, 22, 20, 0));
 
-        Label sub = new Label("Un serveur roleplay exigeant et artisanal. Du vrai jeu, pas du grind.");
-        sub.setFont(Fonts.medium(13));
-        sub.setTextFill(Color.web("#A2A2AC"));
-        sub.setWrapText(true);
-        sub.setMaxWidth(520);
-
-        GridPane features = new GridPane();
-        features.setHgap(10);
-        features.setVgap(10);
-        features.setMaxWidth(Double.MAX_VALUE);
-        features.add(featureCard(voiceIcon(),  "Chat vocal",    "Voix proche entre joueurs."), 0, 0);
-        features.add(featureCard(maskIcon(),   "Roleplay",      "Lore profond, events hebdo."), 1, 0);
-        features.add(featureCard(coinIcon(),   "Économie",      "Commerces et gemmes."), 0, 1);
-        features.add(featureCard(sparkIcon(),  "Cosmétiques",   "Pets, lootbox, skins."), 1, 1);
-        ColumnConstraints eq = new ColumnConstraints();
-        eq.setPercentWidth(50);
-        features.getColumnConstraints().addAll(eq, eq);
-
-        VBox left = new VBox(14, meta, title, sub, features);
-        left.setAlignment(Pos.TOP_LEFT);
-
-        VBox right = buildNewsColumn();
-
-        HBox row = new HBox(24, left, right);
-        row.setAlignment(Pos.TOP_LEFT);
-        row.setPadding(new Insets(18, 40, 10, 40));
-        return new VBox(row);
+        stack.getChildren().addAll(leftBlock, newsPanel);
+        return stack;
     }
 
-    private VBox buildNewsColumn() {
-        Label title = new Label("Actualités");
-        title.setFont(Fonts.bold(16));
+    private Region buildGlassNewsPanel() {
+        Label title = new Label("ACTUALITÉ");
+        title.setFont(Fonts.black(13));
         title.setTextFill(Color.web("#F4F4F7"));
+        title.setStyle("-fx-letter-spacing: 0.22em;");
+        HBox header = new HBox(title);
+        header.setPadding(new Insets(18, 22, 14, 22));
+        header.setAlignment(Pos.CENTER_LEFT);
 
-        VBox col = new VBox(8);
-        col.setPrefWidth(300);
-        col.setMaxWidth(300);
+        Region divider = new Region();
+        divider.setPrefHeight(1);
+        divider.setMaxHeight(1);
+        divider.setStyle("-fx-background-color: rgba(255,255,255,0.10);");
 
-        col.getChildren().addAll(
-                title,
-                newsItem("NOUVEAU", "Lootbox animées", "Trois nouvelles lootbox — classique, légendaire, ultime."),
-                newsItem("MAJ", "Mods optionnels", "Litematica disponible dans les paramètres."),
-                newsItem("ÉVÉNEMENT", "Weekend XP double", "Du vendredi soir au dimanche — profitez-en.")
+        VBox body = new VBox(12);
+        body.setPadding(new Insets(16, 20, 20, 20));
+        body.getChildren().addAll(
+                newsItem("NOUVEAU", "Lootbox animées",
+                        "Trois nouvelles lootbox — classique, légendaire, ultime."),
+                newsItem("MAJ", "Mods optionnels",
+                        "Litematica désormais disponible dans les paramètres."),
+                newsItem("ÉVÉNEMENT", "Weekend XP double",
+                        "Vendredi soir au dimanche — profitez-en pour monter.")
         );
-        return col;
+
+        ScrollPane scroll = new ScrollPane(body);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setPannable(true);
+        scroll.getStyleClass().add("settings-scroll");
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        VBox panel = new VBox(header, divider, scroll);
+        panel.getStyleClass().add("glass-news-panel");
+        panel.setPrefWidth(320);
+        panel.setMaxWidth(320);
+        panel.setPrefHeight(420);
+        panel.setMaxHeight(420);
+        return panel;
     }
 
     private Region newsItem(String tag, String title, String desc) {
@@ -254,53 +263,11 @@ public class MainView extends BorderPane {
         d.setTextFill(Color.web("#A2A2AC"));
         d.setWrapText(true);
 
-        VBox v = new VBox(4, tagLbl, t, d);
-        v.getStyleClass().add("news-item");
-        v.setPadding(new Insets(10, 12, 10, 12));
+        VBox v = new VBox(6, tagLbl, t, d);
+        v.getStyleClass().add("news-item-glass");
+        v.setPadding(new Insets(12, 14, 12, 14));
         Animations.hoverLift(v, 2);
         return v;
-    }
-
-    private VBox featureCard(SVGPath icon, String title, String desc) {
-        icon.setFill(Color.web("#FF6A1A"));
-        StackPane iconWrap = new StackPane(icon);
-        iconWrap.setMinHeight(22);
-        iconWrap.setAlignment(Pos.CENTER_LEFT);
-
-        Label h = new Label(title);
-        h.setFont(Fonts.semi(13));
-        h.setTextFill(Color.web("#F4F4F7"));
-        Label d = new Label(desc);
-        d.setFont(Fonts.medium(11));
-        d.setTextFill(Color.web("#A2A2AC"));
-        d.setWrapText(true);
-        VBox v = new VBox(4, iconWrap, spacer(2), h, d);
-        v.getStyleClass().add("feature-card");
-        v.setPadding(new Insets(12, 12, 12, 12));
-        v.setPrefHeight(82);
-        Animations.hoverLift(v, 3);
-        return v;
-    }
-
-    private SVGPath voiceIcon() {
-        SVGPath p = new SVGPath();
-        p.setContent("M8 3.75a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0v-6Z M5 9.75a.75.75 0 0 1 1.5 0 5.5 5.5 0 0 0 11 0 .75.75 0 0 1 1.5 0 7 7 0 0 1-6.25 6.957V19a.75.75 0 0 1-1.5 0v-2.293A7 7 0 0 1 5 9.75Z");
-        return p;
-    }
-    private SVGPath maskIcon() {
-        SVGPath p = new SVGPath();
-        p.setContent("M12 2C7 2 3 6 3 11c0 4 2.5 7 5 8 1 .4 2 .5 3 .2V19c-.5-.3-1-.8-1-1.5 0-1 1-1.5 2-1.5s2 .5 2 1.5c0 .7-.5 1.2-1 1.5v.2c1 .3 2 .2 3-.2 2.5-1 5-4 5-8 0-5-4-9-9-9Zm-3.5 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z");
-        return p;
-    }
-    private SVGPath coinIcon() {
-        SVGPath p = new SVGPath();
-        p.setContent("M12 2.25a9.75 9.75 0 1 0 0 19.5 9.75 9.75 0 0 0 0-19.5Zm.75 4.5v.5c1.1.2 2 1 2 2h-1.5c0-.3-.4-.75-1.25-.75s-1.25.45-1.25.75c0 .35.35.6 1.7.95 1.6.4 2.8 1.05 2.8 2.55 0 1-.9 1.8-2 2v.5a.75.75 0 1 1-1.5 0v-.5c-1.1-.2-2-1-2-2h1.5c0 .3.4.75 1.25.75s1.25-.45 1.25-.75c0-.35-.35-.6-1.7-.95-1.6-.4-2.8-1.05-2.8-2.55 0-1 .9-1.8 2-2v-.5a.75.75 0 1 1 1.5 0Z");
-        return p;
-    }
-    private SVGPath sparkIcon() {
-        SVGPath p = new SVGPath();
-        p.setContent("M9 2l1.2 3.8L14 7l-3.8 1.2L9 12 7.8 8.2 4 7l3.8-1.2L9 2Zm8 6l.9 2.6L20.5 12l-2.6.9L17 15.5l-.9-2.6L13.5 12l2.6-.9L17 8Zm-4 7l.7 2.2L15.9 18l-2.2.7L13 21l-.7-2.3L10.1 18l2.2-.8L13 15Z");
-        return p;
     }
 
     private void pulse(Circle dot) {

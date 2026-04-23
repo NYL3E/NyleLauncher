@@ -215,7 +215,7 @@
 }
 .update-download-btn:hover { -fx-background-color: -c-accent-hi; }
 
-/* News items */
+/* News items (legacy) */
 .news-item {
     -fx-background-color: -c-glass;
     -fx-background-radius: 12;
@@ -227,6 +227,46 @@
 .news-item:hover {
     -fx-background-color: -c-glass-hi;
     -fx-border-color: -c-glass-brd-hi;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Glass "Actualité" panel — Figma params:
+     Light  : -45° / 80%   → gradient border top-left → bottom-right
+     Refraction : 90       → semi-transparent dark surface
+     Depth  : 50           → subtle contrast between surface + border
+     Dispersion : 50       → accent gradient highlight top-left corner
+     Frost  : 10           → very light surface haze (low-alpha overlay)
+     Splay  : 0            → no edge spread
+   ────────────────────────────────────────────────────────────────────── */
+.glass-news-panel {
+    -fx-background-color:
+        linear-gradient(to bottom right,
+            rgba(255,255,255,0.07) 0%,
+            rgba(255,255,255,0.03) 45%,
+            rgba(0,0,0,0.20) 100%);
+    -fx-background-radius: 22;
+    -fx-border-color: linear-gradient(to bottom right,
+        rgba(255,255,255,0.32),
+        rgba(255,255,255,0.06));
+    -fx-border-radius: 22;
+    -fx-border-width: 1.2;
+}
+
+.news-item-glass {
+    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-background-radius: 12;
+    -fx-border-color: linear-gradient(to bottom right,
+        rgba(255,255,255,0.20),
+        rgba(255,255,255,0.04));
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+.news-item-glass:hover {
+    -fx-background-color: rgba(255,255,255,0.09);
+    -fx-border-color: linear-gradient(to bottom right,
+        rgba(255,255,255,0.30),
+        rgba(255,255,255,0.08));
 }
 .news-tag {
     -fx-background-color: rgba(255,106,26,0.12);
@@ -249,10 +289,10 @@
     -fx-letter-spacing: 0.14em;
 }
 
-/* Bottom bar */
+/* Bottom bar — transparent overlay atop the background image */
 .bottom-bar {
-    -fx-background-color: transparent;
-    -fx-border-color: -c-glass-brd transparent transparent transparent;
+    -fx-background-color: rgba(8,8,11,0.70);
+    -fx-border-color: rgba(255,255,255,0.06) transparent transparent transparent;
     -fx-border-width: 1 0 0 0;
 }
 .micro {
