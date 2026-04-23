@@ -183,22 +183,22 @@ public class MainView extends BorderPane {
 
         // ── Left overlay: big white logo + player count ───────────────────
         NyleLogo logo = new NyleLogo(96, Color.WHITE);
-        Circle dot = new Circle(4, Color.web("#22C55E"));
+        Circle dot = new Circle(6, Color.web("#22C55E"));
         pulse(dot);
         Label online = new Label("42 JOUEURS EN LIGNE");
-        online.setFont(Fonts.black(11));
+        online.setFont(Fonts.medium(14));
         online.setTextFill(Color.web("#F4F4F7"));
-        online.setStyle("-fx-letter-spacing: 0.18em;");
-        HBox onlineRow = new HBox(8, dot, online);
+        online.setStyle("-fx-letter-spacing: 0.16em;");
+        HBox onlineRow = new HBox(10, dot, online);
         onlineRow.setAlignment(Pos.CENTER_LEFT);
 
-        HBox leftBlock = new HBox(18, logo, onlineRow);
+        HBox leftBlock = new HBox(20, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
         leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
         leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        // Sits well under the capsule with comfortable breathing room
-        StackPane.setMargin(leftBlock, new Insets(82, 0, 0, 30));
+        // Slightly higher than before
+        StackPane.setMargin(leftBlock, new Insets(70, 0, 0, 30));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
