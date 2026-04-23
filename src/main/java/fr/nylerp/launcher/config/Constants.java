@@ -2,6 +2,7 @@ package fr.nylerp.launcher.config;
 
 public final class Constants {
     public static final String APP_NAME     = "NyleLauncher";
+    public static final String APP_VERSION  = "0.1.0";
     public static final String MC_VERSION   = "1.21.1";
     public static final String LOADER       = "fabric";
     public static final String SERVER_HOST  = "play.nylerp.fr";

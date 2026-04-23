@@ -5,6 +5,7 @@ import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.config.Settings;
 import fr.nylerp.launcher.launch.MinecraftLauncher;
 import fr.nylerp.launcher.update.ModpackUpdater;
+import fr.nylerp.launcher.update.SelfUpdater;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
@@ -18,16 +19,18 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.SVGPath;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
+
+import java.awt.Desktop;
+import java.net.URI;
 
 public class MainView extends BorderPane {
 
     private final Label status = new Label("Prêt à jouer");
     private final ProgressBar progress = new ProgressBar(0);
+    private HBox updateBanner;
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
@@ -42,6 +45,18 @@ public class MainView extends BorderPane {
                 Animations.enter(n, Duration.millis(100 + (i++) * 80));
             }
         }
+
+        // Async self-update check — show banner in top bar if newer exists
+        SelfUpdater.check().thenAccept(info -> Platform.runLater(() -> {
+            if (info.hasUpdate() && updateBanner != null) {
+                updateBanner.setVisible(true);
+                updateBanner.setManaged(true);
+                ((Label) updateBanner.getChildren().get(1)).setText(
+                        "Mise à jour " + info.latestTag() + " disponible");
+                Button dl = (Button) updateBanner.getChildren().get(2);
+                dl.setOnAction(e -> openBrowser(info.releaseUrl()));
+            }
+        }));
     }
 
     // ── Top bar ─────────────────────────────────────────────────────────────
@@ -58,26 +73,42 @@ public class MainView extends BorderPane {
                 navLink("Discord", false));
         nav.setAlignment(Pos.CENTER);
 
-        Button settingsBtn = new Button();
-        settingsBtn.getStyleClass().addAll("icon-btn", "icon-btn-emphasis");
-        settingsBtn.setGraphic(Icons.gear(20, Color.web("#F4F4F7")));
+        // ─── Unified glass header capsule: skin + name + gear + logout ──────
+        HBox capsule = new HBox(8);
+        capsule.getStyleClass().add("header-capsule");
+        capsule.setAlignment(Pos.CENTER_LEFT);
+        capsule.setPadding(new Insets(4, 6, 4, 4));
+
+        SkinHead skin = new SkinHead(account, 30);
+
+        Label name = new Label(account.username());
+        name.setFont(Fonts.semi(13));
+        name.setTextFill(Color.web("#F4F4F7"));
+        Label type = new Label(account.isOffline() ? "OFFLINE" : "MICROSOFT");
+        type.setFont(Fonts.black(9));
+        type.setTextFill(Color.web("#6A6A74"));
+        type.setStyle("-fx-letter-spacing: 0.14em;");
+        VBox userCol = new VBox(1, name, type);
+        userCol.setAlignment(Pos.CENTER_LEFT);
+        userCol.setPadding(new Insets(0, 10, 0, 6));
+
+        Region sep1 = capsuleSep();
+        Region sep2 = capsuleSep();
+
+        Button settingsBtn = capsuleIcon(Icons.gear(16, Color.web("#A2A2AC")), "Paramètres");
         settingsBtn.setOnAction(e -> { if (onSettings != null) onSettings.run(); });
 
-        HBox userPill = new HBox(10,
-                new SkinHead(account, 32),
-                userCol(account),
-                Icons.chevronDown(10, Color.web("#646470")));
-        userPill.setAlignment(Pos.CENTER_LEFT);
-        userPill.getStyleClass().add("user-pill");
-        userPill.setPadding(new Insets(0, 12, 0, 4));
-        userPill.setPrefHeight(40);
-
-        Button logoutBtn = new Button();
-        logoutBtn.getStyleClass().add("icon-btn");
-        logoutBtn.setGraphic(Icons.arrowLeft(14, Color.web("#9B9BA5")));
+        Button logoutBtn = capsuleIcon(Icons.arrowLeft(14, Color.web("#A2A2AC")), "Déconnexion");
         logoutBtn.setOnAction(e -> onLogout.run());
 
-        HBox right = new HBox(10, settingsBtn, userPill, logoutBtn);
+        capsule.getChildren().addAll(skin, userCol, sep1, settingsBtn, sep2, logoutBtn);
+
+        // Right group (update banner + capsule)
+        updateBanner = buildUpdateBanner();
+        updateBanner.setVisible(false);
+        updateBanner.setManaged(false);
+
+        HBox right = new HBox(12, updateBanner, capsule);
         right.setAlignment(Pos.CENTER_RIGHT);
 
         GridPane bar = new GridPane();
@@ -89,20 +120,44 @@ public class MainView extends BorderPane {
         ColumnConstraints c2 = new ColumnConstraints(); c2.setHalignment(HPos.CENTER);
         ColumnConstraints c3 = new ColumnConstraints(); c3.setHgrow(Priority.ALWAYS); c3.setHalignment(HPos.RIGHT);
         bar.getColumnConstraints().addAll(c1, c2, c3);
-        bar.setPadding(new Insets(0, 24, 0, 24));
+        bar.setPadding(new Insets(0, 20, 0, 24));
         bar.setPrefHeight(64);
         bar.setAlignment(Pos.CENTER);
         return bar;
     }
 
-    private VBox userCol(Account account) {
-        Label name = new Label(account.username());
-        name.getStyleClass().add("user-name");
-        Label type = new Label(account.isOffline() ? "OFFLINE" : "MICROSOFT");
-        type.getStyleClass().add("user-type");
-        VBox v = new VBox(2, name, type);
-        v.setAlignment(Pos.CENTER_LEFT);
-        return v;
+    private HBox buildUpdateBanner() {
+        Circle dot = new Circle(3, Color.web("#FF6A1A"));
+        Label msg = new Label("Mise à jour disponible");
+        msg.setFont(Fonts.semi(11));
+        msg.setTextFill(Color.web("#FF6A1A"));
+        Button dl = new Button("Télécharger");
+        dl.setFont(Fonts.bold(11));
+        dl.getStyleClass().add("update-download-btn");
+        HBox b = new HBox(8, dot, msg, dl);
+        b.setAlignment(Pos.CENTER_LEFT);
+        b.getStyleClass().add("update-banner");
+        b.setPadding(new Insets(6, 10, 6, 12));
+        return b;
+    }
+
+    private Button capsuleIcon(javafx.scene.Node icon, String tooltip) {
+        Button b = new Button();
+        b.getStyleClass().add("capsule-icon");
+        b.setGraphic(icon);
+        b.setPrefSize(28, 28);
+        b.setMinSize(28, 28);
+        b.setMaxSize(28, 28);
+        if (tooltip != null) b.setTooltip(new javafx.scene.control.Tooltip(tooltip));
+        return b;
+    }
+
+    private Region capsuleSep() {
+        Region r = new Region();
+        r.setMinWidth(1); r.setPrefWidth(1); r.setMaxWidth(1);
+        r.setMinHeight(20); r.setPrefHeight(20); r.setMaxHeight(20);
+        r.setStyle("-fx-background-color: rgba(255,255,255,0.08);");
+        return r;
     }
 
     private Label navLink(String text, boolean active) {
@@ -120,10 +175,7 @@ public class MainView extends BorderPane {
     // ── Content ─────────────────────────────────────────────────────────────
 
     private Region buildContent() {
-        // Kicker + server status
-        HBox meta = new HBox(14);
-        meta.setAlignment(Pos.CENTER_LEFT);
-
+        // Left column: hero + feature grid
         Label kicker = labelOf("ROLEPLAY · FRANCE · SAISON 0", "kicker");
         HBox dotBox = new HBox(6);
         dotBox.setAlignment(Pos.CENTER_LEFT);
@@ -135,92 +187,125 @@ public class MainView extends BorderPane {
         Region sep = new Region();
         sep.setMinWidth(1); sep.setPrefWidth(1); sep.setMaxWidth(1);
         sep.setPrefHeight(12);
-        sep.setStyle("-fx-background-color: #32323C;");
+        sep.setStyle("-fx-background-color: rgba(255,255,255,0.08);");
+        HBox meta = new HBox(14, kicker, sep, dotBox);
+        meta.setAlignment(Pos.CENTER_LEFT);
 
-        meta.getChildren().addAll(kicker, sep, dotBox);
-
-        // Title — apply font directly so weight truly pops
-        Text t1 = new Text("Rejoignez\nl'"); t1.setFont(Fonts.bold(58));  t1.setFill(Color.web("#F4F4F7"));
-        Text t2 = new Text("aventure.");      t2.setFont(Fonts.black(58)); t2.setFill(Color.web("#FF6A1A"));
+        Text t1 = new Text("Rejoignez\nl'"); t1.setFont(Fonts.semi(54));  t1.setFill(Color.web("#F4F4F7"));
+        Text t2 = new Text("aventure.");     t2.setFont(Fonts.bold(54));  t2.setFill(Color.web("#FF6A1A"));
         TextFlow title = new TextFlow(t1, t2);
-        title.setMaxWidth(700);
+        title.setMaxWidth(520);
         title.setLineSpacing(-6);
 
         Label sub = new Label("Un serveur roleplay exigeant et artisanal. Du vrai jeu, pas du grind.");
         sub.setFont(Fonts.medium(14));
         sub.setTextFill(Color.web("#A2A2AC"));
         sub.setWrapText(true);
-        sub.setMaxWidth(560);
+        sub.setMaxWidth(520);
 
-        // Feature grid — 4 glass tiles
         GridPane features = new GridPane();
-        features.setHgap(16);
-        features.setVgap(16);
+        features.setHgap(12);
+        features.setVgap(12);
         features.setMaxWidth(Double.MAX_VALUE);
         features.add(featureCard(voiceIcon(),  "Chat vocal",      "Voix proche entre joueurs."), 0, 0);
         features.add(featureCard(maskIcon(),   "Roleplay",        "Lore profond, events hebdo."), 1, 0);
-        features.add(featureCard(coinIcon(),   "Économie joueur", "Commerces et gemmes premium."), 2, 0);
-        features.add(featureCard(sparkIcon(),  "Cosmétiques",     "Pets, lootbox, skins exclus."), 3, 0);
+        features.add(featureCard(coinIcon(),   "Économie",        "Commerces et gemmes."), 0, 1);
+        features.add(featureCard(sparkIcon(),  "Cosmétiques",     "Pets, lootbox, skins."), 1, 1);
         ColumnConstraints eq = new ColumnConstraints();
-        eq.setPercentWidth(25);
-        features.getColumnConstraints().addAll(eq, eq, eq, eq);
+        eq.setPercentWidth(50);
+        features.getColumnConstraints().addAll(eq, eq);
 
-        VBox col = new VBox(20,
-                meta,
+        VBox left = new VBox(18, meta, title, sub, features);
+        left.setAlignment(Pos.TOP_LEFT);
+
+        // Right column: news
+        VBox right = buildNewsColumn();
+
+        HBox row = new HBox(28, left, right);
+        row.setAlignment(Pos.TOP_LEFT);
+        row.setPadding(new Insets(32, 40, 28, 40));
+        return new VBox(row);
+    }
+
+    private VBox buildNewsColumn() {
+        Label title = new Label("Actualités");
+        title.setFont(Fonts.bold(16));
+        title.setTextFill(Color.web("#F4F4F7"));
+
+        VBox col = new VBox(10);
+        col.setPrefWidth(300);
+        col.setMaxWidth(300);
+
+        col.getChildren().addAll(
                 title,
-                sub,
-                spacer(8),
-                features);
-        col.setAlignment(Pos.CENTER_LEFT);
-        col.setPadding(new Insets(36, 48, 28, 48));
+                spacer(2),
+                newsItem("NOUVEAU", "Lootbox animées", "Trois nouvelles lootbox — classique, légendaire, ultime."),
+                newsItem("MAJ",     "Mods optionnels", "Litematica disponible dans les paramètres."),
+                newsItem("ÉVÉNEMENT", "Weekend XP double", "Du vendredi soir au dimanche — profitez-en.")
+        );
         return col;
+    }
+
+    private Region newsItem(String tag, String title, String desc) {
+        Label tagLbl = new Label(tag);
+        tagLbl.setFont(Fonts.black(9));
+        tagLbl.getStyleClass().add("news-tag");
+
+        Label t = new Label(title);
+        t.setFont(Fonts.bold(13));
+        t.setTextFill(Color.web("#F4F4F7"));
+
+        Label d = new Label(desc);
+        d.setFont(Fonts.medium(11));
+        d.setTextFill(Color.web("#A2A2AC"));
+        d.setWrapText(true);
+
+        VBox v = new VBox(6, tagLbl, t, d);
+        v.getStyleClass().add("news-item");
+        v.setPadding(new Insets(12, 14, 12, 14));
+        Animations.hoverLift(v, 2);
+        return v;
     }
 
     private VBox featureCard(SVGPath icon, String title, String desc) {
         icon.setFill(Color.web("#FF6A1A"));
         StackPane iconWrap = new StackPane(icon);
-        iconWrap.setMinHeight(28);
+        iconWrap.setMinHeight(24);
         iconWrap.setAlignment(Pos.CENTER_LEFT);
 
         Label h = new Label(title);
-        h.setFont(Fonts.bold(14));
+        h.setFont(Fonts.semi(13));
         h.setTextFill(Color.web("#F4F4F7"));
         Label d = new Label(desc);
         d.setFont(Fonts.medium(11));
         d.setTextFill(Color.web("#A2A2AC"));
         d.setWrapText(true);
-        d.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
-        VBox v = new VBox(6, iconWrap, spacer(4), h, d);
+        VBox v = new VBox(4, iconWrap, spacer(2), h, d);
         v.getStyleClass().add("feature-card");
-        v.setPadding(new Insets(16, 16, 16, 16));
-        v.setPrefHeight(150);
+        v.setPadding(new Insets(14, 14, 14, 14));
+        v.setPrefHeight(94);
         Animations.hoverLift(v, 3);
         return v;
     }
 
-    // Small icons — Heroicons solid, orange fill
     private SVGPath voiceIcon() {
         SVGPath p = new SVGPath();
         p.setContent("M8 3.75a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0v-6Z M5 9.75a.75.75 0 0 1 1.5 0 5.5 5.5 0 0 0 11 0 .75.75 0 0 1 1.5 0 7 7 0 0 1-6.25 6.957V19a.75.75 0 0 1-1.5 0v-2.293A7 7 0 0 1 5 9.75Z");
-        p.setScaleX(1.1); p.setScaleY(1.1);
         return p;
     }
     private SVGPath maskIcon() {
         SVGPath p = new SVGPath();
         p.setContent("M12 2C7 2 3 6 3 11c0 4 2.5 7 5 8 1 .4 2 .5 3 .2V19c-.5-.3-1-.8-1-1.5 0-1 1-1.5 2-1.5s2 .5 2 1.5c0 .7-.5 1.2-1 1.5v.2c1 .3 2 .2 3-.2 2.5-1 5-4 5-8 0-5-4-9-9-9Zm-3.5 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm7 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z");
-        p.setScaleX(1.1); p.setScaleY(1.1);
         return p;
     }
     private SVGPath coinIcon() {
         SVGPath p = new SVGPath();
         p.setContent("M12 2.25a9.75 9.75 0 1 0 0 19.5 9.75 9.75 0 0 0 0-19.5Zm.75 4.5v.5c1.1.2 2 1 2 2h-1.5c0-.3-.4-.75-1.25-.75s-1.25.45-1.25.75c0 .35.35.6 1.7.95 1.6.4 2.8 1.05 2.8 2.55 0 1-.9 1.8-2 2v.5a.75.75 0 1 1-1.5 0v-.5c-1.1-.2-2-1-2-2h1.5c0 .3.4.75 1.25.75s1.25-.45 1.25-.75c0-.35-.35-.6-1.7-.95-1.6-.4-2.8-1.05-2.8-2.55 0-1 .9-1.8 2-2v-.5a.75.75 0 1 1 1.5 0Z");
-        p.setScaleX(1.1); p.setScaleY(1.1);
         return p;
     }
     private SVGPath sparkIcon() {
         SVGPath p = new SVGPath();
         p.setContent("M9 2l1.2 3.8L14 7l-3.8 1.2L9 12 7.8 8.2 4 7l3.8-1.2L9 2Zm8 6l.9 2.6L20.5 12l-2.6.9L17 15.5l-.9-2.6L13.5 12l2.6-.9L17 8Zm-4 7l.7 2.2L15.9 18l-2.2.7L13 21l-.7-2.3L10.1 18l2.2-.8L13 15Z");
-        p.setScaleX(1.1); p.setScaleY(1.1);
         return p;
     }
 
@@ -260,16 +345,16 @@ public class MainView extends BorderPane {
 
         Button play = new Button("JOUER");
         play.getStyleClass().add("btn-play");
-        play.setFont(Fonts.black(30));
+        play.setFont(Fonts.bold(24));
         play.setTextFill(Color.WHITE);
-        play.setPrefWidth(260);
-        play.setPrefHeight(72);
+        play.setPrefWidth(220);
+        play.setPrefHeight(64);
         play.setOnAction(e -> startPlay(play));
 
-        HBox bar = new HBox(30, mem, mid, play);
+        HBox bar = new HBox(28, mem, mid, play);
         bar.setAlignment(Pos.CENTER);
         bar.setPadding(new Insets(0, 32, 0, 32));
-        bar.setPrefHeight(96);
+        bar.setPrefHeight(88);
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
@@ -278,6 +363,14 @@ public class MainView extends BorderPane {
         Region r = new Region();
         r.setMinHeight(h); r.setPrefHeight(h); r.setMaxHeight(h);
         return r;
+    }
+
+    private void openBrowser(String url) {
+        try {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new URI(url));
+            }
+        } catch (Exception ignored) {}
     }
 
     // ── Launch ──────────────────────────────────────────────────────────────
@@ -302,8 +395,7 @@ public class MainView extends BorderPane {
                 } catch (Exception syncErr) {
                     org.slf4j.LoggerFactory.getLogger("ModpackSync")
                             .warn("Modpack sync failed, continuing local: {}", syncErr.toString(), syncErr);
-                    Platform.runLater(() -> status.setText(
-                            "Sync KO, lancement local…"));
+                    Platform.runLater(() -> status.setText("Sync KO, lancement local…"));
                 }
 
                 Account account = fr.nylerp.launcher.auth.AuthManager.loadSaved();
