@@ -172,11 +172,11 @@ public class MainView extends BorderPane {
         // ── Header capsule overlay (no more black strip above the picture) ──
         Region capsule = buildHeaderCapsule(account, onLogout, onSettings);
         StackPane.setAlignment(capsule, Pos.TOP_LEFT);
-        StackPane.setMargin(capsule, new Insets(12, 0, 0, 20));
+        StackPane.setMargin(capsule, new Insets(20, 0, 0, 20));
 
         // Update banner on the right
         StackPane.setAlignment(updateBanner, Pos.TOP_RIGHT);
-        StackPane.setMargin(updateBanner, new Insets(12, 20, 0, 0));
+        StackPane.setMargin(updateBanner, new Insets(20, 20, 0, 0));
 
         // ── Left overlay: big white logo + player count ───────────────────
         NyleLogo logo = new NyleLogo(96, Color.WHITE);
@@ -194,8 +194,8 @@ public class MainView extends BorderPane {
         leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
         leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        // Sits a bit further under the capsule
-        StackPane.setMargin(leftBlock, new Insets(66, 0, 0, 30));
+        // Sits well under the capsule with comfortable breathing room
+        StackPane.setMargin(leftBlock, new Insets(82, 0, 0, 30));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
