@@ -5,16 +5,15 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Round avatar showing the Minecraft skin head.
- * - Microsoft account → real skin via mc-heads.net (UUID)
- * - Offline account    → local embedded Steve head (works without network)
- * Remote fetch is async; while it loads (or if it fails), the local Steve PNG is shown.
+ * Square (not round) avatar of the Minecraft skin head.
+ * - Local steve_head.png baked in as an immediate, always-working fallback.
+ * - For Microsoft accounts, the real skin loads async from mc-heads.net and overlays
+ *   once fully fetched.
  */
 public class SkinHead extends StackPane {
 
@@ -25,21 +24,18 @@ public class SkinHead extends StackPane {
         setMaxSize(size, size);
         setPrefSize(size, size);
 
-        // Clip to circle
-        Circle clip = new Circle(size / 2, size / 2, size / 2);
-        setClip(clip);
-
-        // Background placeholder — dark disc in case nothing loads
+        // Square bg (slight rounding for a touch of refinement, not a circle)
         Rectangle bg = new Rectangle(size, size, Color.web("#1B1B21"));
+        bg.setArcWidth(6);
+        bg.setArcHeight(6);
         getChildren().add(bg);
 
-        // Local Steve as base (always visible)
-        ImageView local = new ImageView();
+        // Local Steve — always visible
         try {
             Image stevePng = new Image(
                     getClass().getResourceAsStream("/images/steve_head.png"),
                     size, size, true, false);
-            local.setImage(stevePng);
+            ImageView local = new ImageView(stevePng);
             local.setFitWidth(size);
             local.setFitHeight(size);
             local.setPreserveRatio(true);
@@ -49,7 +45,7 @@ public class SkinHead extends StackPane {
             LOG.warn("Local steve head missing: {}", e.toString());
         }
 
-        // For Microsoft accounts, try to load the real skin asynchronously on top
+        // Real skin for Microsoft accounts (async overlay)
         if (account != null && !account.isOffline()) {
             try {
                 String id = account.uuid() != null ? account.uuid().replace("-", "") : account.username();
@@ -60,15 +56,9 @@ public class SkinHead extends StackPane {
                 remoteView.setFitHeight(size);
                 remoteView.setPreserveRatio(true);
                 remoteView.setSmooth(false);
-                // Only overlay once fully loaded
                 remote.progressProperty().addListener((o, a, b) -> {
                     if (b != null && b.doubleValue() >= 1.0 && !remote.isError()) {
                         getChildren().add(remoteView);
-                    }
-                });
-                remote.errorProperty().addListener((o, a, b) -> {
-                    if (Boolean.TRUE.equals(b)) {
-                        LOG.warn("Remote skin failed, keeping Steve: {}", url);
                     }
                 });
             } catch (Exception e) {

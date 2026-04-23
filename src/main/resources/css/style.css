@@ -173,20 +173,64 @@
     -fx-border-color: -c-glass-brd-hi;
 }
 
-.user-pill {
+/* Unified glass header capsule: skin + name + gear + logout */
+.header-capsule {
     -fx-background-color: -c-glass;
-    -fx-background-radius: 999;
+    -fx-background-radius: 12;
     -fx-border-color: -c-glass-brd;
-    -fx-border-radius: 999;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+.capsule-icon {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+.capsule-icon:hover {
+    -fx-background-color: rgba(255,255,255,0.06);
+}
+.capsule-icon:pressed {
+    -fx-background-color: rgba(255,255,255,0.10);
+}
+
+/* Update banner */
+.update-banner {
+    -fx-background-color: rgba(255,106,26,0.10);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255,106,26,0.24);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+.update-download-btn {
+    -fx-background-color: -c-accent;
+    -fx-text-fill: #FFFFFF;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-padding: 4 10 4 10;
+}
+.update-download-btn:hover { -fx-background-color: -c-accent-hi; }
+
+/* News items */
+.news-item {
+    -fx-background-color: -c-glass;
+    -fx-background-radius: 12;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 12;
     -fx-border-width: 1;
     -fx-cursor: hand;
 }
-.user-pill:hover {
+.news-item:hover {
     -fx-background-color: -c-glass-hi;
     -fx-border-color: -c-glass-brd-hi;
 }
-.user-name { -fx-text-fill: -c-text;   -fx-font-family: "Montserrat Bold";     -fx-font-size: 13px; }
-.user-type { -fx-text-fill: -c-text-3; -fx-font-family: "Montserrat Black";   -fx-font-size: 9px;  -fx-letter-spacing: 0.14em; }
+.news-tag {
+    -fx-background-color: rgba(255,106,26,0.12);
+    -fx-text-fill: -c-accent;
+    -fx-background-radius: 999;
+    -fx-padding: 3 8 3 8;
+    -fx-letter-spacing: 0.16em;
+}
 
 .kicker {
     -fx-text-fill: -c-accent;
