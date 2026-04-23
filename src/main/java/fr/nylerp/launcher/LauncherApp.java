@@ -5,10 +5,10 @@ import fr.nylerp.launcher.auth.AuthManager;
 import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.ui.LoginView;
 import fr.nylerp.launcher.ui.MainView;
+import fr.nylerp.launcher.ui.SettingsView;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,24 +38,34 @@ public class LauncherApp extends Application {
     }
 
     public void showLogin() {
-        LoginView view = new LoginView(this::onAuthenticated);
-        Scene scene = new Scene(view);
-        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
-        stage.setScene(scene);
+        show(new LoginView(this::onAuthenticated));
     }
 
     public void onAuthenticated(Account account) {
         this.account = account;
         AuthManager.save(account);
-        MainView view = new MainView(account, this::onLogout);
-        Scene scene = new Scene(view);
-        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
-        stage.setScene(scene);
+        show(new MainView(account, this::onLogout, this::showSettings));
+    }
+
+    public void showSettings() {
+        show(new SettingsView(() -> {
+            if (account != null) {
+                show(new MainView(account, this::onLogout, this::showSettings));
+            } else {
+                showLogin();
+            }
+        }));
     }
 
     public void onLogout() {
         AuthManager.clear();
         this.account = null;
         showLogin();
+    }
+
+    private void show(javafx.scene.Parent root) {
+        Scene s = new Scene(root);
+        s.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+        stage.setScene(s);
     }
 }
