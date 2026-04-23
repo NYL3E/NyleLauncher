@@ -161,11 +161,14 @@ public class MainView extends BorderPane {
     private Region buildContent(Account account, Runnable onLogout, Runnable onSettings) {
         StackPane stack = new StackPane();
         String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
+        // background-insets 5 0 -5 0 nudges the bg region 5px down,
+        // so the image visually sits 5px lower than the body.
         stack.setStyle(
                 "-fx-background-image: url('" + imgUrl + "');" +
                 "-fx-background-size: 100% auto;" +
                 "-fx-background-position: center bottom;" +
                 "-fx-background-repeat: no-repeat;" +
+                "-fx-background-insets: 5 0 -5 0;" +
                 "-fx-background-color: #08080B;"
         );
 
@@ -231,13 +234,21 @@ public class MainView extends BorderPane {
                         "Vendredi soir au dimanche — profitez-en pour monter.")
         );
 
-        // 3 items fit — no scrollbar/chevrons needed
-        VBox panel = new VBox(header, divider, body);
+        // Scrollable news list so more items can be added later without resizing the panel
+        ScrollPane scroll = new ScrollPane(body);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setPannable(true);
+        scroll.getStyleClass().add("news-scroll");
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        VBox panel = new VBox(header, divider, scroll);
         panel.getStyleClass().add("glass-news-panel");
         panel.setPrefWidth(320);
         panel.setMaxWidth(320);
-        panel.setPrefHeight(340);
-        panel.setMaxHeight(340);
+        panel.setPrefHeight(260);
+        panel.setMaxHeight(260);
         return panel;
     }
 
