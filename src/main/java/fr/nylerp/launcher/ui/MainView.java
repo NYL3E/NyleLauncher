@@ -59,11 +59,13 @@ public class MainView extends BorderPane {
     // ── Header capsule (overlay, not a dedicated top region) ────────────────
 
     private Region buildHeaderCapsule(Account account, Runnable onLogout, Runnable onSettings) {
-        // Unified glass header capsule — generous padding, fully rounded
+        // Unified glass header capsule — fits its content, never stretches
         HBox capsule = new HBox(8);
         capsule.getStyleClass().add("header-capsule");
         capsule.setAlignment(Pos.CENTER_LEFT);
         capsule.setPadding(new Insets(3, 18, 3, 18));
+        capsule.setMaxWidth(Region.USE_PREF_SIZE);
+        capsule.setMaxHeight(Region.USE_PREF_SIZE);
 
         SkinHead skin = new SkinHead(account, 30);
 
@@ -103,6 +105,8 @@ public class MainView extends BorderPane {
         updateBanner = buildUpdateBanner();
         updateBanner.setVisible(false);
         updateBanner.setManaged(false);
+        updateBanner.setMaxWidth(Region.USE_PREF_SIZE);
+        updateBanner.setMaxHeight(Region.USE_PREF_SIZE);
         return capsule;
     }
 
@@ -187,10 +191,11 @@ public class MainView extends BorderPane {
 
         HBox leftBlock = new HBox(18, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
+        leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
+        leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        // Under the capsule (capsule ends around y=56), with the logo block
-        // starting right below — well above the old 30px we used to have.
-        StackPane.setMargin(leftBlock, new Insets(60, 0, 0, 36));
+        // Sits just under the capsule (which ends around y=52)
+        StackPane.setMargin(leftBlock, new Insets(54, 0, 0, 30));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
