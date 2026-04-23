@@ -115,8 +115,8 @@ public class MainView extends BorderPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox row = new HBox(12, capsule, spacer, updateBanner);
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(10, 20, 0, 20));
-        row.setPrefHeight(58);
+        row.setPadding(new Insets(4, 20, 0, 20));
+        row.setPrefHeight(48);
         row.getStyleClass().add("top-bar-clean");
         return row;
     }
@@ -145,7 +145,9 @@ public class MainView extends BorderPane {
         b.setMaxSize(32, 32);
         if (tooltip != null) {
             Tooltip t = new Tooltip(tooltip);
-            t.setShowDelay(Duration.millis(500));
+            t.setShowDelay(Duration.millis(300));
+            t.setShowDuration(Duration.seconds(8));
+            t.getStyleClass().add("nyle-tooltip");
             b.setTooltip(t);
         }
         return b;
@@ -192,7 +194,7 @@ public class MainView extends BorderPane {
         HBox leftBlock = new HBox(18, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        StackPane.setMargin(leftBlock, new Insets(12, 0, 0, 40));
+        StackPane.setMargin(leftBlock, new Insets(2, 0, 0, 40));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
@@ -352,7 +354,7 @@ public class MainView extends BorderPane {
 
                 Account account = fr.nylerp.launcher.auth.AuthManager.loadSaved();
                 int ramMb = Settings.get().ramMb;
-                MinecraftLauncher.launch(account, ramMb, true, new MinecraftLauncher.Listener() {
+                Process proc = MinecraftLauncher.launch(account, ramMb, true, new MinecraftLauncher.Listener() {
                     @Override public void onStatus(String s) {
                         Platform.runLater(() -> status.setText(s));
                     }
@@ -362,13 +364,28 @@ public class MainView extends BorderPane {
                 });
 
                 Platform.runLater(() -> {
-                    status.setText("Minecraft lancé · " + Constants.SERVER_HOST);
+                    status.setText("Jeu en cours de lancement…");
                     progress.setProgress(1);
-                    play.setDisable(false);
+                    play.setText("EN COURS");
+                    play.setDisable(true);
                 });
+
+                // Watch the MC process and reset UI when it exits
+                if (proc != null) {
+                    new Thread(() -> {
+                        try { proc.waitFor(); } catch (InterruptedException ignored) {}
+                        Platform.runLater(() -> {
+                            status.setText("Prêt à jouer");
+                            progress.setProgress(0);
+                            play.setText("JOUER");
+                            play.setDisable(false);
+                        });
+                    }, "MC-Watch").start();
+                }
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     status.setText("Erreur: " + ex.getMessage());
+                    play.setText("JOUER");
                     play.setDisable(false);
                 });
             }

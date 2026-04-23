@@ -33,7 +33,7 @@ public final class MinecraftLauncher {
         void onProgress(long done, long total);
     }
 
-    public static void launch(Account account, int ramMb, boolean joinServer, Listener listener)
+    public static Process launch(Account account, int ramMb, boolean joinServer, Listener listener)
             throws IOException {
         Listener l = listener != null ? listener : new Listener() {
             public void onStatus(String s) {}
@@ -124,6 +124,7 @@ public final class MinecraftLauncher {
                         + "Voir " + mcLog + " — extraits :\n" + head);
             }
             LOG.info("Minecraft is running (pid {}).", proc.pid());
+            return proc;
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrompu", ie);
