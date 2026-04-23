@@ -124,9 +124,13 @@
 
 .brand {
     -fx-text-fill: -c-text;
-    -fx-font-family: "Montserrat Black";
+    -fx-font-family: "Montserrat SemiBold";
     -fx-font-size: 12px;
     -fx-letter-spacing: 0.22em;
+}
+
+.top-bar-clean {
+    -fx-background-color: transparent;
 }
 
 .nav-link {
@@ -173,17 +177,17 @@
     -fx-border-color: -c-glass-brd-hi;
 }
 
-/* Unified glass header capsule: skin + name + gear + logout */
+/* Unified glass header capsule — fully rounded pill */
 .header-capsule {
     -fx-background-color: -c-glass;
-    -fx-background-radius: 12;
+    -fx-background-radius: 999;
     -fx-border-color: -c-glass-brd;
-    -fx-border-radius: 12;
+    -fx-border-radius: 999;
     -fx-border-width: 1;
 }
 .capsule-icon {
     -fx-background-color: transparent;
-    -fx-background-radius: 8;
+    -fx-background-radius: 999;
     -fx-cursor: hand;
     -fx-padding: 0;
 }
