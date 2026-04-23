@@ -80,9 +80,14 @@ public class LauncherApp extends Application {
         };
         for (String f : files) {
             try {
-                javafx.scene.text.Font.loadFont(
+                javafx.scene.text.Font font = javafx.scene.text.Font.loadFont(
                         LauncherApp.class.getResourceAsStream("/fonts/" + f), 14);
-                LOG.debug("Loaded font: {}", f);
+                if (font != null) {
+                    LOG.info("Font loaded: file='{}' family='{}' name='{}' style='{}'",
+                            f, font.getFamily(), font.getName(), font.getStyle());
+                } else {
+                    LOG.warn("Font.loadFont returned null for {}", f);
+                }
             } catch (Exception e) {
                 LOG.warn("Could not load font {}: {}", f, e.toString());
             }

@@ -18,6 +18,8 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.SVGPath;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
@@ -137,15 +139,16 @@ public class MainView extends BorderPane {
 
         meta.getChildren().addAll(kicker, sep, dotBox);
 
-        // Title
-        Text t1 = new Text("Rejoignez\nl'"); t1.getStyleClass().add("hero-t");
-        Text t2 = new Text("aventure.");      t2.getStyleClass().add("hero-t-em");
+        // Title — apply font directly so weight truly pops
+        Text t1 = new Text("Rejoignez\nl'"); t1.setFont(Fonts.bold(58));  t1.setFill(Color.web("#F4F4F7"));
+        Text t2 = new Text("aventure.");      t2.setFont(Fonts.black(58)); t2.setFill(Color.web("#FF6A1A"));
         TextFlow title = new TextFlow(t1, t2);
         title.setMaxWidth(700);
-        title.setLineSpacing(-8);
+        title.setLineSpacing(-6);
 
         Label sub = new Label("Un serveur roleplay exigeant et artisanal. Du vrai jeu, pas du grind.");
-        sub.getStyleClass().add("hero-sub");
+        sub.setFont(Fonts.medium(14));
+        sub.setTextFill(Color.web("#A2A2AC"));
         sub.setWrapText(true);
         sub.setMaxWidth(560);
 
@@ -180,9 +183,11 @@ public class MainView extends BorderPane {
         iconWrap.setAlignment(Pos.CENTER_LEFT);
 
         Label h = new Label(title);
-        h.getStyleClass().add("feature-title");
+        h.setFont(Fonts.bold(14));
+        h.setTextFill(Color.web("#F4F4F7"));
         Label d = new Label(desc);
-        d.getStyleClass().add("feature-desc");
+        d.setFont(Fonts.medium(11));
+        d.setTextFill(Color.web("#A2A2AC"));
         d.setWrapText(true);
         d.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         VBox v = new VBox(6, iconWrap, spacer(4), h, d);
@@ -255,6 +260,8 @@ public class MainView extends BorderPane {
 
         Button play = new Button("JOUER");
         play.getStyleClass().add("btn-play");
+        play.setFont(Fonts.black(30));
+        play.setTextFill(Color.WHITE);
         play.setPrefWidth(260);
         play.setPrefHeight(72);
         play.setOnAction(e -> startPlay(play));
