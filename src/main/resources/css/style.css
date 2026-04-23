@@ -179,11 +179,16 @@
 
 /* Unified glass header capsule — fully rounded pill */
 .header-capsule {
-    -fx-background-color: -c-glass;
+    -fx-background-color:
+        linear-gradient(to bottom,
+            rgba(28, 22, 48, 0.82) 0%,
+            rgba(22, 18, 40, 0.78) 100%);
     -fx-background-radius: 999;
-    -fx-border-color: -c-glass-brd;
+    -fx-border-color: linear-gradient(to bottom right,
+        rgba(255,255,255,0.32),
+        rgba(255,255,255,0.06));
     -fx-border-radius: 999;
-    -fx-border-width: 1;
+    -fx-border-width: 1.2;
 }
 .capsule-icon {
     -fx-background-color: transparent;
@@ -253,10 +258,9 @@
    ────────────────────────────────────────────────────────────────────── */
 .glass-news-panel {
     -fx-background-color:
-        linear-gradient(to bottom right,
-            rgba(255,255,255,0.07) 0%,
-            rgba(255,255,255,0.03) 45%,
-            rgba(0,0,0,0.20) 100%);
+        linear-gradient(to bottom,
+            rgba(28, 22, 48, 0.82) 0%,
+            rgba(22, 18, 40, 0.78) 100%);
     -fx-background-radius: 22;
     -fx-border-color: linear-gradient(to bottom right,
         rgba(255,255,255,0.32),
@@ -413,24 +417,51 @@
 .ram-slider-big:hover .thumb { -fx-background-color: -c-accent; }
 
 /* Settings ScrollPane */
-/* News-panel internal scroll — transparent + thin scrollbar */
+/* News-panel internal scroll — custom thin pill scrollbar, no arrows */
 .news-scroll, .news-scroll .viewport { -fx-background-color: transparent; }
-.news-scroll > .scroll-bar:vertical { -fx-background-color: transparent; -fx-pref-width: 6; }
-.news-scroll > .scroll-bar:vertical > .thumb {
-    -fx-background-color: rgba(255,255,255,0.22);
-    -fx-background-radius: 999;
+.news-scroll > .scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 8;
+    -fx-padding: 6 2 6 2;
 }
-.news-scroll > .scroll-bar:vertical > .thumb:hover { -fx-background-color: rgba(255,255,255,0.35); }
-.news-scroll > .scroll-bar:vertical > .track,
+.news-scroll > .scroll-bar:vertical > .track {
+    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+}
+.news-scroll > .scroll-bar:vertical > .thumb {
+    -fx-background-color: rgba(255,255,255,0.55);
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 4, 0.2, 0, 1);
+}
+.news-scroll > .scroll-bar:vertical > .thumb:hover {
+    -fx-background-color: rgba(255,255,255,0.75);
+}
+.news-scroll > .scroll-bar:vertical > .thumb:pressed {
+    -fx-background-color: rgba(255,255,255,0.90);
+}
+/* Strip the increment/decrement buttons + arrows completely */
 .news-scroll > .scroll-bar:vertical > .increment-button,
 .news-scroll > .scroll-bar:vertical > .decrement-button {
     -fx-background-color: transparent;
+    -fx-padding: 0;
     -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    visibility: hidden;
 }
 .news-scroll > .scroll-bar:vertical > .increment-arrow,
 .news-scroll > .scroll-bar:vertical > .decrement-arrow {
-    -fx-shape: null; -fx-padding: 0;
+    -fx-shape: null;
+    -fx-padding: 0;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
 }
+/* Hide the horizontal scrollbar completely */
+.news-scroll > .scroll-bar:horizontal { -fx-pref-height: 0; visibility: hidden; }
 
 .settings-scroll, .settings-scroll .viewport { -fx-background-color: transparent; }
 .settings-scroll > .scroll-bar:vertical { -fx-background-color: transparent; -fx-pref-width: 8; }

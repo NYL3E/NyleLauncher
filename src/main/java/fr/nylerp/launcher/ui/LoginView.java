@@ -83,7 +83,7 @@ public class LoginView extends StackPane {
                 authBox
         );
 
-        Label footer = new Label("NyleLauncher v0.1.0  ·  play.nylerp.fr");
+        Label footer = new Label("NyleLauncher v" + fr.nylerp.launcher.config.Constants.APP_VERSION + "  ·  play.nylerp.fr");
         footer.getStyleClass().add("foot-ver");
         StackPane.setAlignment(footer, Pos.BOTTOM_CENTER);
         StackPane.setMargin(footer, new Insets(0, 0, 22, 0));

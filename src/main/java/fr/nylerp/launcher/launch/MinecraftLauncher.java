@@ -35,10 +35,20 @@ public final class MinecraftLauncher {
 
     public static Process launch(Account account, int ramMb, boolean joinServer, Listener listener)
             throws IOException {
+        return launch(account, ramMb, joinServer, null, listener);
+    }
+
+    public static Process launch(Account account, int ramMb, boolean joinServer,
+                                 String fabricVersion, Listener listener)
+            throws IOException {
         Listener l = listener != null ? listener : new Listener() {
             public void onStatus(String s) {}
             public void onProgress(long d, long t) {}
         };
+
+        // Fall back to a reasonable default if the manifest didn't specify one
+        String loaderVer = (fabricVersion == null || fabricVersion.isBlank())
+                ? "0.18.4" : fabricVersion;
 
         l.onStatus("Préparation du runtime Java…");
         Path java = JavaRuntime.ensure((d, t) -> l.onProgress(d, t));
@@ -46,8 +56,8 @@ public final class MinecraftLauncher {
         l.onStatus("Téléchargement de Minecraft " + Constants.MC_VERSION + "…");
         JsonObject vanilla = MojangInstaller.install(Constants.MC_VERSION, (d, t) -> l.onProgress(d, t));
 
-        l.onStatus("Installation de Fabric " + Constants.LOADER + " 0.16.5…");
-        FabricInstaller.Result fabric = FabricInstaller.install(Constants.MC_VERSION, "0.16.5");
+        l.onStatus("Installation de Fabric " + Constants.LOADER + " " + loaderVer + "…");
+        FabricInstaller.Result fabric = FabricInstaller.install(Constants.MC_VERSION, loaderVer);
 
         Path gameDir = AppPaths.gameDir();
         Path mcRoot  = AppPaths.rootDir().resolve("minecraft");

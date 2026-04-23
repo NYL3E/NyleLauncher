@@ -22,10 +22,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
 import java.awt.Desktop;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 
 public class MainView extends BorderPane {
 
@@ -35,6 +38,13 @@ public class MainView extends BorderPane {
     private final Label status = new Label("Prêt à jouer");
     private final ProgressBar progress = new ProgressBar(0);
     private HBox updateBanner;
+    private Button playBtn;
+    private Label playLabel;
+    private SVGPath playIcon;
+    // When true, clicking the main button runs the modpack sync instead of
+    // launching. Set from background checks at startup.
+    private volatile boolean modpackUpdatePending = false;
+    private volatile String launcherUpdateUrl = null;
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
@@ -52,8 +62,37 @@ public class MainView extends BorderPane {
                         "Mise à jour " + info.latestTag() + " disponible");
                 Button dl = (Button) updateBanner.getChildren().get(2);
                 dl.setOnAction(e -> openBrowser(info.releaseUrl()));
+                launcherUpdateUrl = info.releaseUrl();
+                refreshPlayButton();
             }
         }));
+
+        // Check modpack in background — if the remote manifest is newer than
+        // the cached one, flip the main button to "METTRE À JOUR" so the
+        // player explicitly triggers the sync instead of it silently
+        // happening on every launch.
+        CompletableFuture.runAsync(() -> {
+            boolean pending = ModpackUpdater.hasUpdate();
+            Platform.runLater(() -> {
+                modpackUpdatePending = pending;
+                refreshPlayButton();
+            });
+        });
+    }
+
+    private void refreshPlayButton() {
+        if (playLabel == null || playIcon == null) return;
+        if (modpackUpdatePending || launcherUpdateUrl != null) {
+            playLabel.setText("METTRE À JOUR");
+            playLabel.setFont(Fonts.bold(15));
+            playIcon.setVisible(false);
+            playIcon.setManaged(false);
+        } else {
+            playLabel.setText("JOUER");
+            playLabel.setFont(Fonts.bold(22));
+            playIcon.setVisible(true);
+            playIcon.setManaged(true);
+        }
     }
 
     // ── Header capsule (overlay, not a dedicated top region) ────────────────
@@ -67,10 +106,10 @@ public class MainView extends BorderPane {
         capsule.setMaxWidth(Region.USE_PREF_SIZE);
         capsule.setMaxHeight(Region.USE_PREF_SIZE);
 
-        SkinHead skin = new SkinHead(account, 30);
+        SkinHead skin = new SkinHead(account, 26);
 
         Label name = new Label(account.username());
-        name.setFont(Fonts.semi(13));
+        name.setFont(Fonts.semi(12));
         name.setTextFill(Color.WHITE);
         Label type = new Label(account.isOffline() ? "OFFLINE" : "MICROSOFT");
         type.setFont(Fonts.black(9));
@@ -161,14 +200,12 @@ public class MainView extends BorderPane {
     private Region buildContent(Account account, Runnable onLogout, Runnable onSettings) {
         StackPane stack = new StackPane();
         String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
-        // background-insets 5 0 -5 0 nudges the bg region 5px down,
-        // so the image visually sits 5px lower than the body.
         stack.setStyle(
                 "-fx-background-image: url('" + imgUrl + "');" +
                 "-fx-background-size: 100% auto;" +
                 "-fx-background-position: center bottom;" +
                 "-fx-background-repeat: no-repeat;" +
-                "-fx-background-insets: 5 0 -5 0;" +
+                "-fx-background-insets: 45 0 -45 0;" +
                 "-fx-background-color: #08080B;"
         );
 
@@ -192,18 +229,19 @@ public class MainView extends BorderPane {
         HBox onlineRow = new HBox(10, dot, online);
         onlineRow.setAlignment(Pos.CENTER_LEFT);
 
+        logo.setTranslateY(4);
+        onlineRow.setTranslateY(-5);
         HBox leftBlock = new HBox(20, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
         leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
         leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        // A few pixels lower
         StackPane.setMargin(leftBlock, new Insets(78, 0, 0, 30));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
         StackPane.setAlignment(newsPanel, Pos.TOP_RIGHT);
-        StackPane.setMargin(newsPanel, new Insets(62, 22, 20, 0));
+        StackPane.setMargin(newsPanel, new Insets(20, 22, 20, 0));
 
         stack.getChildren().addAll(leftBlock, newsPanel, capsule, updateBanner);
         return stack;
@@ -241,15 +279,44 @@ public class MainView extends BorderPane {
         scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scroll.setPannable(true);
         scroll.getStyleClass().add("news-scroll");
+        // Trackpad / mouse wheel — convert scroll delta directly to Vvalue change
+        // so the panel responds even when the cursor is over the content (items
+        // can otherwise swallow the event during their hover animation).
+        scroll.addEventFilter(javafx.scene.input.ScrollEvent.SCROLL, e -> {
+            double range = Math.max(1, body.getBoundsInLocal().getHeight()
+                                     - scroll.getViewportBounds().getHeight());
+            scroll.setVvalue(Math.max(0, Math.min(1,
+                    scroll.getVvalue() - e.getDeltaY() / range)));
+            e.consume();
+        });
+
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
-        VBox panel = new VBox(header, divider, scroll);
-        panel.getStyleClass().add("glass-news-panel");
-        panel.setPrefWidth(320);
-        panel.setMaxWidth(320);
-        panel.setPrefHeight(260);
-        panel.setMaxHeight(260);
-        return panel;
+        // Force top position + collapse the default increment/decrement buttons
+        // so the pill track shows with no chevrons top/bottom.
+        Platform.runLater(() -> Platform.runLater(() -> {
+            scroll.setVvalue(0);
+            for (String sel : new String[]{".increment-button", ".decrement-button",
+                                           ".increment-arrow", ".decrement-arrow"}) {
+                for (Node n : scroll.lookupAll(sel)) {
+                    n.setVisible(false);
+                    if (n instanceof Region r) {
+                        r.setPrefSize(0, 0);
+                        r.setMinSize(0, 0);
+                        r.setMaxSize(0, 0);
+                    }
+                }
+            }
+        }));
+
+        VBox glassPanel = new VBox(header, divider, scroll);
+        glassPanel.getStyleClass().add("glass-news-panel");
+        glassPanel.setPrefWidth(320);
+        glassPanel.setMaxWidth(320);
+        glassPanel.setPrefHeight(260);
+        glassPanel.setMaxHeight(260);
+
+        return glassPanel;
     }
 
     private Region newsItem(String tag, String title, String desc) {
@@ -302,13 +369,32 @@ public class MainView extends BorderPane {
         mid.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(mid, Priority.ALWAYS);
 
-        Button play = new Button("JOUER");
+        // Triangle play icon — a tiny SVG so the button reads clearly as
+        // "launch game" even before the text is processed by the reader.
+        playIcon = new SVGPath();
+        playIcon.setContent("M 3 1 L 3 15 L 15 8 Z");
+        playIcon.setFill(Color.WHITE);
+        playLabel = new Label("JOUER");
+        playLabel.setFont(Fonts.bold(22));
+        playLabel.setTextFill(Color.WHITE);
+        HBox playContent = new HBox(10, playIcon, playLabel);
+        playContent.setAlignment(Pos.CENTER);
+
+        Button play = new Button();
+        play.setGraphic(playContent);
         play.getStyleClass().add("btn-play");
-        play.setFont(Fonts.bold(22));
-        play.setTextFill(Color.WHITE);
-        play.setPrefWidth(200);
+        play.setPrefWidth(240);
         play.setPrefHeight(56);
-        play.setOnAction(e -> startPlay(play));
+        play.setOnAction(e -> {
+            if (launcherUpdateUrl != null) {
+                openBrowser(launcherUpdateUrl);
+            } else if (modpackUpdatePending) {
+                runModpackUpdate(play);
+            } else {
+                startPlay(play);
+            }
+        });
+        playBtn = play;
 
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
@@ -333,6 +419,39 @@ public class MainView extends BorderPane {
     }
 
     // ── Launch ──────────────────────────────────────────────────────────────
+
+    private void runModpackUpdate(Button play) {
+        play.setDisable(true);
+        playLabel.setText("MISE À JOUR…");
+        progress.setProgress(0);
+        status.setText("Téléchargement des mises à jour…");
+
+        new Thread(() -> {
+            try {
+                new ModpackUpdater(new ModpackUpdater.Listener() {
+                    @Override public void onStatus(String line) {
+                        Platform.runLater(() -> status.setText(line));
+                    }
+                    @Override public void onProgress(int d, int t, long bd, long bt) {
+                        Platform.runLater(() -> progress.setProgress(t == 0 ? 0 : (double) d / t));
+                    }
+                }).sync();
+                Platform.runLater(() -> {
+                    modpackUpdatePending = false;
+                    status.setText("Prêt à jouer");
+                    progress.setProgress(0);
+                    play.setDisable(false);
+                    refreshPlayButton();
+                });
+            } catch (Exception ex) {
+                Platform.runLater(() -> {
+                    status.setText("Erreur: " + ex.getMessage());
+                    play.setDisable(false);
+                    refreshPlayButton();
+                });
+            }
+        }, "Modpack-Update").start();
+    }
 
     private void startPlay(Button play) {
         play.setDisable(true);
@@ -359,7 +478,11 @@ public class MainView extends BorderPane {
 
                 Account account = fr.nylerp.launcher.auth.AuthManager.loadSaved();
                 int ramMb = Settings.get().ramMb;
-                Process proc = MinecraftLauncher.launch(account, ramMb, true, new MinecraftLauncher.Listener() {
+                // Read Fabric version from the cached manifest so the launcher
+                // always installs the loader specified by the modpack publisher,
+                // not a hardcoded one that drifts out of sync.
+                String fabricVer = readFabricVersionFromManifest();
+                Process proc = MinecraftLauncher.launch(account, ramMb, true, fabricVer, new MinecraftLauncher.Listener() {
                     @Override public void onStatus(String s) {
                         Platform.runLater(() -> status.setText(s));
                     }
@@ -371,7 +494,10 @@ public class MainView extends BorderPane {
                 Platform.runLater(() -> {
                     status.setText("Jeu en cours de lancement…");
                     progress.setProgress(1);
-                    play.setText("EN COURS");
+                    playLabel.setText("EN COURS");
+                    playLabel.setFont(Fonts.bold(18));
+                    playIcon.setVisible(false);
+                    playIcon.setManaged(false);
                     play.setDisable(true);
                 });
 
@@ -382,18 +508,42 @@ public class MainView extends BorderPane {
                         Platform.runLater(() -> {
                             status.setText("Prêt à jouer");
                             progress.setProgress(0);
-                            play.setText("JOUER");
                             play.setDisable(false);
+                            playIcon.setVisible(true);
+                            playIcon.setManaged(true);
+                            refreshPlayButton();
                         });
                     }, "MC-Watch").start();
                 }
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     status.setText("Erreur: " + ex.getMessage());
-                    play.setText("JOUER");
                     play.setDisable(false);
+                    playIcon.setVisible(true);
+                    playIcon.setManaged(true);
+                    refreshPlayButton();
                 });
             }
         }, "Launch-Thread").start();
+    }
+
+    /**
+     * Reads the cached manifest.json and returns loader.version (Fabric version),
+     * or null if the file doesn't exist or the field is missing. The launcher
+     * falls back to a hardcoded default in that case.
+     */
+    private static String readFabricVersionFromManifest() {
+        try {
+            java.nio.file.Path f = fr.nylerp.launcher.config.AppPaths.manifestCache();
+            if (!java.nio.file.Files.exists(f)) return null;
+            String json = java.nio.file.Files.readString(f);
+            com.google.gson.JsonObject obj = com.google.gson.JsonParser
+                    .parseString(json).getAsJsonObject();
+            if (!obj.has("loader")) return null;
+            com.google.gson.JsonObject loader = obj.getAsJsonObject("loader");
+            return loader.has("version") ? loader.get("version").getAsString() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
