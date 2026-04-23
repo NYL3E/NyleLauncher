@@ -72,13 +72,13 @@ public class MainView extends BorderPane {
                 labelOf("NYLERP", "brand"));
         left.setAlignment(Pos.CENTER_LEFT);
 
-        // Unified glass header capsule
+        // Unified glass header capsule — enough padding for the square skin to sit inside the pill
         HBox capsule = new HBox(6);
         capsule.getStyleClass().add("header-capsule");
         capsule.setAlignment(Pos.CENTER_LEFT);
-        capsule.setPadding(new Insets(4, 8, 4, 4));
+        capsule.setPadding(new Insets(5, 12, 5, 12));
 
-        SkinHead skin = new SkinHead(account, 32);
+        SkinHead skin = new SkinHead(account, 30);
 
         Label name = new Label(account.username());
         name.setFont(Fonts.semi(13));
@@ -91,16 +91,18 @@ public class MainView extends BorderPane {
         userCol.setAlignment(Pos.CENTER_LEFT);
         userCol.setPadding(new Insets(0, 10, 0, 8));
 
-        Button discordBtn = capsuleIcon(Icons.discord(16, Color.web("#B4BCFF")), "Discord");
+        Color iconColor = Color.web("#A2A2AC");
+
+        Button discordBtn = capsuleIcon(Icons.discord(15, iconColor), "Discord");
         discordBtn.setOnAction(e -> openBrowser(DISCORD_URL));
 
-        Button webBtn = capsuleIcon(Icons.cart(15, Color.web("#A2A2AC")), "Boutique nylerp.fr");
+        Button webBtn = capsuleIcon(Icons.cart(15, iconColor), "Boutique nylerp.fr");
         webBtn.setOnAction(e -> openBrowser(WEBSITE_URL));
 
-        Button settingsBtn = capsuleIcon(Icons.gear(15, Color.web("#A2A2AC")), "Paramètres");
+        Button settingsBtn = capsuleIcon(Icons.gear(15, iconColor), "Paramètres");
         settingsBtn.setOnAction(e -> { if (onSettings != null) onSettings.run(); });
 
-        Button logoutBtn = capsuleIcon(Icons.arrowLeft(14, Color.web("#A2A2AC")), "Déconnexion");
+        Button logoutBtn = capsuleIcon(Icons.arrowLeft(14, iconColor), "Déconnexion");
         logoutBtn.setOnAction(e -> onLogout.run());
 
         capsule.getChildren().addAll(
