@@ -15,6 +15,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -28,6 +29,9 @@ import java.net.URI;
 
 public class MainView extends BorderPane {
 
+    private static final String DISCORD_URL = "https://discord.gg/nyle";
+    private static final String WEBSITE_URL = "https://www.nylerp.fr";
+
     private final Label status = new Label("Prêt à jouer");
     private final ProgressBar progress = new ProgressBar(0);
     private HBox updateBanner;
@@ -35,7 +39,9 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        setTop(buildTopBar(account, onLogout, onSettings));
+        // Layered: header + gold divider + content + bottom
+        VBox top = new VBox(buildTopBar(account, onLogout, onSettings), new GoldDivider());
+        setTop(top);
         setCenter(buildContent());
         setBottom(buildBottomBar());
 
@@ -46,7 +52,6 @@ public class MainView extends BorderPane {
             }
         }
 
-        // Async self-update check — show banner in top bar if newer exists
         SelfUpdater.check().thenAccept(info -> Platform.runLater(() -> {
             if (info.hasUpdate() && updateBanner != null) {
                 updateBanner.setVisible(true);
@@ -67,19 +72,13 @@ public class MainView extends BorderPane {
                 labelOf("NYLERP", "brand"));
         left.setAlignment(Pos.CENTER_LEFT);
 
-        HBox nav = new HBox(32,
-                navLink("Accueil", true),
-                navLink("Actualités", false),
-                navLink("Discord", false));
-        nav.setAlignment(Pos.CENTER);
-
-        // ─── Unified glass header capsule: skin + name + gear + logout ──────
-        HBox capsule = new HBox(8);
+        // Unified glass header capsule
+        HBox capsule = new HBox(6);
         capsule.getStyleClass().add("header-capsule");
         capsule.setAlignment(Pos.CENTER_LEFT);
-        capsule.setPadding(new Insets(4, 6, 4, 4));
+        capsule.setPadding(new Insets(4, 8, 4, 4));
 
-        SkinHead skin = new SkinHead(account, 30);
+        SkinHead skin = new SkinHead(account, 32);
 
         Label name = new Label(account.username());
         name.setFont(Fonts.semi(13));
@@ -90,20 +89,28 @@ public class MainView extends BorderPane {
         type.setStyle("-fx-letter-spacing: 0.14em;");
         VBox userCol = new VBox(1, name, type);
         userCol.setAlignment(Pos.CENTER_LEFT);
-        userCol.setPadding(new Insets(0, 10, 0, 6));
+        userCol.setPadding(new Insets(0, 10, 0, 8));
 
-        Region sep1 = capsuleSep();
-        Region sep2 = capsuleSep();
+        Button discordBtn = capsuleIcon(Icons.discord(16, Color.web("#B4BCFF")), "Discord");
+        discordBtn.setOnAction(e -> openBrowser(DISCORD_URL));
 
-        Button settingsBtn = capsuleIcon(Icons.gear(16, Color.web("#A2A2AC")), "Paramètres");
+        Button webBtn = capsuleIcon(Icons.cart(15, Color.web("#A2A2AC")), "Boutique nylerp.fr");
+        webBtn.setOnAction(e -> openBrowser(WEBSITE_URL));
+
+        Button settingsBtn = capsuleIcon(Icons.gear(15, Color.web("#A2A2AC")), "Paramètres");
         settingsBtn.setOnAction(e -> { if (onSettings != null) onSettings.run(); });
 
         Button logoutBtn = capsuleIcon(Icons.arrowLeft(14, Color.web("#A2A2AC")), "Déconnexion");
         logoutBtn.setOnAction(e -> onLogout.run());
 
-        capsule.getChildren().addAll(skin, userCol, sep1, settingsBtn, sep2, logoutBtn);
+        capsule.getChildren().addAll(
+                skin, userCol,
+                capsuleSep(),
+                discordBtn, webBtn,
+                capsuleSep(),
+                settingsBtn, logoutBtn
+        );
 
-        // Right group (update banner + capsule)
         updateBanner = buildUpdateBanner();
         updateBanner.setVisible(false);
         updateBanner.setManaged(false);
@@ -111,17 +118,16 @@ public class MainView extends BorderPane {
         HBox right = new HBox(12, updateBanner, capsule);
         right.setAlignment(Pos.CENTER_RIGHT);
 
+        // No central navigation — nav moved into the right capsule
         GridPane bar = new GridPane();
-        bar.getStyleClass().add("top-bar");
+        bar.getStyleClass().add("top-bar-clean");
         bar.add(left, 0, 0);
-        bar.add(nav, 1, 0);
-        bar.add(right, 2, 0);
+        bar.add(right, 1, 0);
         ColumnConstraints c1 = new ColumnConstraints(); c1.setHgrow(Priority.ALWAYS); c1.setHalignment(HPos.LEFT);
-        ColumnConstraints c2 = new ColumnConstraints(); c2.setHalignment(HPos.CENTER);
-        ColumnConstraints c3 = new ColumnConstraints(); c3.setHgrow(Priority.ALWAYS); c3.setHalignment(HPos.RIGHT);
-        bar.getColumnConstraints().addAll(c1, c2, c3);
+        ColumnConstraints c2 = new ColumnConstraints(); c2.setHgrow(Priority.ALWAYS); c2.setHalignment(HPos.RIGHT);
+        bar.getColumnConstraints().addAll(c1, c2);
         bar.setPadding(new Insets(0, 20, 0, 24));
-        bar.setPrefHeight(64);
+        bar.setPrefHeight(60);
         bar.setAlignment(Pos.CENTER);
         return bar;
     }
@@ -145,10 +151,14 @@ public class MainView extends BorderPane {
         Button b = new Button();
         b.getStyleClass().add("capsule-icon");
         b.setGraphic(icon);
-        b.setPrefSize(28, 28);
-        b.setMinSize(28, 28);
-        b.setMaxSize(28, 28);
-        if (tooltip != null) b.setTooltip(new javafx.scene.control.Tooltip(tooltip));
+        b.setPrefSize(32, 32);
+        b.setMinSize(32, 32);
+        b.setMaxSize(32, 32);
+        if (tooltip != null) {
+            Tooltip t = new Tooltip(tooltip);
+            t.setShowDelay(Duration.millis(500));
+            b.setTooltip(t);
+        }
         return b;
     }
 
@@ -160,12 +170,6 @@ public class MainView extends BorderPane {
         return r;
     }
 
-    private Label navLink(String text, boolean active) {
-        Label l = new Label(text);
-        l.getStyleClass().add(active ? "nav-link-active" : "nav-link");
-        return l;
-    }
-
     private Label labelOf(String text, String styleClass) {
         Label l = new Label(text);
         l.getStyleClass().add(styleClass);
@@ -175,7 +179,6 @@ public class MainView extends BorderPane {
     // ── Content ─────────────────────────────────────────────────────────────
 
     private Region buildContent() {
-        // Left column: hero + feature grid
         Label kicker = labelOf("ROLEPLAY · FRANCE · SAISON 0", "kicker");
         HBox dotBox = new HBox(6);
         dotBox.setAlignment(Pos.CENTER_LEFT);
@@ -191,39 +194,38 @@ public class MainView extends BorderPane {
         HBox meta = new HBox(14, kicker, sep, dotBox);
         meta.setAlignment(Pos.CENTER_LEFT);
 
-        Text t1 = new Text("Rejoignez\nl'"); t1.setFont(Fonts.semi(54));  t1.setFill(Color.web("#F4F4F7"));
-        Text t2 = new Text("aventure.");     t2.setFont(Fonts.bold(54));  t2.setFill(Color.web("#FF6A1A"));
+        Text t1 = new Text("Rejoignez\nl'"); t1.setFont(Fonts.semi(50));  t1.setFill(Color.web("#F4F4F7"));
+        Text t2 = new Text("aventure.");     t2.setFont(Fonts.bold(50));  t2.setFill(Color.web("#FF6A1A"));
         TextFlow title = new TextFlow(t1, t2);
         title.setMaxWidth(520);
         title.setLineSpacing(-6);
 
         Label sub = new Label("Un serveur roleplay exigeant et artisanal. Du vrai jeu, pas du grind.");
-        sub.setFont(Fonts.medium(14));
+        sub.setFont(Fonts.medium(13));
         sub.setTextFill(Color.web("#A2A2AC"));
         sub.setWrapText(true);
         sub.setMaxWidth(520);
 
         GridPane features = new GridPane();
-        features.setHgap(12);
-        features.setVgap(12);
+        features.setHgap(10);
+        features.setVgap(10);
         features.setMaxWidth(Double.MAX_VALUE);
-        features.add(featureCard(voiceIcon(),  "Chat vocal",      "Voix proche entre joueurs."), 0, 0);
-        features.add(featureCard(maskIcon(),   "Roleplay",        "Lore profond, events hebdo."), 1, 0);
-        features.add(featureCard(coinIcon(),   "Économie",        "Commerces et gemmes."), 0, 1);
-        features.add(featureCard(sparkIcon(),  "Cosmétiques",     "Pets, lootbox, skins."), 1, 1);
+        features.add(featureCard(voiceIcon(),  "Chat vocal",    "Voix proche entre joueurs."), 0, 0);
+        features.add(featureCard(maskIcon(),   "Roleplay",      "Lore profond, events hebdo."), 1, 0);
+        features.add(featureCard(coinIcon(),   "Économie",      "Commerces et gemmes."), 0, 1);
+        features.add(featureCard(sparkIcon(),  "Cosmétiques",   "Pets, lootbox, skins."), 1, 1);
         ColumnConstraints eq = new ColumnConstraints();
         eq.setPercentWidth(50);
         features.getColumnConstraints().addAll(eq, eq);
 
-        VBox left = new VBox(18, meta, title, sub, features);
+        VBox left = new VBox(14, meta, title, sub, features);
         left.setAlignment(Pos.TOP_LEFT);
 
-        // Right column: news
         VBox right = buildNewsColumn();
 
-        HBox row = new HBox(28, left, right);
+        HBox row = new HBox(24, left, right);
         row.setAlignment(Pos.TOP_LEFT);
-        row.setPadding(new Insets(32, 40, 28, 40));
+        row.setPadding(new Insets(18, 40, 10, 40));
         return new VBox(row);
     }
 
@@ -232,15 +234,14 @@ public class MainView extends BorderPane {
         title.setFont(Fonts.bold(16));
         title.setTextFill(Color.web("#F4F4F7"));
 
-        VBox col = new VBox(10);
+        VBox col = new VBox(8);
         col.setPrefWidth(300);
         col.setMaxWidth(300);
 
         col.getChildren().addAll(
                 title,
-                spacer(2),
                 newsItem("NOUVEAU", "Lootbox animées", "Trois nouvelles lootbox — classique, légendaire, ultime."),
-                newsItem("MAJ",     "Mods optionnels", "Litematica disponible dans les paramètres."),
+                newsItem("MAJ", "Mods optionnels", "Litematica disponible dans les paramètres."),
                 newsItem("ÉVÉNEMENT", "Weekend XP double", "Du vendredi soir au dimanche — profitez-en.")
         );
         return col;
@@ -260,9 +261,9 @@ public class MainView extends BorderPane {
         d.setTextFill(Color.web("#A2A2AC"));
         d.setWrapText(true);
 
-        VBox v = new VBox(6, tagLbl, t, d);
+        VBox v = new VBox(4, tagLbl, t, d);
         v.getStyleClass().add("news-item");
-        v.setPadding(new Insets(12, 14, 12, 14));
+        v.setPadding(new Insets(10, 12, 10, 12));
         Animations.hoverLift(v, 2);
         return v;
     }
@@ -270,7 +271,7 @@ public class MainView extends BorderPane {
     private VBox featureCard(SVGPath icon, String title, String desc) {
         icon.setFill(Color.web("#FF6A1A"));
         StackPane iconWrap = new StackPane(icon);
-        iconWrap.setMinHeight(24);
+        iconWrap.setMinHeight(22);
         iconWrap.setAlignment(Pos.CENTER_LEFT);
 
         Label h = new Label(title);
@@ -282,8 +283,8 @@ public class MainView extends BorderPane {
         d.setWrapText(true);
         VBox v = new VBox(4, iconWrap, spacer(2), h, d);
         v.getStyleClass().add("feature-card");
-        v.setPadding(new Insets(14, 14, 14, 14));
-        v.setPrefHeight(94);
+        v.setPadding(new Insets(12, 12, 12, 12));
+        v.setPrefHeight(82);
         Animations.hoverLift(v, 3);
         return v;
     }
@@ -327,34 +328,29 @@ public class MainView extends BorderPane {
         tl.setCycleCount(Timeline.INDEFINITE); tl.play();
     }
 
-    // ── Bottom bar ──────────────────────────────────────────────────────────
+    // ── Bottom bar (no more memory readout) ─────────────────────────────────
 
     private Region buildBottomBar() {
-        Label memKey = labelOf("MÉMOIRE", "micro");
-        Label memVal = new Label((Settings.get().ramMb / 1024) + " Go");
-        memVal.getStyleClass().add("ram-val");
-        VBox mem = new VBox(4, memKey, memVal);
-
         status.getStyleClass().add("status");
         progress.getStyleClass().add("progress");
         progress.setPrefHeight(3);
         progress.setMaxWidth(Double.MAX_VALUE);
-        VBox mid = new VBox(8, status, progress);
+        VBox mid = new VBox(6, status, progress);
         mid.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(mid, Priority.ALWAYS);
 
         Button play = new Button("JOUER");
         play.getStyleClass().add("btn-play");
-        play.setFont(Fonts.bold(24));
+        play.setFont(Fonts.bold(22));
         play.setTextFill(Color.WHITE);
-        play.setPrefWidth(220);
-        play.setPrefHeight(64);
+        play.setPrefWidth(200);
+        play.setPrefHeight(56);
         play.setOnAction(e -> startPlay(play));
 
-        HBox bar = new HBox(28, mem, mid, play);
+        HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
-        bar.setPadding(new Insets(0, 32, 0, 32));
-        bar.setPrefHeight(88);
+        bar.setPadding(new Insets(14, 32, 16, 40));
+        bar.setPrefHeight(72);
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
