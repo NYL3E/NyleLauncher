@@ -1,0 +1,104 @@
+name: Build launcher
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create releases + upload assets
+
+jobs:
+  jar:
+    name: Shaded JAR (universal)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Build shadowJar
+        run: |
+          chmod +x gradlew
+          ./gradlew shadowJar --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-jar
+          path: build/libs/nylelauncher-*.jar
+
+  native:
+    name: Native installer (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            ext: msi
+          - os: macos-13
+            platform: mac-intel
+            ext: dmg
+          - os: macos-14
+            platform: mac-arm
+            ext: dmg
+          - os: ubuntu-latest
+            platform: linux
+            ext: deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Build shadowJar
+        shell: bash
+        run: |
+          chmod +x gradlew || true
+          ./gradlew shadowJar --no-daemon
+      - name: Package with jpackage
+        shell: bash
+        run: |
+          mkdir -p dist
+          JAR=$(ls build/libs/nylelauncher-*.jar | head -1)
+          VER=$(echo "$JAR" | sed -E 's/.*nylelauncher-([0-9.]+)\.jar/\1/')
+          case "${{ matrix.ext }}" in
+            msi) TYPE=msi ;;
+            dmg) TYPE=dmg ;;
+            deb) TYPE=deb ;;
+          esac
+          jpackage \
+            --type "$TYPE" \
+            --name NyleLauncher \
+            --app-version "$VER" \
+            --input build/libs \
+            --main-jar "$(basename "$JAR")" \
+            --main-class fr.nylerp.launcher.Main \
+            --dest dist \
+            --java-options "-Xmx512m" \
+            --vendor "NyleRP" \
+            || { echo "jpackage failed"; exit 1; }
+          ls -la dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-${{ matrix.platform }}
+          path: dist/*
+
+  release:
+    name: Attach to Release
+    needs: [ jar, native ]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/launcher-jar/*
+            artifacts/launcher-windows/*
+            artifacts/launcher-mac-intel/*
+            artifacts/launcher-mac-arm/*
+            artifacts/launcher-linux/*
