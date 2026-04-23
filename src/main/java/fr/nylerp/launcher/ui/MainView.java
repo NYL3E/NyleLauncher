@@ -197,8 +197,8 @@ public class MainView extends BorderPane {
         leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
         leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        // Slightly higher than before
-        StackPane.setMargin(leftBlock, new Insets(70, 0, 0, 30));
+        // A few pixels lower
+        StackPane.setMargin(leftBlock, new Insets(78, 0, 0, 30));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
