@@ -1,13 +1,12 @@
 package fr.nylerp.launcher.ui;
 
-import javafx.scene.effect.DropShadow;
-import javafx.scene.layout.Region;
+import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
-import javafx.scene.Group;
 
 /**
- * The angular "N" logo, sized-to-fit, in the brand orange.
+ * The NyleRP angular "N" logo.
+ * White by default on dark backgrounds; no shadows or glow.
  * Source path supplied by the user.
  */
 public class NyleLogo extends Group {
@@ -18,26 +17,16 @@ public class NyleLogo extends Group {
     private static final double VB_H = 92;
 
     public NyleLogo(double targetHeight) {
-        this(targetHeight, Color.web("#FF7A1A"), true);
+        this(targetHeight, Color.WHITE);
     }
 
-    public NyleLogo(double targetHeight, Color color, boolean glow) {
+    public NyleLogo(double targetHeight, Color color) {
         SVGPath path = new SVGPath();
         path.setContent(PATH);
         path.setFill(color);
-
         double scale = targetHeight / VB_H;
         path.setScaleX(scale);
         path.setScaleY(scale);
-
-        if (glow) {
-            DropShadow g = new DropShadow();
-            g.setColor(Color.web("#FF7A1A", 0.45));
-            g.setRadius(targetHeight * 0.5);
-            g.setSpread(0.08);
-            path.setEffect(g);
-        }
-
         getChildren().add(path);
     }
 }
