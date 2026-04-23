@@ -1,0 +1,51 @@
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'fr.nylerp'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }     // OpenAuth + other GitHub-hosted libs
+}
+
+dependencies {
+    // Microsoft auth — Litarvan's OpenAuth (JavaFX WebView-based OAuth flow)
+    implementation 'com.github.Litarvan:OpenAuth:v1.1.6'
+
+    // Utils
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'ch.qos.logback:logback-classic:1.5.6'
+    implementation 'org.slf4j:slf4j-api:2.0.13'
+
+    // NOTE — OpenLauncherLib + FlowUpdater will be wired in the next step once
+    // the vanilla launch path is designed; keeping the dep tree small for now.
+}
+
+javafx {
+    version = '21.0.4'
+    modules = ['javafx.controls', 'javafx.fxml', 'javafx.swing']
+}
+
+application {
+    mainClass = 'fr.nylerp.launcher.Main'
+}
+
+shadowJar {
+    archiveBaseName = 'nylelauncher'
+    archiveClassifier = ''
+    archiveVersion = project.version
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': 'fr.nylerp.launcher.Main'
+    }
+}

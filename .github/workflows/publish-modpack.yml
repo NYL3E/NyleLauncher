@@ -1,0 +1,69 @@
+name: Publish modpack
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'pack/**'
+      - 'scripts/generate-manifest.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate manifest.json
+        run: python3 scripts/generate-manifest.py --release pack-latest
+
+      - name: Prepare flattened assets
+        run: |
+          set -eux
+          mkdir -p pack-dist
+          # Mirror pack/ into pack-dist/ with '__' as subdir separator,
+          # matching how generate-manifest.py encodes the URLs.
+          python3 - <<'PY'
+          import pathlib, shutil
+          src = pathlib.Path("pack")
+          dst = pathlib.Path("pack-dist")
+          for p in src.rglob("*"):
+              if p.is_file() and p.name.lower() != "readme.md" and not p.name.startswith("."):
+                  rel = p.relative_to(src)
+                  flat = str(rel).replace("/", "__").replace("\\", "__")
+                  shutil.copy2(p, dst / flat)
+          PY
+          cp manifest.json pack-dist/manifest.json
+          ls -la pack-dist/
+
+      - name: (Re)create pack-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          if gh release view pack-latest >/dev/null 2>&1; then
+            gh release delete pack-latest --yes --cleanup-tag
+          fi
+          gh release create pack-latest \
+            --title "Modpack — latest" \
+            --notes "Generated $(date -u +%Y-%m-%dT%H:%M:%SZ) — automatic release, see manifest.json for file list." \
+            --target "${{ github.sha }}" \
+            pack-dist/*
+
+      - name: Commit manifest.json
+        run: |
+          if ! git diff --quiet manifest.json; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add manifest.json
+            git commit -m "chore(manifest): regenerate"
+            git push
+          fi
