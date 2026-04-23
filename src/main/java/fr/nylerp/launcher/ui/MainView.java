@@ -115,8 +115,8 @@ public class MainView extends BorderPane {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox row = new HBox(12, capsule, spacer, updateBanner);
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(4, 20, 0, 20));
-        row.setPrefHeight(48);
+        row.setPadding(new Insets(10, 20, 0, 20));
+        row.setPrefHeight(54);
         row.getStyleClass().add("top-bar-clean");
         return row;
     }
@@ -173,10 +173,12 @@ public class MainView extends BorderPane {
         StackPane stack = new StackPane();
         // Use CSS background so the image auto-fits via -fx-background-size: cover.
         String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
+        // Anchor the image to the BOTTOM of the body — so the bottom edge of the
+        // picture always hugs the top of the bottom bar (no black gap below).
         stack.setStyle(
                 "-fx-background-image: url('" + imgUrl + "');" +
                 "-fx-background-size: cover;" +
-                "-fx-background-position: center center;" +
+                "-fx-background-position: center bottom;" +
                 "-fx-background-repeat: no-repeat;"
         );
 
