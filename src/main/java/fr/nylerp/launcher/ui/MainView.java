@@ -39,9 +39,7 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        // Layered: header + gold divider + content + bottom
-        VBox top = new VBox(buildTopBar(account, onLogout, onSettings), new GoldDivider());
-        setTop(top);
+        setTop(buildTopBar(account, onLogout, onSettings));
         setCenter(buildContent());
         setBottom(buildBottomBar());
 
@@ -67,16 +65,11 @@ public class MainView extends BorderPane {
     // ── Top bar ─────────────────────────────────────────────────────────────
 
     private Region buildTopBar(Account account, Runnable onLogout, Runnable onSettings) {
-        HBox left = new HBox(12,
-                new NyleLogo(20, Color.WHITE),
-                labelOf("NYLERP", "brand"));
-        left.setAlignment(Pos.CENTER_LEFT);
-
-        // Unified glass header capsule — enough padding for the square skin to sit inside the pill
-        HBox capsule = new HBox(6);
+        // Unified glass header capsule — generous padding, fully rounded
+        HBox capsule = new HBox(8);
         capsule.getStyleClass().add("header-capsule");
         capsule.setAlignment(Pos.CENTER_LEFT);
-        capsule.setPadding(new Insets(5, 12, 5, 12));
+        capsule.setPadding(new Insets(6, 18, 6, 18));
 
         SkinHead skin = new SkinHead(account, 30);
 
@@ -117,20 +110,18 @@ public class MainView extends BorderPane {
         updateBanner.setVisible(false);
         updateBanner.setManaged(false);
 
-        HBox right = new HBox(12, updateBanner, capsule);
-        right.setAlignment(Pos.CENTER_RIGHT);
+        // Launcher no longer shows the NYLERP logo/wordmark in the top bar —
+        // just the glass capsule on the right (and the optional update banner).
+        HBox row = new HBox(12, updateBanner, capsule);
+        row.setAlignment(Pos.CENTER_RIGHT);
+        row.setPadding(new Insets(0, 20, 0, 20));
+        row.setPrefHeight(60);
+        row.getStyleClass().add("top-bar-clean");
 
-        // No central navigation — nav moved into the right capsule
-        GridPane bar = new GridPane();
-        bar.getStyleClass().add("top-bar-clean");
-        bar.add(left, 0, 0);
-        bar.add(right, 1, 0);
-        ColumnConstraints c1 = new ColumnConstraints(); c1.setHgrow(Priority.ALWAYS); c1.setHalignment(HPos.LEFT);
-        ColumnConstraints c2 = new ColumnConstraints(); c2.setHgrow(Priority.ALWAYS); c2.setHalignment(HPos.RIGHT);
-        bar.getColumnConstraints().addAll(c1, c2);
-        bar.setPadding(new Insets(0, 20, 0, 24));
-        bar.setPrefHeight(60);
-        bar.setAlignment(Pos.CENTER);
+        HBox bar = new HBox();
+        bar.setAlignment(Pos.CENTER_RIGHT);
+        HBox.setHgrow(row, Priority.ALWAYS);
+        bar.getChildren().add(row);
         return bar;
     }
 
