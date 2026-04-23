@@ -114,8 +114,8 @@ public class MainView extends BorderPane {
         // just the glass capsule on the right (and the optional update banner).
         HBox row = new HBox(12, updateBanner, capsule);
         row.setAlignment(Pos.CENTER_RIGHT);
-        row.setPadding(new Insets(0, 20, 0, 20));
-        row.setPrefHeight(48);
+        row.setPadding(new Insets(10, 20, 0, 20));
+        row.setPrefHeight(58);
         row.getStyleClass().add("top-bar-clean");
 
         HBox bar = new HBox();
