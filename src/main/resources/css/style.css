@@ -413,6 +413,25 @@
 .ram-slider-big:hover .thumb { -fx-background-color: -c-accent; }
 
 /* Settings ScrollPane */
+/* News-panel internal scroll — transparent + thin scrollbar */
+.news-scroll, .news-scroll .viewport { -fx-background-color: transparent; }
+.news-scroll > .scroll-bar:vertical { -fx-background-color: transparent; -fx-pref-width: 6; }
+.news-scroll > .scroll-bar:vertical > .thumb {
+    -fx-background-color: rgba(255,255,255,0.22);
+    -fx-background-radius: 999;
+}
+.news-scroll > .scroll-bar:vertical > .thumb:hover { -fx-background-color: rgba(255,255,255,0.35); }
+.news-scroll > .scroll-bar:vertical > .track,
+.news-scroll > .scroll-bar:vertical > .increment-button,
+.news-scroll > .scroll-bar:vertical > .decrement-button {
+    -fx-background-color: transparent;
+    -fx-pref-height: 0;
+}
+.news-scroll > .scroll-bar:vertical > .increment-arrow,
+.news-scroll > .scroll-bar:vertical > .decrement-arrow {
+    -fx-shape: null; -fx-padding: 0;
+}
+
 .settings-scroll, .settings-scroll .viewport { -fx-background-color: transparent; }
 .settings-scroll > .scroll-bar:vertical { -fx-background-color: transparent; -fx-pref-width: 8; }
 .settings-scroll > .scroll-bar:vertical > .thumb {
