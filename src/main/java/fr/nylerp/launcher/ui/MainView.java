@@ -69,7 +69,7 @@ public class MainView extends BorderPane {
         HBox capsule = new HBox(8);
         capsule.getStyleClass().add("header-capsule");
         capsule.setAlignment(Pos.CENTER_LEFT);
-        capsule.setPadding(new Insets(5, 18, 5, 18));
+        capsule.setPadding(new Insets(3, 18, 3, 18));
 
         SkinHead skin = new SkinHead(account, 30);
 
@@ -115,7 +115,7 @@ public class MainView extends BorderPane {
         HBox row = new HBox(12, updateBanner, capsule);
         row.setAlignment(Pos.CENTER_RIGHT);
         row.setPadding(new Insets(0, 20, 0, 20));
-        row.setPrefHeight(60);
+        row.setPrefHeight(48);
         row.getStyleClass().add("top-bar-clean");
 
         HBox bar = new HBox();
