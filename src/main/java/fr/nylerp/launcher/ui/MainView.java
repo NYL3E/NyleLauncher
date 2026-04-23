@@ -71,16 +71,16 @@ public class MainView extends BorderPane {
 
         Label name = new Label(account.username());
         name.setFont(Fonts.semi(13));
-        name.setTextFill(Color.web("#F4F4F7"));
+        name.setTextFill(Color.WHITE);
         Label type = new Label(account.isOffline() ? "OFFLINE" : "MICROSOFT");
         type.setFont(Fonts.black(9));
-        type.setTextFill(Color.web("#6A6A74"));
-        type.setStyle("-fx-letter-spacing: 0.14em;");
+        type.setTextFill(Color.WHITE);
+        type.setStyle("-fx-letter-spacing: 0.14em; -fx-opacity: 0.75;");
         VBox userCol = new VBox(1, name, type);
         userCol.setAlignment(Pos.CENTER_LEFT);
         userCol.setPadding(new Insets(0, 10, 0, 8));
 
-        Color iconColor = Color.web("#A2A2AC");
+        Color iconColor = Color.WHITE;
 
         Button discordBtn = capsuleIcon(Icons.discord(15, iconColor), "Discord");
         discordBtn.setOnAction(e -> openBrowser(DISCORD_URL));
@@ -194,8 +194,8 @@ public class MainView extends BorderPane {
         leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
         leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        // Sits just under the capsule (which ends around y=52)
-        StackPane.setMargin(leftBlock, new Insets(54, 0, 0, 30));
+        // Sits a bit further under the capsule
+        StackPane.setMargin(leftBlock, new Insets(66, 0, 0, 30));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
