@@ -2,82 +2,98 @@ package fr.nylerp.launcher.ui;
 
 import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.config.Settings;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 public class SettingsView extends BorderPane {
 
     public SettingsView(Runnable onBack) {
         getStyleClass().add("main-root");
         setTop(buildTopBar(onBack));
-        setCenter(buildContent());
+        setCenter(buildScroll());
     }
 
     private Region buildTopBar(Runnable onBack) {
         Button back = new Button();
         back.getStyleClass().add("icon-btn");
-        back.setGraphic(Icons.arrowLeft(18, Color.web("#9B9BA5")));
+        back.setGraphic(Icons.arrowLeft(18, Color.web("#F4F4F7")));
         back.setOnAction(e -> onBack.run());
 
         Label title = new Label("PARAMÈTRES");
-        title.getStyleClass().add("brand");
+        title.setFont(Fonts.black(12));
+        title.setTextFill(Color.web("#F4F4F7"));
+        title.setStyle("-fx-letter-spacing: 0.22em;");
 
         HBox bar = new HBox(14, back, title);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setPadding(new Insets(0, 24, 0, 20));
-        bar.setPrefHeight(64);
+        bar.setPrefHeight(56);
         bar.getStyleClass().add("top-bar");
         return bar;
     }
 
-    private Region buildContent() {
-        VBox col = new VBox(56);
-        col.setPadding(new Insets(48, 56, 48, 56));
-        col.setMaxWidth(640);
-
+    private Region buildScroll() {
+        VBox col = new VBox(36);
+        col.setPadding(new Insets(32, 56, 48, 56));
+        col.setMaxWidth(720);
         col.getChildren().addAll(
                 memorySection(),
                 modsSection(),
                 aboutSection()
         );
-        VBox outer = new VBox(col);
-        outer.setAlignment(Pos.TOP_LEFT);
-        return outer;
+
+        ScrollPane sp = new ScrollPane(col);
+        sp.setFitToWidth(true);
+        sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        sp.getStyleClass().add("settings-scroll");
+        sp.setPannable(true);
+        return sp;
     }
 
     // ── Mémoire ─────────────────────────────────────────────────────────────
 
     private VBox memorySection() {
-        Label h  = new Label("Mémoire");       h.getStyleClass().add("settings-h");
-        Label p  = new Label("Quantité de RAM allouée à Minecraft. 4 Go suffit à 95 % des joueurs.");
-        p.getStyleClass().add("settings-p");
+        Label h = new Label("Mémoire");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+
+        Label p = new Label("Quantité de RAM allouée à Minecraft. 4 Go suffit à 95 % des joueurs.");
+        p.setFont(Fonts.medium(13));
+        p.setTextFill(Color.web("#A2A2AC"));
         p.setWrapText(true);
 
         int startGb = Math.max(2, Math.min(16, Settings.get().ramMb / 1024));
 
-        // Big number that tracks the thumb horizontally
+        // Floating number that tracks the thumb
         Label big = new Label(String.valueOf(startGb));
-        big.getStyleClass().add("ram-huge-num");
+        big.setFont(Fonts.black(64));
+        big.setTextFill(Color.web("#F4F4F7"));
         Label unit = new Label("Go");
-        unit.getStyleClass().add("ram-huge-unit");
+        unit.setFont(Fonts.medium(18));
+        unit.setTextFill(Color.web("#A2A2AC"));
         HBox numGroup = new HBox(6, big, unit);
         numGroup.setAlignment(Pos.BASELINE_LEFT);
 
-        Pane numTrack = new Pane(numGroup);
-        numTrack.setMinHeight(80);
-        numTrack.setPrefHeight(80);
+        Pane numLane = new Pane(numGroup);
+        numLane.setMinHeight(78);
+        numLane.setPrefHeight(78);
 
         Label max = new Label("Max : 16 Go");
-        max.getStyleClass().add("ram-max");
-
-        HBox headerTopRow = new HBox(max);
-        headerTopRow.setAlignment(Pos.TOP_RIGHT);
+        max.setFont(Fonts.semi(11));
+        max.setTextFill(Color.web("#6A6A74"));
+        HBox maxRow = new HBox(max);
+        maxRow.setAlignment(Pos.TOP_RIGHT);
 
         Slider slider = new Slider(2, 16, startGb);
         slider.setBlockIncrement(1);
@@ -88,18 +104,21 @@ public class SettingsView extends BorderPane {
         slider.setPrefHeight(22);
         slider.setMaxWidth(Double.MAX_VALUE);
 
-        // Keep big number horizontally aligned with the thumb
+        final double THUMB_R = 11; // thumb is 22px
+
         Runnable reposition = () -> {
-            double ratio = (slider.getValue() - 2) / 14.0;
             double sliderW = slider.getWidth();
             if (sliderW <= 0) return;
             double numW = numGroup.getWidth();
-            double x = ratio * sliderW - numW / 2;
-            // Clamp within bounds
-            x = Math.max(0, Math.min(numTrack.getWidth() - numW, x));
+            double ratio = (slider.getValue() - 2) / 14.0;
+            // Thumb center travels from THUMB_R to sliderW - THUMB_R
+            double thumbX = THUMB_R + ratio * (sliderW - 2 * THUMB_R);
+            double x = thumbX - numW / 2;
+            double laneW = numLane.getWidth();
+            if (laneW > 0) x = Math.max(0, Math.min(laneW - numW, x));
             numGroup.setTranslateX(x);
         };
-        slider.valueProperty().addListener((obs, a, b) -> {
+        slider.valueProperty().addListener((o, a, b) -> {
             int g = b.intValue();
             big.setText(String.valueOf(g));
             Settings.get().ramMb = g * 1024;
@@ -108,31 +127,34 @@ public class SettingsView extends BorderPane {
         });
         slider.widthProperty().addListener((o, a, b) -> reposition.run());
         numGroup.widthProperty().addListener((o, a, b) -> reposition.run());
-        numTrack.widthProperty().addListener((o, a, b) -> reposition.run());
-        // Initial position after layout
-        javafx.application.Platform.runLater(reposition);
+        numLane.widthProperty().addListener((o, a, b) -> reposition.run());
+        Platform.runLater(reposition);
 
         HBox scale = new HBox();
         scale.setAlignment(Pos.CENTER);
         for (int v = 2; v <= 16; v += 2) {
             Label t = new Label(String.valueOf(v));
-            t.getStyleClass().add("ram-tick");
+            t.setFont(Fonts.medium(10));
+            t.setTextFill(Color.web("#3E3E48"));
             HBox.setHgrow(t, Priority.ALWAYS);
             t.setMaxWidth(Double.MAX_VALUE);
             t.setAlignment(Pos.CENTER);
             scale.getChildren().add(t);
         }
 
-        VBox v = new VBox(12, h, p, headerTopRow, numTrack, slider, scale);
-        return v;
+        return new VBox(10, h, p, maxRow, numLane, slider, scale);
     }
 
     // ── Mods optionnels ─────────────────────────────────────────────────────
 
     private VBox modsSection() {
-        Label h = new Label("Mods optionnels"); h.getStyleClass().add("settings-h");
+        Label h = new Label("Mods optionnels");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+
         Label p = new Label("Mods que tu peux activer en plus du modpack. Ils seront téléchargés au prochain lancement.");
-        p.getStyleClass().add("settings-p");
+        p.setFont(Fonts.medium(13));
+        p.setTextFill(Color.web("#A2A2AC"));
         p.setWrapText(true);
 
         HBox row = new HBox();
@@ -140,9 +162,13 @@ public class SettingsView extends BorderPane {
         row.getStyleClass().add("mod-row");
         row.setPadding(new Insets(16, 20, 16, 20));
 
-        VBox info = new VBox(4,
-                labelCls("Litematica", "mod-title"),
-                labelCls("Prévisualisation et construction assistée par schémas.", "mod-desc"));
+        Label modTitle = new Label("Litematica");
+        modTitle.setFont(Fonts.semi(14));
+        modTitle.setTextFill(Color.web("#F4F4F7"));
+        Label modDesc = new Label("Prévisualisation et construction assistée par schémas.");
+        modDesc.setFont(Fonts.medium(12));
+        modDesc.setTextFill(Color.web("#A2A2AC"));
+        VBox info = new VBox(4, modTitle, modDesc);
         HBox.setHgrow(info, Priority.ALWAYS);
 
         CheckBox toggle = new CheckBox();
@@ -154,37 +180,33 @@ public class SettingsView extends BorderPane {
         });
 
         row.getChildren().addAll(info, toggle);
-        return new VBox(18, h, p, row);
+        return new VBox(14, h, p, row);
     }
 
-    // ── About ───────────────────────────────────────────────────────────────
+    // ── À propos ────────────────────────────────────────────────────────────
 
     private VBox aboutSection() {
-        Label h = new Label("À propos"); h.getStyleClass().add("settings-h");
+        Label h = new Label("À propos");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+
         GridPane g = new GridPane();
         g.setHgap(40); g.setVgap(12);
         g.add(kvColumn("VERSION", "0.1.0"), 0, 0);
         g.add(kvColumn("SERVEUR", Constants.SERVER_HOST), 1, 0);
         g.add(kvColumn("LOADER", "Fabric 0.16.5"), 2, 0);
         g.add(kvColumn("MC", Constants.MC_VERSION), 3, 0);
-        return new VBox(18, h, g);
+        return new VBox(14, h, g);
     }
 
     private VBox kvColumn(String k, String v) {
-        Label key = labelCls(k, "micro");
-        Label val = labelCls(v, "about-v");
+        Label key = new Label(k);
+        key.setFont(Fonts.black(10));
+        key.setTextFill(Color.web("#6A6A74"));
+        key.setStyle("-fx-letter-spacing: 0.20em;");
+        Label val = new Label(v);
+        val.setFont(Fonts.semi(14));
+        val.setTextFill(Color.web("#F4F4F7"));
         return new VBox(6, key, val);
-    }
-
-    private static Label labelCls(String text, String cls) {
-        Label l = new Label(text);
-        l.getStyleClass().add(cls);
-        return l;
-    }
-
-    private static Region spacer(double w) {
-        Region r = new Region();
-        r.setMinWidth(w); r.setPrefWidth(w); r.setMaxWidth(w);
-        return r;
     }
 }
