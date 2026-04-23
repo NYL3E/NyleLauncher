@@ -39,16 +39,10 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        setTop(buildTopBar(account, onLogout, onSettings));
-        setCenter(buildContent());
+        // No more setTop — the header capsule overlays the background image,
+        // so there's no black strip above the picture.
+        setCenter(buildContent(account, onLogout, onSettings));
         setBottom(buildBottomBar());
-
-        if (getCenter() instanceof VBox v) {
-            int i = 0;
-            for (Node n : v.getChildren()) {
-                Animations.enter(n, Duration.millis(100 + (i++) * 80));
-            }
-        }
 
         SelfUpdater.check().thenAccept(info -> Platform.runLater(() -> {
             if (info.hasUpdate() && updateBanner != null) {
@@ -62,9 +56,9 @@ public class MainView extends BorderPane {
         }));
     }
 
-    // ── Top bar ─────────────────────────────────────────────────────────────
+    // ── Header capsule (overlay, not a dedicated top region) ────────────────
 
-    private Region buildTopBar(Account account, Runnable onLogout, Runnable onSettings) {
+    private Region buildHeaderCapsule(Account account, Runnable onLogout, Runnable onSettings) {
         // Unified glass header capsule — generous padding, fully rounded
         HBox capsule = new HBox(8);
         capsule.getStyleClass().add("header-capsule");
@@ -109,16 +103,7 @@ public class MainView extends BorderPane {
         updateBanner = buildUpdateBanner();
         updateBanner.setVisible(false);
         updateBanner.setManaged(false);
-
-        // Capsule on the LEFT, update banner (if any) on the RIGHT
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox row = new HBox(12, capsule, spacer, updateBanner);
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(4, 20, 0, 20));
-        row.setPrefHeight(44);
-        row.getStyleClass().add("top-bar-clean");
-        return row;
+        return capsule;
     }
 
     private HBox buildUpdateBanner() {
@@ -167,22 +152,27 @@ public class MainView extends BorderPane {
         return l;
     }
 
-    // ── Content (maquette: fond image + logo left + glass news right) ──────
+    // ── Body (fond image + header overlay + logo + glass news) ────────────
 
-    private Region buildContent() {
+    private Region buildContent(Account account, Runnable onLogout, Runnable onSettings) {
         StackPane stack = new StackPane();
-        // Use CSS background so the image auto-fits via -fx-background-size: cover.
         String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
-        // Anchor the image so its BOTTOM edge lines up with the top of the play bar.
-        // We pin the image to the bottom of the body region and size it by width
-        // so we never crop the bottom (what the user sees is the full bottom strip
-        // of the picture, landing right above the JOUER container).
         stack.setStyle(
                 "-fx-background-image: url('" + imgUrl + "');" +
                 "-fx-background-size: 100% auto;" +
                 "-fx-background-position: center bottom;" +
-                "-fx-background-repeat: no-repeat;"
+                "-fx-background-repeat: no-repeat;" +
+                "-fx-background-color: #08080B;"
         );
+
+        // ── Header capsule overlay (no more black strip above the picture) ──
+        Region capsule = buildHeaderCapsule(account, onLogout, onSettings);
+        StackPane.setAlignment(capsule, Pos.TOP_LEFT);
+        StackPane.setMargin(capsule, new Insets(12, 0, 0, 20));
+
+        // Update banner on the right
+        StackPane.setAlignment(updateBanner, Pos.TOP_RIGHT);
+        StackPane.setMargin(updateBanner, new Insets(12, 20, 0, 0));
 
         // ── Left overlay: big white logo + player count ───────────────────
         NyleLogo logo = new NyleLogo(96, Color.WHITE);
@@ -198,14 +188,16 @@ public class MainView extends BorderPane {
         HBox leftBlock = new HBox(18, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        StackPane.setMargin(leftBlock, new Insets(0, 0, 0, 36));
+        // Under the capsule (capsule ends around y=56), with the logo block
+        // starting right below — well above the old 30px we used to have.
+        StackPane.setMargin(leftBlock, new Insets(60, 0, 0, 36));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
         StackPane.setAlignment(newsPanel, Pos.TOP_RIGHT);
-        StackPane.setMargin(newsPanel, new Insets(20, 22, 20, 0));
+        StackPane.setMargin(newsPanel, new Insets(62, 22, 20, 0));
 
-        stack.getChildren().addAll(leftBlock, newsPanel);
+        stack.getChildren().addAll(leftBlock, newsPanel, capsule, updateBanner);
         return stack;
     }
 
