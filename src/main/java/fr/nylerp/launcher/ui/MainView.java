@@ -110,19 +110,15 @@ public class MainView extends BorderPane {
         updateBanner.setVisible(false);
         updateBanner.setManaged(false);
 
-        // Launcher no longer shows the NYLERP logo/wordmark in the top bar —
-        // just the glass capsule on the right (and the optional update banner).
-        HBox row = new HBox(12, updateBanner, capsule);
-        row.setAlignment(Pos.CENTER_RIGHT);
+        // Capsule on the LEFT, update banner (if any) on the RIGHT
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox row = new HBox(12, capsule, spacer, updateBanner);
+        row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(10, 20, 0, 20));
         row.setPrefHeight(58);
         row.getStyleClass().add("top-bar-clean");
-
-        HBox bar = new HBox();
-        bar.setAlignment(Pos.CENTER_RIGHT);
-        HBox.setHgrow(row, Priority.ALWAYS);
-        bar.getChildren().add(row);
-        return bar;
+        return row;
     }
 
     private HBox buildUpdateBanner() {
@@ -182,8 +178,8 @@ public class MainView extends BorderPane {
                 "-fx-background-repeat: no-repeat;"
         );
 
-        // ── Left overlay: logo + player count ──────────────────────────────
-        NyleLogo logo = new NyleLogo(64, Color.web("#FF6A1A"));
+        // ── Left overlay: big white logo + player count ───────────────────
+        NyleLogo logo = new NyleLogo(96, Color.WHITE);
         Circle dot = new Circle(4, Color.web("#22C55E"));
         pulse(dot);
         Label online = new Label("42 JOUEURS EN LIGNE");
@@ -193,10 +189,10 @@ public class MainView extends BorderPane {
         HBox onlineRow = new HBox(8, dot, online);
         onlineRow.setAlignment(Pos.CENTER_LEFT);
 
-        HBox leftBlock = new HBox(16, logo, onlineRow);
+        HBox leftBlock = new HBox(18, logo, onlineRow);
         leftBlock.setAlignment(Pos.CENTER_LEFT);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
-        StackPane.setMargin(leftBlock, new Insets(30, 0, 0, 40));
+        StackPane.setMargin(leftBlock, new Insets(12, 0, 0, 40));
 
         // ── Right overlay: Glass Actualité panel ───────────────────────────
         Region newsPanel = buildGlassNewsPanel();
