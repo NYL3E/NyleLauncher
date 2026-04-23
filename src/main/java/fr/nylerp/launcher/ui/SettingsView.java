@@ -61,15 +61,23 @@ public class SettingsView extends BorderPane {
 
         int startGb = Math.max(2, Math.min(16, Settings.get().ramMb / 1024));
 
-        Label big    = new Label(String.valueOf(startGb));
+        // Big number that tracks the thumb horizontally
+        Label big = new Label(String.valueOf(startGb));
         big.getStyleClass().add("ram-huge-num");
-        Label unit   = new Label("Go");
+        Label unit = new Label("Go");
         unit.getStyleClass().add("ram-huge-unit");
-        Label max    = new Label("/ 16 Go");
+        HBox numGroup = new HBox(6, big, unit);
+        numGroup.setAlignment(Pos.BASELINE_LEFT);
+
+        Pane numTrack = new Pane(numGroup);
+        numTrack.setMinHeight(80);
+        numTrack.setPrefHeight(80);
+
+        Label max = new Label("Max : 16 Go");
         max.getStyleClass().add("ram-max");
 
-        HBox header = new HBox(6, big, unit, spacer(8), max);
-        header.setAlignment(Pos.BASELINE_LEFT);
+        HBox headerTopRow = new HBox(max);
+        headerTopRow.setAlignment(Pos.TOP_RIGHT);
 
         Slider slider = new Slider(2, 16, startGb);
         slider.setBlockIncrement(1);
@@ -80,12 +88,29 @@ public class SettingsView extends BorderPane {
         slider.setPrefHeight(22);
         slider.setMaxWidth(Double.MAX_VALUE);
 
+        // Keep big number horizontally aligned with the thumb
+        Runnable reposition = () -> {
+            double ratio = (slider.getValue() - 2) / 14.0;
+            double sliderW = slider.getWidth();
+            if (sliderW <= 0) return;
+            double numW = numGroup.getWidth();
+            double x = ratio * sliderW - numW / 2;
+            // Clamp within bounds
+            x = Math.max(0, Math.min(numTrack.getWidth() - numW, x));
+            numGroup.setTranslateX(x);
+        };
         slider.valueProperty().addListener((obs, a, b) -> {
             int g = b.intValue();
             big.setText(String.valueOf(g));
             Settings.get().ramMb = g * 1024;
             Settings.get().save();
+            reposition.run();
         });
+        slider.widthProperty().addListener((o, a, b) -> reposition.run());
+        numGroup.widthProperty().addListener((o, a, b) -> reposition.run());
+        numTrack.widthProperty().addListener((o, a, b) -> reposition.run());
+        // Initial position after layout
+        javafx.application.Platform.runLater(reposition);
 
         HBox scale = new HBox();
         scale.setAlignment(Pos.CENTER);
@@ -98,7 +123,7 @@ public class SettingsView extends BorderPane {
             scale.getChildren().add(t);
         }
 
-        VBox v = new VBox(18, h, p, header, slider, scale);
+        VBox v = new VBox(12, h, p, headerTopRow, numTrack, slider, scale);
         return v;
     }
 
