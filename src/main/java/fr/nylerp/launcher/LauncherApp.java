@@ -26,7 +26,7 @@ public class LauncherApp extends Application {
         stage.setTitle(Constants.APP_NAME);
         stage.setResizable(false);
         stage.setWidth(1000);
-        stage.setHeight(640);
+        stage.setHeight(596);
 
         Account saved = AuthManager.loadSaved();
         if (saved != null) {
