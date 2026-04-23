@@ -69,7 +69,7 @@ public class MainView extends BorderPane {
         HBox capsule = new HBox(8);
         capsule.getStyleClass().add("header-capsule");
         capsule.setAlignment(Pos.CENTER_LEFT);
-        capsule.setPadding(new Insets(6, 18, 6, 18));
+        capsule.setPadding(new Insets(5, 18, 5, 18));
 
         SkinHead skin = new SkinHead(account, 30);
 
