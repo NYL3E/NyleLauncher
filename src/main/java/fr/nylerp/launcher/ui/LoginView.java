@@ -25,15 +25,15 @@ public class LoginView extends StackPane {
     public LoginView(Consumer<Account> onAuthenticated) {
         getStyleClass().add("login-root");
 
-        // Glass card centered
+        // Glass card centered — every dimension is the previous value × 0.85
         VBox card = new VBox();
         card.setAlignment(Pos.CENTER);
-        card.setMaxWidth(420);
+        card.setMaxWidth(357);
         card.setMaxHeight(Region.USE_PREF_SIZE);
         card.getStyleClass().add("login-card");
-        card.setPadding(new Insets(44, 44, 36, 44));
+        card.setPadding(new Insets(37, 37, 31, 37));
 
-        NyleLogo logo = new NyleLogo(56, Color.WHITE);
+        NyleLogo logo = new NyleLogo(48, Color.WHITE);
 
         Text t1 = new Text("Bienvenue sur\n"); t1.getStyleClass().add("hd-title");
         Text t2 = new Text("NyleRP.");         t2.getStyleClass().add("hd-title-em");
@@ -45,10 +45,10 @@ public class LoginView extends StackPane {
 
         Button ms = new Button("Continuer avec Microsoft");
         ms.getStyleClass().add("btn-ms");
-        ms.setPrefHeight(48);
+        ms.setPrefHeight(41);
         ms.setMaxWidth(Double.MAX_VALUE);
-        ms.setGraphic(Icons.microsoftLogo(14));
-        ms.setGraphicTextGap(10);
+        ms.setGraphic(Icons.microsoftLogo(12));
+        ms.setGraphicTextGap(9);
         ms.setOnAction(e -> doMicrosoftLogin(ms, onAuthenticated));
 
         HBox divider = dividerWithLabel("OU");
@@ -59,27 +59,27 @@ public class LoginView extends StackPane {
         TextField pseudo = new TextField();
         pseudo.getStyleClass().add("field-input");
         pseudo.setPromptText("Steve");
-        pseudo.setPrefHeight(48);
+        pseudo.setPrefHeight(41);
         pseudo.setMaxWidth(Double.MAX_VALUE);
         pseudo.setOnAction(e -> tryOffline(pseudo, onAuthenticated));
 
         Button offline = new Button("Jouer en offline");
         offline.getStyleClass().add("btn-ghost");
-        offline.setPrefHeight(48);
+        offline.setPrefHeight(41);
         offline.setMaxWidth(Double.MAX_VALUE);
         offline.setOnAction(e -> tryOffline(pseudo, onAuthenticated));
 
-        VBox offlineBox = new VBox(6, pseudoLbl, pseudo);
-        VBox authBox = new VBox(18, ms, divider, offlineBox, offline);
+        VBox offlineBox = new VBox(5, pseudoLbl, pseudo);
+        VBox authBox = new VBox(15, ms, divider, offlineBox, offline);
         authBox.setFillWidth(true);
 
         card.getChildren().addAll(
                 logo,
-                spacer(28),
+                spacer(24),
                 title,
-                spacer(8),
+                spacer(7),
                 sub,
-                spacer(36),
+                spacer(31),
                 authBox
         );
 

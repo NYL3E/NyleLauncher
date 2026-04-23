@@ -35,26 +35,26 @@
 }
 .login-card {
     -fx-background-color: -c-glass;
-    -fx-background-radius: 20;
+    -fx-background-radius: 17;
     -fx-border-color: -c-glass-brd;
-    -fx-border-radius: 20;
+    -fx-border-radius: 17;
     -fx-border-width: 1;
 }
 
 /* Explicit family-per-class — no ambiguity */
 
-.hd-title   { -fx-fill: -c-text;   -fx-font-family: "Montserrat Bold";   -fx-font-size: 40px; }
-.hd-title-em{ -fx-fill: -c-accent; -fx-font-family: "Montserrat Black";  -fx-font-size: 40px; }
-.hd-sub     { -fx-text-fill: -c-text-2; -fx-font-family: "Montserrat Medium"; -fx-font-size: 13px; }
+.hd-title   { -fx-fill: -c-text;   -fx-font-family: "Montserrat SemiBold"; -fx-font-size: 34px; }
+.hd-title-em{ -fx-fill: -c-accent; -fx-font-family: "Montserrat Bold";     -fx-font-size: 34px; }
+.hd-sub     { -fx-text-fill: -c-text-2; -fx-font-family: "Montserrat Medium"; -fx-font-size: 11px; }
 
 .btn-ms {
     -fx-background-color: -c-text;
     -fx-text-fill: #0A0A0E;
     -fx-font-family: "Montserrat SemiBold";
-    -fx-font-size: 14px;
-    -fx-background-radius: 12;
+    -fx-font-size: 12px;
+    -fx-background-radius: 10;
     -fx-cursor: hand;
-    -fx-padding: 0 20 0 20;
+    -fx-padding: 0 17 0 17;
 }
 .btn-ms:hover  { -fx-background-color: #FFFFFF; }
 .btn-ms:pressed{ -fx-background-color: #D0D0D8; }
@@ -62,11 +62,11 @@
 .btn-ghost {
     -fx-background-color: rgba(255,255,255,0.02);
     -fx-border-color: -c-glass-brd;
-    -fx-border-radius: 12;
-    -fx-background-radius: 12;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
     -fx-text-fill: -c-text;
     -fx-font-family: "Montserrat SemiBold";
-    -fx-font-size: 14px;
+    -fx-font-size: 12px;
     -fx-cursor: hand;
 }
 .btn-ghost:hover {
@@ -77,19 +77,19 @@
 .field-label {
     -fx-text-fill: -c-text-3;
     -fx-font-family: "Montserrat Bold";
-    -fx-font-size: 10px;
+    -fx-font-size: 9px;
     -fx-letter-spacing: 0.14em;
 }
 .field-input {
     -fx-background-color: rgba(255,255,255,0.03);
     -fx-border-color: -c-glass-brd;
-    -fx-border-radius: 12;
-    -fx-background-radius: 12;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
     -fx-text-fill: -c-text;
     -fx-prompt-text-fill: -c-text-4;
     -fx-font-family: "Montserrat Medium";
-    -fx-font-size: 15px;
-    -fx-padding: 0 16 0 16;
+    -fx-font-size: 13px;
+    -fx-padding: 0 14 0 14;
 }
 .field-input:focused {
     -fx-border-color: -c-accent;
@@ -100,14 +100,14 @@
 .divider-label {
     -fx-text-fill: -c-text-3;
     -fx-font-family: "Montserrat Bold";
-    -fx-font-size: 10px;
+    -fx-font-size: 9px;
     -fx-letter-spacing: 0.18em;
 }
 
 .foot-ver {
     -fx-text-fill: -c-text-3;
     -fx-font-family: "Montserrat Medium";
-    -fx-font-size: 11px;
+    -fx-font-size: 9px;
 }
 
 /* ─── Main ──────────────────────────────────────────────────────────── */
