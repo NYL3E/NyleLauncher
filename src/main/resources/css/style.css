@@ -352,15 +352,15 @@
     -fx-border-color: -c-glass-brd-hi;
 }
 
-/* PLAY — white text, black weight */
+/* PLAY — slightly diagonal orange gradient, 10px radius */
 .btn-play {
-    -fx-background-color: -c-accent;
+    -fx-background-color: linear-gradient(from 0% 0% to 80% 100%, #FF8128, #FF3300);
     -fx-text-fill: #FFFFFF;
-    -fx-background-radius: 14;
+    -fx-background-radius: 10;
     -fx-cursor: hand;
 }
-.btn-play:hover   { -fx-background-color: -c-accent-hi; }
-.btn-play:pressed { -fx-background-color: -c-accent-lo; }
+.btn-play:hover   { -fx-background-color: linear-gradient(from 0% 0% to 80% 100%, #FF8E3A, #FF4718); }
+.btn-play:pressed { -fx-background-color: linear-gradient(from 0% 0% to 80% 100%, #E3701E, #D62900); }
 .btn-play:disabled{ -fx-opacity: 0.55; }
 
 /* Mods row */

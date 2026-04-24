@@ -252,9 +252,27 @@ public class MainView extends BorderPane {
         title.setFont(Fonts.black(13));
         title.setTextFill(Color.web("#F4F4F7"));
         title.setStyle("-fx-letter-spacing: 0.22em;");
-        HBox header = new HBox(title);
+
+        // Chevron-shaped toggle — points down when expanded ("fold me up"),
+        // rotates 180° to point up when collapsed ("unfold me").
+        SVGPath arrow = new SVGPath();
+        arrow.setContent("M 0 4 L 6 -2 L 12 4");
+        arrow.setStroke(Color.web("#F4F4F7"));
+        arrow.setStrokeWidth(2.0);
+        arrow.setFill(Color.TRANSPARENT);
+        arrow.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
+        arrow.setStrokeLineJoin(javafx.scene.shape.StrokeLineJoin.ROUND);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox header = new HBox(12, title, spacer, arrow);
         header.setPadding(new Insets(18, 22, 14, 22));
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setStyle("-fx-cursor: hand;");
+        header.setPrefHeight(50);
+        header.setMinHeight(50);
+        header.setMaxHeight(50);
 
         Region divider = new Region();
         divider.setPrefHeight(1);
@@ -315,6 +333,35 @@ public class MainView extends BorderPane {
         glassPanel.setMaxWidth(320);
         glassPanel.setPrefHeight(260);
         glassPanel.setMaxHeight(260);
+        // Allow the VBox to shrink below its content's minHeight during the
+        // collapse animation. Without this, the scroll's minHeight would
+        // floor the panel and the chevron toggle would do nothing visible.
+        glassPanel.setMinHeight(0);
+
+        // Clip so the scroll content disappears cleanly inside the rounded
+        // corners as the panel animates from full height down to just-header.
+        Rectangle panelClip = new Rectangle(320, 260);
+        panelClip.setArcWidth(44);
+        panelClip.setArcHeight(44);
+        glassPanel.setClip(panelClip);
+        glassPanel.heightProperty().addListener((o, a, b) -> panelClip.setHeight(b.doubleValue()));
+
+        // Collapse / expand — clicking anywhere on the header animates the
+        // panel between full (260) and just-the-header (~54). Arrow flips
+        // 180° so the chevron always points in the direction content will go.
+        final double EXPANDED_H = 260;
+        final double COLLAPSED_H = 50;
+        boolean[] expanded = { true };
+        header.setOnMouseClicked(e -> {
+            expanded[0] = !expanded[0];
+            double targetH = expanded[0] ? EXPANDED_H : COLLAPSED_H;
+            double targetRot = expanded[0] ? 0 : 180;
+            Timeline tl = new Timeline(new KeyFrame(Duration.millis(260),
+                    new KeyValue(glassPanel.prefHeightProperty(), targetH, Interpolator.EASE_BOTH),
+                    new KeyValue(glassPanel.maxHeightProperty(), targetH, Interpolator.EASE_BOTH),
+                    new KeyValue(arrow.rotateProperty(), targetRot, Interpolator.EASE_BOTH)));
+            tl.play();
+        });
 
         return glassPanel;
     }

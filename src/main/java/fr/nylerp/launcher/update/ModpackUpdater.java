@@ -46,7 +46,7 @@ public final class ModpackUpdater {
      */
     public static boolean hasUpdate() {
         try {
-            String remoteJson = Downloader.toString(Constants.MANIFEST_URL);
+            String remoteJson = Downloader.toString(manifestUrl());
             Manifest remote = GSON.fromJson(remoteJson, Manifest.class);
             if (remote == null || remote.version == null) return false;
 
@@ -61,9 +61,19 @@ public final class ModpackUpdater {
         }
     }
 
+    /**
+     * Manifest URL with a cache-busting query string. GitHub Releases' CDN
+     * sometimes serves stale manifests for several minutes after re-upload,
+     * leaving the launcher convinced there's "nothing to download". Appending
+     * a unique ?t= param forces a fresh fetch each call.
+     */
+    private static String manifestUrl() {
+        return Constants.MANIFEST_URL + "?t=" + System.currentTimeMillis();
+    }
+
     public void sync() throws IOException {
         status("Téléchargement du manifest…");
-        String json = Downloader.toString(Constants.MANIFEST_URL);
+        String json = Downloader.toString(manifestUrl());
         Manifest remote = GSON.fromJson(json, Manifest.class);
         if (remote == null || remote.files == null) {
             throw new IOException("Manifest invalide ou vide");
