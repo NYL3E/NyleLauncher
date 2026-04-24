@@ -45,25 +45,51 @@ public class SkinHead extends StackPane {
             LOG.warn("Local steve head missing: {}", e.toString());
         }
 
-        // Real skin for Microsoft accounts (async overlay)
+        // Real skin for Microsoft accounts — try a chain of skin services so
+        // we still show the right face when the primary one is down (saw
+        // mc-heads.net return 503 in prod). We keep the first URL that loads
+        // without error.
         if (account != null && !account.isOffline()) {
-            try {
-                String id = account.uuid() != null ? account.uuid().replace("-", "") : account.username();
-                String url = "https://mc-heads.net/avatar/" + id + "/" + (int) (size * 2);
-                Image remote = new Image(url, size, size, true, false, true);
-                ImageView remoteView = new ImageView(remote);
-                remoteView.setFitWidth(size);
-                remoteView.setFitHeight(size);
-                remoteView.setPreserveRatio(true);
-                remoteView.setSmooth(false);
-                remote.progressProperty().addListener((o, a, b) -> {
-                    if (b != null && b.doubleValue() >= 1.0 && !remote.isError()) {
-                        getChildren().add(remoteView);
-                    }
-                });
-            } catch (Exception e) {
-                LOG.warn("Could not start remote skin load: {}", e.toString());
-            }
+            String rawUuid = account.uuid() != null ? account.uuid().replace("-", "") : null;
+            String dashedUuid = account.uuid();
+            String name = account.username();
+            int px = Math.max(16, (int) (size * 2));
+            String[] urls = rawUuid != null
+                    ? new String[]{
+                            "https://cravatar.eu/helmavatar/" + dashedUuid + "/" + px + ".png",
+                            "https://api.mineatar.io/face/" + dashedUuid + "?scale=8&overlay=true",
+                            "https://mc-heads.net/avatar/" + rawUuid + "/" + px,
+                            "https://minotar.net/helm/" + name + "/" + px + ".png"}
+                    : new String[]{
+                            "https://minotar.net/helm/" + name + "/" + px + ".png"};
+            loadSkinFallback(urls, 0, size);
+        }
+    }
+
+    private void loadSkinFallback(String[] urls, int idx, double size) {
+        if (idx >= urls.length) return;
+        try {
+            Image remote = new Image(urls[idx], size, size, true, false, true);
+            ImageView view = new ImageView(remote);
+            view.setFitWidth(size);
+            view.setFitHeight(size);
+            view.setPreserveRatio(true);
+            view.setSmooth(false);
+            remote.errorProperty().addListener((o, a, b) -> {
+                if (Boolean.TRUE.equals(b)) {
+                    LOG.debug("Skin source {} failed, trying next", urls[idx]);
+                    loadSkinFallback(urls, idx + 1, size);
+                }
+            });
+            remote.progressProperty().addListener((o, a, b) -> {
+                if (b != null && b.doubleValue() >= 1.0 && !remote.isError()
+                        && !getChildren().contains(view)) {
+                    getChildren().add(view);
+                }
+            });
+        } catch (Exception e) {
+            LOG.warn("Skin source {} threw: {}", urls[idx], e.toString());
+            loadSkinFallback(urls, idx + 1, size);
         }
     }
 }

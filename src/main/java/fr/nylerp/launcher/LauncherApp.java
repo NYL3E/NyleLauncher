@@ -37,7 +37,32 @@ public class LauncherApp extends Application {
         Account saved = AuthManager.loadSaved();
         if (saved != null) {
             LOG.info("Resuming saved session for {} ({})", saved.username(), saved.type());
+            // Show the main view immediately with the saved Account, then
+            // silently refresh the MS access token in the background so the
+            // user never has to re-login unless the refresh token is revoked.
             onAuthenticated(saved);
+            if (saved.type() == Account.Type.MICROSOFT && saved.refreshToken() != null) {
+                fr.nylerp.launcher.auth.MicrosoftSystemAuth.refresh(saved.refreshToken())
+                        .whenComplete((refreshed, err) -> javafx.application.Platform.runLater(() -> {
+                            if (err != null) {
+                                String msg = err.toString();
+                                // Token revoked / expired — kick the user back to the login
+                                // screen so they reconnect once. Everything else (network
+                                // hiccups, MS being down) keeps the cached token.
+                                if (msg.contains("invalid_grant") || msg.contains("expired")
+                                        || msg.contains("revoked")) {
+                                    LOG.warn("MS refresh token rejected — logging out: {}", msg);
+                                    onLogout();
+                                } else {
+                                    LOG.warn("Silent MS refresh failed (keeping cached token): {}", msg);
+                                }
+                            } else {
+                                LOG.info("MS token refreshed silently for {}", refreshed.username());
+                                AuthManager.save(refreshed);
+                                this.account = refreshed;
+                            }
+                        }));
+            }
         } else {
             showLogin();
         }
