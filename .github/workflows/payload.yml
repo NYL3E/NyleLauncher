@@ -1,0 +1,85 @@
+name: Build payload
+
+# Triggered on tags like `payload-1.0.0`. Builds the launcher uberjar and
+# attaches it to a release named the same. The bootstrap reads
+# manifest.json (hosted on the website) to find the URL of this jar.
+
+on:
+  push:
+    tags: [ 'payload-*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build payload uberjar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build payload shadowJar
+        run: |
+          chmod +x gradlew
+          # Build only the root project (the launcher), not the bootstrap subproject
+          ./gradlew :shadowJar --no-daemon
+
+      - name: Locate jar + compute SHA-256 + version
+        id: meta
+        run: |
+          JAR=$(ls build/libs/nylelauncher-*.jar | head -1)
+          BASENAME=$(basename "$JAR")
+          # The payload tag looks like `payload-1.2.3`; strip the prefix for the
+          # version we publish in the manifest.
+          VER="${GITHUB_REF_NAME#payload-}"
+          SHA=$(sha256sum "$JAR" | awk '{print $1}')
+          # Rename so the release URL is predictable: payload-<ver>.jar
+          mkdir -p dist
+          cp "$JAR" "dist/payload-${VER}.jar"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "jar_path=dist/payload-${VER}.jar" >> "$GITHUB_OUTPUT"
+
+      - name: Write manifest.json artifact
+        run: |
+          cat > dist/manifest.json <<EOF
+          {
+            "version": "${{ steps.meta.outputs.version }}",
+            "jar_url": "https://github.com/NYL3E/NyleLauncher/releases/download/${{ github.ref_name }}/payload-${{ steps.meta.outputs.version }}.jar",
+            "main_class": "fr.nylerp.launcher.Main",
+            "sha256": "${{ steps.meta.outputs.sha256 }}"
+          }
+          EOF
+          cat dist/manifest.json
+
+      - name: Job summary (manifest content to copy to website)
+        run: |
+          {
+            echo '## Payload v${{ steps.meta.outputs.version }} ready'
+            echo ''
+            echo 'Copy this manifest into `site-mc/public/launcher/manifest.json` and redeploy:'
+            echo ''
+            echo '```json'
+            cat dist/manifest.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create release + upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Payload ${{ steps.meta.outputs.version }}
+          files: |
+            dist/payload-${{ steps.meta.outputs.version }}.jar
+            dist/manifest.json
+          body: |
+            Payload jar for the bootstrap.
+            **You should not download this directly.** The bootstrap fetches it
+            automatically when its manifest points here. The MSI/DMG/DEB
+            installer that users actually download is on the `v*` releases.
