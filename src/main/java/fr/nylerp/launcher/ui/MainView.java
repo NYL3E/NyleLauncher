@@ -45,6 +45,7 @@ public class MainView extends BorderPane {
     // launching. Set from background checks at startup.
     private volatile boolean modpackUpdatePending = false;
     private volatile String launcherUpdateUrl = null;
+    private volatile String launcherUpdateTag = null;
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
@@ -63,6 +64,7 @@ public class MainView extends BorderPane {
                 Button dl = (Button) updateBanner.getChildren().get(2);
                 dl.setOnAction(e -> performSelfUpdate(info.latestTag(), info.releaseUrl(), dl));
                 launcherUpdateUrl = info.releaseUrl();
+                launcherUpdateTag = info.latestTag();
                 refreshPlayButton();
             }
         }));
@@ -78,6 +80,42 @@ public class MainView extends BorderPane {
                 refreshPlayButton();
             });
         });
+    }
+
+    /**
+     * Same as {@link #performSelfUpdate} but drives the giant Play button at the
+     * bottom-right (which uses {@code playLabel} instead of its own text).
+     */
+    private void performLauncherUpdateOnPlay(Button play) {
+        if (!SelfUpdater.canAutoUpdate()) {
+            openBrowser(launcherUpdateUrl);
+            return;
+        }
+        play.setDisable(true);
+        playLabel.setText("0%");
+        SelfUpdater.downloadUpdate(launcherUpdateTag, (done, total) -> {
+            if (total > 0) {
+                int pct = (int) Math.min(100L, done * 100L / total);
+                Platform.runLater(() -> playLabel.setText(pct + "%"));
+            }
+        }).whenComplete((file, err) -> Platform.runLater(() -> {
+            if (err != null) {
+                playLabel.setText("RÉESSAYER");
+                play.setDisable(false);
+                return;
+            }
+            try {
+                playLabel.setText("INSTALLATION");
+                SelfUpdater.runInstaller(file);
+                new Thread(() -> {
+                    try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+                    Platform.runLater(() -> { Platform.exit(); System.exit(0); });
+                }).start();
+            } catch (Exception ex) {
+                playLabel.setText("RÉESSAYER");
+                play.setDisable(false);
+            }
+        }));
     }
 
     /**
@@ -475,7 +513,8 @@ public class MainView extends BorderPane {
         play.setPrefHeight(56);
         play.setOnAction(e -> {
             if (launcherUpdateUrl != null) {
-                openBrowser(launcherUpdateUrl);
+                // Same auto-update flow as the small banner button — never open the browser
+                performLauncherUpdateOnPlay(play);
             } else if (modpackUpdatePending) {
                 runModpackUpdate(play);
             } else {
