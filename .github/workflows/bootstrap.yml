@@ -115,6 +115,12 @@ jobs:
             --icon src/main/resources/images/app_icon.png \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
+
+          # Rename to the convention old self-updaters expect:
+          # NyleLauncher-windows-v<ver>.msi
+          if [ "${{ matrix.platform }}" = "windows" ] && [ -f "dist/NyleLauncher-${VER}.msi" ]; then
+            mv "dist/NyleLauncher-${VER}.msi" "dist/NyleLauncher-windows-v${VER}.msi"
+          fi
           ls -la dist/
 
       - name: Build portable Windows ZIP
@@ -137,7 +143,7 @@ jobs:
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
             --icon src/main/resources/images/app_icon.png
-          7z a -r "dist/NyleLauncher-windows-portable-${VER}.zip" "./portable/NyleLauncher" -mx=5
+          7z a -r "dist/NyleLauncher-windows-portable-v${VER}.zip" "./portable/NyleLauncher" -mx=5
 
       - uses: actions/upload-artifact@v4
         with:
