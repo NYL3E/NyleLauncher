@@ -106,6 +106,10 @@ jobs:
               ;;
           esac
 
+          # Pick the icon for jpackage. jpackage on Windows accepts PNG since JDK 17
+          # (it converts to ICO internally). We just point to the bundled app icon.
+          ICON_PATH=src/main/resources/images/app_icon.png
+
           jpackage \
             --type "$TYPE" \
             --name NyleLauncher \
@@ -118,6 +122,7 @@ jobs:
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
+            --icon "$ICON_PATH" \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
           ls -la dist/
@@ -142,7 +147,8 @@ jobs:
             --java-options "-Xmx512m" \
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
-            --copyright "NyleRP"
+            --copyright "NyleRP" \
+            --icon src/main/resources/images/app_icon.png
 
           # Drop a README inside so users know what to do
           cat > portable/NyleLauncher/COMMENT_LANCER.txt <<'EOF'

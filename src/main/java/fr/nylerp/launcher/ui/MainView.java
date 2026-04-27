@@ -61,7 +61,7 @@ public class MainView extends BorderPane {
                 ((Label) updateBanner.getChildren().get(1)).setText(
                         "Mise à jour " + info.latestTag() + " disponible");
                 Button dl = (Button) updateBanner.getChildren().get(2);
-                dl.setOnAction(e -> openBrowser(info.releaseUrl()));
+                dl.setOnAction(e -> performSelfUpdate(info.latestTag(), info.releaseUrl(), dl));
                 launcherUpdateUrl = info.releaseUrl();
                 refreshPlayButton();
             }
@@ -78,6 +78,45 @@ public class MainView extends BorderPane {
                 refreshPlayButton();
             });
         });
+    }
+
+    /**
+     * Downloads the new launcher installer for the current OS and runs it.
+     * Falls back to opening the GitHub release page only if the OS isn't
+     * supported by the auto-installer (currently only macOS).
+     */
+    private void performSelfUpdate(String tag, String fallbackUrl, Button dl) {
+        if (!SelfUpdater.canAutoUpdate()) {
+            // No installer for this OS yet — open the release page so the user sees the assets
+            openBrowser(fallbackUrl);
+            return;
+        }
+        dl.setDisable(true);
+        dl.setText("0%");
+        SelfUpdater.downloadUpdate(tag, (done, total) -> {
+            if (total > 0) {
+                int pct = (int) Math.min(100L, done * 100L / total);
+                Platform.runLater(() -> dl.setText(pct + "%"));
+            }
+        }).whenComplete((file, err) -> Platform.runLater(() -> {
+            if (err != null) {
+                dl.setText("Réessayer");
+                dl.setDisable(false);
+                return;
+            }
+            try {
+                dl.setText("Installation...");
+                SelfUpdater.runInstaller(file);
+                // Give the installer a moment to start before we release file locks
+                new Thread(() -> {
+                    try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+                    Platform.runLater(() -> { Platform.exit(); System.exit(0); });
+                }).start();
+            } catch (Exception ex) {
+                dl.setText("Réessayer");
+                dl.setDisable(false);
+            }
+        }));
     }
 
     private void refreshPlayButton() {
@@ -214,9 +253,7 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(capsule, Pos.TOP_LEFT);
         StackPane.setMargin(capsule, new Insets(20, 0, 0, 20));
 
-        // Update banner on the right
-        StackPane.setAlignment(updateBanner, Pos.TOP_RIGHT);
-        StackPane.setMargin(updateBanner, new Insets(20, 20, 0, 0));
+        // updateBanner will be stacked under the news panel — see VBox below.
 
         // ── Left overlay: big white logo + player count ───────────────────
         NyleLogo logo = new NyleLogo(96, Color.WHITE);
@@ -238,12 +275,16 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
         StackPane.setMargin(leftBlock, new Insets(78, 0, 0, 30));
 
-        // ── Right overlay: Glass Actualité panel ───────────────────────────
+        // ── Right overlay: Glass Actualité panel + update banner attached below ───
         Region newsPanel = buildGlassNewsPanel();
-        StackPane.setAlignment(newsPanel, Pos.TOP_RIGHT);
-        StackPane.setMargin(newsPanel, new Insets(20, 22, 20, 0));
+        VBox rightColumn = new VBox(10, newsPanel, updateBanner);
+        rightColumn.setAlignment(Pos.TOP_RIGHT);
+        rightColumn.setMaxWidth(Region.USE_PREF_SIZE);
+        rightColumn.setMaxHeight(Region.USE_PREF_SIZE);
+        StackPane.setAlignment(rightColumn, Pos.TOP_RIGHT);
+        StackPane.setMargin(rightColumn, new Insets(20, 22, 20, 0));
 
-        stack.getChildren().addAll(leftBlock, newsPanel, capsule, updateBanner);
+        stack.getChildren().addAll(leftBlock, rightColumn, capsule);
         return stack;
     }
 
