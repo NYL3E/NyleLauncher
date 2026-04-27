@@ -88,13 +88,14 @@ jobs:
           EXTRA_ARGS=()
           case "${{ matrix.platform }}" in
             windows)
+              # No --win-shortcut-prompt and no --win-dir-chooser:
+              # the desktop shortcut is always created, install path is fixed,
+              # no questions asked of the user during the wizard.
               EXTRA_ARGS+=(
                 --win-shortcut
                 --win-menu
                 --win-menu-group "NyleRP"
-                --win-shortcut-prompt
                 --win-per-user-install
-                --win-dir-chooser
                 --win-upgrade-uuid "8c1d3a4e-9f5b-4d72-a8b6-7e5c2d1f4a93"
               )
               ;;
