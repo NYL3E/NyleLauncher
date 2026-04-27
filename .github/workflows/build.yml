@@ -68,6 +68,44 @@ jobs:
             dmg) TYPE=dmg ;;
             deb) TYPE=deb ;;
           esac
+
+          # Per-platform jpackage flags so the installer creates desktop/menu shortcuts
+          # and offers a launch dialog instead of installing silently.
+          EXTRA_ARGS=()
+          case "${{ matrix.platform }}" in
+            windows)
+              # --win-shortcut         : icon on the user's desktop
+              # --win-menu             : entry in the Start menu
+              # --win-menu-group       : Start menu folder
+              # --win-shortcut-prompt  : show the "Create desktop shortcut" checkbox
+              # --win-per-user-install : install in user profile, no admin elevation needed
+              # --win-dir-chooser      : let the user pick the install directory
+              # --win-upgrade-uuid     : stable UUID so future versions upgrade in place
+              EXTRA_ARGS+=(
+                --win-shortcut
+                --win-menu
+                --win-menu-group "NyleRP"
+                --win-shortcut-prompt
+                --win-per-user-install
+                --win-dir-chooser
+                --win-upgrade-uuid "8c1d3a4e-9f5b-4d72-a8b6-7e5c2d1f4a93"
+              )
+              ;;
+            linux)
+              EXTRA_ARGS+=(
+                --linux-shortcut
+                --linux-menu-group "NyleRP"
+                --linux-app-category "Game"
+                --linux-deb-maintainer "lennytridat@gmail.com"
+              )
+              ;;
+            mac-intel|mac-arm)
+              EXTRA_ARGS+=(
+                --mac-package-name "NyleLauncher"
+              )
+              ;;
+          esac
+
           jpackage \
             --type "$TYPE" \
             --name NyleLauncher \
@@ -78,6 +116,9 @@ jobs:
             --dest dist \
             --java-options "-Xmx512m" \
             --vendor "NyleRP" \
+            --description "NyleRP Minecraft Launcher" \
+            --copyright "NyleRP" \
+            "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
           ls -la dist/
       - uses: actions/upload-artifact@v4
