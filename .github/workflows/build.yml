@@ -121,6 +121,54 @@ jobs:
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
           ls -la dist/
+
+      - name: Build portable Windows ZIP (no installer, no SmartScreen prompt)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          JAR=$(ls build/libs/nylelauncher-*.jar | head -1)
+          VER=$(echo "$JAR" | sed -E 's/.*nylelauncher-([0-9.]+)\.jar/\1/')
+          mkdir -p portable
+          # app-image = self-contained folder with the .exe and bundled JRE.
+          # No install step required: user unzips, double-clicks NyleLauncher.exe.
+          jpackage \
+            --type app-image \
+            --name NyleLauncher \
+            --app-version "$VER" \
+            --input build/libs \
+            --main-jar "$(basename "$JAR")" \
+            --main-class fr.nylerp.launcher.Main \
+            --dest portable \
+            --java-options "-Xmx512m" \
+            --vendor "NyleRP" \
+            --description "NyleRP Minecraft Launcher" \
+            --copyright "NyleRP"
+
+          # Drop a README inside so users know what to do
+          cat > portable/NyleLauncher/COMMENT_LANCER.txt <<'EOF'
+NyleLauncher — version portable
+================================
+
+1. Double-clique sur NyleLauncher.exe pour lancer le launcher.
+
+2. Si Windows affiche "Windows a protégé votre PC" :
+   → Clique sur "Informations complémentaires"
+   → Puis sur "Exécuter quand même"
+   (C'est normal, le launcher n'est pas signé par un éditeur Windows
+   commercial — mais il est sûr.)
+
+3. Connecte-toi avec ton compte Microsoft (Java officiel requis).
+
+Pour créer un raccourci sur ton bureau :
+- Clic droit sur NyleLauncher.exe → "Envoyer vers" → "Bureau (raccourci)"
+
+Pour désinstaller : supprime simplement ce dossier.
+EOF
+
+          # Zip the app-image folder using 7z (preinstalled on GH Windows runners)
+          7z a -r "dist/NyleLauncher-windows-portable-${VER}.zip" "./portable/NyleLauncher" -mx=5
+          ls -la dist/
+
       - uses: actions/upload-artifact@v4
         with:
           name: launcher-${{ matrix.platform }}
