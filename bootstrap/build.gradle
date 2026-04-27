@@ -6,7 +6,7 @@ plugins {
 group = 'fr.nylerp.bootstrap'
 // Bootstrap version is independent of the payload version.
 // Bumped only when the bootstrap *itself* changes (rare: download/verify/launch logic).
-version = '0.3.1'
+version = '0.3.2'
 
 java {
     toolchain {
