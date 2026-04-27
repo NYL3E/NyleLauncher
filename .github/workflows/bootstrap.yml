@@ -88,15 +88,18 @@ jobs:
           EXTRA_ARGS=()
           case "${{ matrix.platform }}" in
             windows)
-              # No --win-shortcut-prompt and no --win-dir-chooser:
-              # the desktop shortcut is always created, install path is fixed,
-              # no questions asked of the user during the wizard.
+              # --win-console : the launcher .exe is wired as a console app instead
+              # of a GUI app, which means startup errors print to a visible terminal
+              # window. We keep this on until the launcher is confirmed working in
+              # the wild. (Removing it later only hides the console — the launcher
+              # still works either way.)
               EXTRA_ARGS+=(
                 --win-shortcut
                 --win-menu
                 --win-menu-group "NyleRP"
                 --win-per-user-install
                 --win-upgrade-uuid "8c1d3a4e-9f5b-4d72-a8b6-7e5c2d1f4a93"
+                --win-console
               )
               ;;
             linux)
@@ -121,7 +124,7 @@ jobs:
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
-            --icon src/main/resources/images/app_icon.png \
+            --icon src/main/resources/images/app_icon.ico \
             --add-modules "$ALL_MODULES" \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
@@ -154,7 +157,7 @@ jobs:
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
-            --icon src/main/resources/images/app_icon.png \
+            --icon src/main/resources/images/app_icon.ico \
             --add-modules "$ALL_MODULES"
           7z a -r "dist/NyleLauncher-windows-portable-v${VER}.zip" "./portable/NyleLauncher" -mx=5
 
