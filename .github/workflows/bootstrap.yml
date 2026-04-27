@@ -1,0 +1,167 @@
+name: Build bootstrap
+
+# Triggered on tags like `v0.3.0` (the bootstrap version). Builds the small
+# bootstrap jar and wraps it into native MSI/DMG/DEB installers — that's what
+# users download once. Once installed, the bootstrap fetches the payload
+# from the manifest at every launch, so future feature updates ship via
+# `payload-*` tags without ever touching the bootstrap.
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  jar:
+    name: Bootstrap shadowJar (universal)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Build bootstrap shadowJar
+        run: |
+          chmod +x gradlew
+          ./gradlew :bootstrap:shadowJar --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-jar
+          path: bootstrap/build/libs/nylelauncher-bootstrap-*.jar
+
+  native:
+    name: Native bootstrap installer (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            ext: msi
+          - os: ubuntu-latest
+            platform: linux
+            ext: deb
+          # macOS jpackage is flaky in CI — re-enable later if we get a working build.
+          # - os: macos-13
+          #   platform: mac-intel
+          #   ext: dmg
+          # - os: macos-14
+          #   platform: mac-arm
+          #   ext: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build bootstrap shadowJar
+        shell: bash
+        run: |
+          chmod +x gradlew || true
+          ./gradlew :bootstrap:shadowJar --no-daemon
+
+      - name: Package bootstrap with jpackage
+        shell: bash
+        run: |
+          mkdir -p dist
+          JAR=$(ls bootstrap/build/libs/nylelauncher-bootstrap-*.jar | head -1)
+          VER="${GITHUB_REF_NAME#v}"
+          case "${{ matrix.ext }}" in
+            msi) TYPE=msi ;;
+            deb) TYPE=deb ;;
+          esac
+
+          EXTRA_ARGS=()
+          case "${{ matrix.platform }}" in
+            windows)
+              EXTRA_ARGS+=(
+                --win-shortcut
+                --win-menu
+                --win-menu-group "NyleRP"
+                --win-shortcut-prompt
+                --win-per-user-install
+                --win-dir-chooser
+                --win-upgrade-uuid "8c1d3a4e-9f5b-4d72-a8b6-7e5c2d1f4a93"
+              )
+              ;;
+            linux)
+              EXTRA_ARGS+=(
+                --linux-shortcut
+                --linux-menu-group "NyleRP"
+                --linux-app-category "Game"
+                --linux-deb-maintainer "lennytridat@gmail.com"
+              )
+              ;;
+          esac
+
+          jpackage \
+            --type "$TYPE" \
+            --name NyleLauncher \
+            --app-version "$VER" \
+            --input bootstrap/build/libs \
+            --main-jar "$(basename "$JAR")" \
+            --main-class fr.nylerp.bootstrap.Bootstrap \
+            --dest dist \
+            --java-options "-Xmx256m" \
+            --vendor "NyleRP" \
+            --description "NyleRP Minecraft Launcher" \
+            --copyright "NyleRP" \
+            --icon src/main/resources/images/app_icon.png \
+            "${EXTRA_ARGS[@]}" \
+            || { echo "jpackage failed"; exit 1; }
+          ls -la dist/
+
+      - name: Build portable Windows ZIP
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          JAR=$(ls bootstrap/build/libs/nylelauncher-bootstrap-*.jar | head -1)
+          VER="${GITHUB_REF_NAME#v}"
+          mkdir -p portable
+          jpackage \
+            --type app-image \
+            --name NyleLauncher \
+            --app-version "$VER" \
+            --input bootstrap/build/libs \
+            --main-jar "$(basename "$JAR")" \
+            --main-class fr.nylerp.bootstrap.Bootstrap \
+            --dest portable \
+            --java-options "-Xmx256m" \
+            --vendor "NyleRP" \
+            --description "NyleRP Minecraft Launcher" \
+            --copyright "NyleRP" \
+            --icon src/main/resources/images/app_icon.png
+          7z a -r "dist/NyleLauncher-windows-portable-${VER}.zip" "./portable/NyleLauncher" -mx=5
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-${{ matrix.platform }}
+          path: dist/*
+
+  release:
+    name: Attach bootstrap to release
+    needs: [ jar, native ]
+    if: always() && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: NyleLauncher ${{ github.ref_name }}
+          files: |
+            artifacts/bootstrap-jar/*
+            artifacts/bootstrap-windows/*
+            artifacts/bootstrap-linux/*
+          body: |
+            Lightweight bootstrap. **Install this once.** It fetches the actual
+            launcher payload from the manifest at every launch, so all future
+            updates land automatically without you needing to reinstall.

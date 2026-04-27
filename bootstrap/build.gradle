@@ -1,0 +1,40 @@
+plugins {
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'fr.nylerp.bootstrap'
+// Bootstrap version is independent of the payload version.
+// Bumped only when the bootstrap *itself* changes (rare: download/verify/launch logic).
+version = '0.3.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Only Gson + slf4j-simple — keep deps minimal so the bootstrap stays small.
+    implementation 'com.google.code.gson:gson:2.11.0'
+}
+
+application {
+    mainClass = 'fr.nylerp.bootstrap.Bootstrap'
+}
+
+shadowJar {
+    archiveBaseName.set('nylelauncher-bootstrap')
+    archiveClassifier.set('')
+    archiveVersion.set(project.version)
+    // Make the jar runnable
+    manifest {
+        attributes('Main-Class': 'fr.nylerp.bootstrap.Bootstrap')
+    }
+}
+
+build.dependsOn shadowJar
