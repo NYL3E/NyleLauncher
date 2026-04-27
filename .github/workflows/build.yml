@@ -150,26 +150,27 @@ jobs:
             --copyright "NyleRP" \
             --icon src/main/resources/images/app_icon.png
 
-          # Drop a README inside so users know what to do
-          cat > portable/NyleLauncher/COMMENT_LANCER.txt <<'EOF'
-NyleLauncher — version portable
-================================
-
-1. Double-clique sur NyleLauncher.exe pour lancer le launcher.
-
-2. Si Windows affiche "Windows a protégé votre PC" :
-   → Clique sur "Informations complémentaires"
-   → Puis sur "Exécuter quand même"
-   (C'est normal, le launcher n'est pas signé par un éditeur Windows
-   commercial — mais il est sûr.)
-
-3. Connecte-toi avec ton compte Microsoft (Java officiel requis).
-
-Pour créer un raccourci sur ton bureau :
-- Clic droit sur NyleLauncher.exe → "Envoyer vers" → "Bureau (raccourci)"
-
-Pour désinstaller : supprime simplement ce dossier.
-EOF
+          # Drop a README inside so users know what to do.
+          # Done via printf (one line per arg) because YAML heredocs break parsing.
+          printf '%s\n' \
+            'NyleLauncher - version portable' \
+            '================================' \
+            '' \
+            '1. Double-clique sur NyleLauncher.exe pour lancer le launcher.' \
+            '' \
+            '2. Si Windows affiche "Windows a protege votre PC" :' \
+            '   - Clique sur "Informations complementaires"' \
+            '   - Puis sur "Executer quand meme"' \
+            '   (C est normal, le launcher n est pas signe par un editeur' \
+            '   Windows commercial - mais il est sur.)' \
+            '' \
+            '3. Connecte-toi avec ton compte Microsoft (Java officiel requis).' \
+            '' \
+            'Pour creer un raccourci sur ton bureau :' \
+            '- Clic droit sur NyleLauncher.exe -> "Envoyer vers" -> "Bureau"' \
+            '' \
+            'Pour desinstaller : supprime simplement ce dossier.' \
+            > portable/NyleLauncher/COMMENT_LANCER.txt
 
           # Zip the app-image folder using 7z (preinstalled on GH Windows runners)
           7z a -r "dist/NyleLauncher-windows-portable-${VER}.zip" "./portable/NyleLauncher" -mx=5
