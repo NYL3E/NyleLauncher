@@ -77,6 +77,14 @@ jobs:
             deb) TYPE=deb ;;
           esac
 
+          # Use jdeps to detect every JDK module the bootstrap actually needs,
+          # then add the security/locale modules that jdeps misses (loaded
+          # reflectively at runtime — TLS handshake, DNS, charsets, locale).
+          DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
+          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported"
+          echo "Detected modules: $DEPS"
+          echo "Final --add-modules: $ALL_MODULES"
+
           EXTRA_ARGS=()
           case "${{ matrix.platform }}" in
             windows)
@@ -113,7 +121,7 @@ jobs:
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
             --icon src/main/resources/images/app_icon.png \
-            --add-modules java.base,java.net.http,java.logging,jdk.crypto.ec,jdk.crypto.cryptoki,java.naming \
+            --add-modules "$ALL_MODULES" \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
 
@@ -130,6 +138,8 @@ jobs:
         run: |
           JAR=$(ls bootstrap/build/libs/nylelauncher-bootstrap-*.jar | head -1)
           VER="${GITHUB_REF_NAME#v}"
+          DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
+          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported"
           mkdir -p portable
           jpackage \
             --type app-image \
@@ -144,7 +154,7 @@ jobs:
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
             --icon src/main/resources/images/app_icon.png \
-            --add-modules java.base,java.net.http,java.logging,jdk.crypto.ec,jdk.crypto.cryptoki,java.naming
+            --add-modules "$ALL_MODULES"
           7z a -r "dist/NyleLauncher-windows-portable-v${VER}.zip" "./portable/NyleLauncher" -mx=5
 
       - uses: actions/upload-artifact@v4
