@@ -6,6 +6,7 @@ import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.ui.LoginView;
 import fr.nylerp.launcher.ui.MainView;
 import fr.nylerp.launcher.ui.SettingsView;
+import fr.nylerp.launcher.util.CrashReporter;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -22,6 +23,8 @@ public class LauncherApp extends Application {
     @Override
     public void start(Stage stage) {
         loadFonts();
+        // After JavaFX is up, surface any pending crash reports from previous runs.
+        CrashReporter.promptIfPending();
         this.stage = stage;
         stage.setTitle(Constants.APP_NAME);
         stage.setResizable(false);

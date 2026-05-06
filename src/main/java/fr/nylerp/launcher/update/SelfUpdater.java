@@ -53,18 +53,29 @@ public final class SelfUpdater {
                 }
                 if (best == null) {
                     LOG.info("Version check: no launcher release found");
-                    return new Info(false, "", "v" + Constants.APP_VERSION, "");
+                    return new Info(false, "", "v" + installedVersion(), "");
                 }
                 String htmlUrl = best.get("html_url").getAsString();
-                String current = "v" + Constants.APP_VERSION;
+                String current = "v" + installedVersion();
                 boolean newer = compareVersions(bestTag, current) > 0;
                 LOG.info("Version check: current={} latest={} newer={}", current, bestTag, newer);
                 return new Info(newer, bestTag, current, htmlUrl);
             } catch (Exception e) {
                 LOG.warn("Version check failed: {}", e.toString());
-                return new Info(false, "", "v" + Constants.APP_VERSION, "");
+                return new Info(false, "", "v" + installedVersion(), "");
             }
         });
+    }
+
+    /**
+     * The actually-installed version on disk. Bootstrap injects this via the
+     * {@code nyleauth.installedVersion} system property at startup. Falls back to
+     * {@link Constants#APP_VERSION} when the launcher is run from gradle/IDE (no bootstrap).
+     */
+    public static String installedVersion() {
+        String v = System.getProperty("nyleauth.installedVersion");
+        if (v != null && !v.isBlank()) return v;
+        return Constants.APP_VERSION;
     }
 
     /** Compare tags like "v0.1.2" vs "v0.1.0" — returns >0 if a > b, <0 if a < b, 0 if equal. */
@@ -113,9 +124,17 @@ public final class SelfUpdater {
         });
     }
 
-    /** Starts the platform installer asynchronously. The launcher should exit shortly after. */
+    /**
+     * Starts the platform installer asynchronously. The launcher should exit shortly after.
+     * On macOS we drive the in-place .app replacement directly (Sparkle-style) — see
+     * {@link MacUpdater}.
+     */
     public static void runInstaller(Path file) throws IOException {
         String os = osKey();
+        if (os.equals("mac")) {
+            MacUpdater.runInPlace(file);
+            return;
+        }
         ProcessBuilder pb;
         switch (os) {
             case "windows" -> pb = new ProcessBuilder(
@@ -135,6 +154,7 @@ public final class SelfUpdater {
         return switch (os) {
             case "windows" -> "NyleLauncher-windows-" + tag + ".msi";
             case "linux"   -> "nylelauncher_" + version + "_amd64.deb";
+            case "mac"     -> "NyleLauncher-mac-" + tag + ".dmg";
             default -> throw new UnsupportedOperationException(
                     "No installer asset published for " + System.getProperty("os.name"));
         };
@@ -150,7 +170,7 @@ public final class SelfUpdater {
 
     public static boolean canAutoUpdate() {
         String k = osKey();
-        return k.equals("windows") || k.equals("linux");
+        return k.equals("windows") || k.equals("linux") || k.equals("mac");
     }
 
     private SelfUpdater() {}
