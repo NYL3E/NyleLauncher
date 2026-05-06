@@ -192,7 +192,7 @@ public class SettingsView extends BorderPane {
 
         GridPane g = new GridPane();
         g.setHgap(40); g.setVgap(12);
-        g.add(kvColumn("VERSION", Constants.APP_VERSION), 0, 0);
+        g.add(kvColumn("VERSION", fr.nylerp.launcher.update.SelfUpdater.installedVersion()), 0, 0);
         g.add(kvColumn("SERVEUR", Constants.SERVER_HOST), 1, 0);
         g.add(kvColumn("LOADER", "Fabric"), 2, 0);
         g.add(kvColumn("MC", Constants.MC_VERSION), 3, 0);

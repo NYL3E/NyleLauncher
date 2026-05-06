@@ -34,6 +34,17 @@ import java.util.stream.Stream;
  */
 public final class Bootstrap {
 
+    /**
+     * Bootstrap version. This is the SOURCE OF TRUTH for "what is the user running".
+     * jpackage stamps this same string into the .app bundle's Info.plist so OS-level updates
+     * see it too. Bumped together with the launcher's user-visible release tag (v0.3.5, …).
+     *
+     * Exposed to the payload at runtime via the {@code nyleauth.installedVersion} system
+     * property — that's how SelfUpdater knows whether an update is needed instead of relying
+     * on the payload's own (independently-versioned) {@code Constants.APP_VERSION}.
+     */
+    public static final String VERSION = "0.3.5";
+
     /** The only business URL inside the bootstrap. Stable forever. */
     private static final String MANIFEST_URL =
             "https://nyle-mc-server.pages.dev/launcher/manifest.json";
@@ -44,6 +55,25 @@ public final class Bootstrap {
             .build();
 
     public static void main(String[] args) throws Exception {
+        // Capture any uncaught exception (incl. JVM/JavaFX init failures) into a crash log
+        // file so the next launcher start can prompt the user to send it to the dev.
+        Thread.setDefaultUncaughtExceptionHandler(Bootstrap::writeCrash);
+        try {
+            mainImpl(args);
+        } catch (Throwable t) {
+            writeCrash(Thread.currentThread(), t);
+            throw t;
+        }
+    }
+
+    private static void mainImpl(String[] args) throws Exception {
+        // Expose the bootstrap version to the payload. SelfUpdater reads this to know
+        // what's actually installed on disk instead of relying on the payload's own
+        // (independently-versioned) Constants.APP_VERSION, which would create infinite
+        // update loops when the bootstrap is bumped without a coordinated payload bump.
+        System.setProperty("nyleauth.installedVersion", VERSION);
+        log("bootstrap version=" + VERSION);
+
         Path cache = cacheDir();
         Files.createDirectories(cache);
 
@@ -190,6 +220,49 @@ public final class Bootstrap {
 
     private static void log(String msg) {
         System.err.println("[bootstrap] " + msg);
+    }
+
+    /** Cross-platform crash log directory — must match {@code CrashReporter.resolveCrashDir} in
+     *  the payload so the payload picks up bootstrap-level crashes too. */
+    private static Path crashDir() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        String home = System.getProperty("user.home");
+        if (os.contains("mac")) return Paths.get(home, "Library", "Logs", "NyleLauncher");
+        if (os.contains("win")) {
+            String appdata = System.getenv("APPDATA");
+            return Paths.get(appdata != null ? appdata : home, "NyleLauncher", "logs");
+        }
+        return Paths.get(home, ".config", "NyleLauncher", "logs");
+    }
+
+    private static void writeCrash(Thread t, Throwable e) {
+        try {
+            Path dir = crashDir();
+            Files.createDirectories(dir);
+            String stamp = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            Path file = dir.resolve("crash-bootstrap-" + stamp + ".log");
+            StringBuilder sb = new StringBuilder();
+            sb.append("# NyleLauncher BOOTSTRAP crash report\n");
+            sb.append("ts=").append(java.time.LocalDateTime.now()).append('\n');
+            sb.append("os=").append(System.getProperty("os.name"))
+              .append(' ').append(System.getProperty("os.version"))
+              .append(' ').append(System.getProperty("os.arch")).append('\n');
+            sb.append("java=").append(System.getProperty("java.version")).append('\n');
+            sb.append("thread=").append(t.getName()).append('\n');
+            sb.append("---\n");
+            try (java.io.StringWriter sw = new java.io.StringWriter();
+                 java.io.PrintWriter pw = new java.io.PrintWriter(sw)) {
+                e.printStackTrace(pw);
+                sb.append(sw);
+            }
+            Files.writeString(file, sb.toString(), java.nio.file.StandardOpenOption.CREATE_NEW);
+            log("crash captured at " + file);
+        } catch (Throwable t2) {
+            // last resort: stderr
+            System.err.println("[bootstrap] meta-failure writing crash: " + t2);
+            e.printStackTrace();
+        }
     }
 
     private static class Manifest {
