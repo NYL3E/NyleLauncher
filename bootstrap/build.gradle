@@ -39,12 +39,14 @@ shadowJar {
 
 // Stamp the gradle version into a resource the bootstrap reads at runtime,
 // so Bootstrap.VERSION cannot drift from the build's source of truth.
+// NB: the task's output MUST be a directory (containing the .properties file),
+// not a single file — sourceSets.resources.srcDir() expects a dir.
 def writeBootstrapVersion = tasks.register('writeBootstrapVersion') {
-    def out = layout.buildDirectory.file('generated/version/bootstrap-version.properties')
-    outputs.file(out)
+    def outDir = layout.buildDirectory.dir('generated/version')
+    outputs.dir(outDir)
     inputs.property('version', project.version)
     doLast {
-        def f = out.get().asFile
+        def f = outDir.get().file('bootstrap-version.properties').asFile
         f.parentFile.mkdirs()
         f.text = "version=${project.version}\n"
     }
