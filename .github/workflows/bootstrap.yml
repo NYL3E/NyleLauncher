@@ -153,6 +153,15 @@ jobs:
               ;;
           esac
 
+          # Windows: feed jpackage our full main.wxs override (forked from OpenJDK 21u
+          # source) which adds a "Lancer NyleLauncher maintenant" exit-dialog checkbox.
+          # Linux/Mac don't use WiX so the dir is harmless there but we only pass it on
+          # Windows to avoid surprise file collisions.
+          RESOURCE_ARGS=()
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            RESOURCE_ARGS+=(--resource-dir wix-resources)
+          fi
+
           jpackage \
             --type "$TYPE" \
             --name NyleLauncher \
@@ -167,6 +176,7 @@ jobs:
             --copyright "NyleRP" \
             --icon "$ICON" \
             --add-modules "$ALL_MODULES" \
+            "${RESOURCE_ARGS[@]}" \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
 
