@@ -103,22 +103,25 @@ jobs:
           EXTRA_ARGS=()
           case "${{ matrix.platform }}" in
             windows)
-              # No --win-console — the bootstrap is now stable enough that we run as a
-              # proper GUI app. (With --win-console, the .exe was a console app and
-              # opened a CMD window every launch displaying the bootstrap log.)
+              # --win-console temporarily restored — without it the GUI-subsystem
+              # launcher.exe swallows JVM startup errors and the user only sees a
+              # generic "Failed to launch JVM" popup. Console mode reveals the actual
+              # cause so we can diagnose. We will switch back to GUI subsystem (and
+              # ship a custom WiX final-page with "Launch now") once the underlying
+              # JVM init issue is identified.
               #
-              # --win-shortcut-prompt + --win-menu (no -prompt) : the install wizard
-              # asks the user whether to put a shortcut on the Desktop (default checked)
-              # while always installing the Start Menu entry.
-              # --win-dir-chooser : add a wizard step letting the user pick the install
-              # directory rather than running silently.
+              # --win-shortcut, --win-menu : always create both shortcuts. We use the
+              # always-create flags rather than -prompt so a silent MSI upgrade still
+              # places the desktop icon (the -prompt variants get hidden during major
+              # upgrades, which left the user without a desktop shortcut after upgrading
+              # from v0.3.5 → v0.3.8).
               EXTRA_ARGS+=(
-                --win-shortcut-prompt
+                --win-shortcut
                 --win-menu
                 --win-menu-group "NyleRP"
-                --win-dir-chooser
                 --win-per-user-install
                 --win-upgrade-uuid "8c1d3a4e-9f5b-4d72-a8b6-7e5c2d1f4a93"
+                --win-console
               )
               ;;
             linux)
