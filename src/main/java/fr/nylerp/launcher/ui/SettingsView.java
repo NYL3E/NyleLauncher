@@ -157,30 +157,48 @@ public class SettingsView extends BorderPane {
         p.setTextFill(Color.web("#A2A2AC"));
         p.setWrapText(true);
 
+        HBox litematicaRow = optionalModRow(
+                "Litematica",
+                "Prévisualisation et construction assistée par schémas.",
+                Settings.get().optionalLitematica,
+                v -> { Settings.get().optionalLitematica = v; Settings.get().save(); });
+
+        HBox bobbyRow = optionalModRow(
+                "Bobby",
+                "Charge et conserve plus de chunks que la distance configurée par le serveur.",
+                Settings.get().optionalBobby,
+                v -> { Settings.get().optionalBobby = v; Settings.get().save(); });
+
+        return new VBox(14, h, p, litematicaRow, bobbyRow);
+    }
+
+    /** A single optional-mod row: title + description on the left, pill switch
+     *  on the right. Centralised so each mod is one declarative call site
+     *  instead of 18 lines of repeated layout. */
+    private HBox optionalModRow(String title, String desc, boolean initial,
+                                java.util.function.Consumer<Boolean> onChange) {
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
         row.getStyleClass().add("mod-row");
         row.setPadding(new Insets(16, 20, 16, 20));
 
-        Label modTitle = new Label("Litematica");
+        Label modTitle = new Label(title);
         modTitle.setFont(Fonts.semi(14));
         modTitle.setTextFill(Color.web("#F4F4F7"));
-        Label modDesc = new Label("Prévisualisation et construction assistée par schémas.");
+        Label modDesc = new Label(desc);
         modDesc.setFont(Fonts.medium(12));
         modDesc.setTextFill(Color.web("#A2A2AC"));
+        modDesc.setWrapText(true);
         VBox info = new VBox(4, modTitle, modDesc);
         HBox.setHgrow(info, Priority.ALWAYS);
 
         CheckBox toggle = new CheckBox();
         toggle.getStyleClass().add("pill-switch");
-        toggle.setSelected(Settings.get().optionalLitematica);
-        toggle.selectedProperty().addListener((obs, a, b) -> {
-            Settings.get().optionalLitematica = b;
-            Settings.get().save();
-        });
+        toggle.setSelected(initial);
+        toggle.selectedProperty().addListener((obs, a, b) -> onChange.accept(b));
 
         row.getChildren().addAll(info, toggle);
-        return new VBox(14, h, p, row);
+        return row;
     }
 
     // ── À propos ────────────────────────────────────────────────────────────

@@ -112,6 +112,18 @@ public final class ModpackUpdater {
 
         for (ManifestEntry e : remote.files) {
             Path local = gameDir.resolve(e.path);
+            // First-install-only entries (options.txt, certain configs) are
+            // pulled exactly once. After that, the user's customisations win
+            // — even if the publisher pushes a new manifest with a different
+            // SHA, we leave the local file untouched so settings like
+            // renderDistance, guiScale, keybinds aren't reset on every
+            // modpack update.
+            if (e.firstInstallOnly && Files.exists(local)) {
+                done++;
+                bytesDone += Math.max(0, e.size);
+                listener.onProgress(done, total, bytesDone, bytesTotal);
+                continue;
+            }
             String localHash = Hashing.sha256(local);
             if (e.sha256 != null && e.sha256.equalsIgnoreCase(localHash)) {
                 done++;
@@ -130,16 +142,28 @@ public final class ModpackUpdater {
             listener.onProgress(done, total, bytesDone, bytesTotal);
         }
 
-        // Cleanup — remove managed files that disappeared from manifest
+        // Cleanup — remove managed files that disappeared from manifest.
+        // Two exclusion lists protect files that the manifest doesn't list
+        // but that we must keep:
+        //   1. Optional-mod jar filenames toggled by the user via Settings
+        //      (Bobby, Litematica, …). They live in mods/ but are NOT in the
+        //      manifest, so the naive "delete everything not in manifest"
+        //      sweep would wipe them on every sync.
+        //   2. config/ subtrees that hold user-tweaked per-mod settings.
+        //      We deliberately don't sync user-touchable mod configs through
+        //      the manifest (handled by firstInstallOnly above), so cleanup
+        //      should leave config/ alone entirely.
         Set<Path> expected = new HashSet<>();
         for (ManifestEntry e : remote.files) expected.add(gameDir.resolve(e.path).normalize());
+        Set<String> optionalModNames = new HashSet<>(OptionalMods.filenames());
 
-        for (String sub : new String[]{"mods", "config", "resourcepacks", "shaderpacks"}) {
+        for (String sub : new String[]{"mods", "resourcepacks", "shaderpacks"}) {
             Path dir = gameDir.resolve(sub);
             if (!Files.isDirectory(dir)) continue;
             try (Stream<Path> walk = Files.walk(dir)) {
                 walk.filter(Files::isRegularFile)
                     .filter(p -> !expected.contains(p.normalize()))
+                    .filter(p -> !optionalModNames.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
                             Files.deleteIfExists(p);

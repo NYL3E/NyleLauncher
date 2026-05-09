@@ -66,6 +66,14 @@ def main():
         print(f"ERROR: {PACK} does not exist", file=sys.stderr)
         sys.exit(1)
 
+    # Files the user is expected to customise locally — pulled exactly once
+    # on first install, never overwritten by subsequent manifest updates.
+    # Render distance, GUI scale, key binds etc. live in options.txt;
+    # last-played / favourites in servers.dat. Without this guard, every
+    # publisher push that bumped the SHA would silently reset the player's
+    # personal settings — see ModpackUpdater.firstInstallOnly handling.
+    FIRST_INSTALL_ONLY = {"options.txt", "optionsof.txt", "servers.dat"}
+
     files = []
     for p in sorted(PACK.rglob("*")):
         if p.is_file():
@@ -77,12 +85,15 @@ def main():
                 continue
             asset = gh_safe_asset_name(flat_asset_name(rel))
             url = f"https://github.com/{args.repo}/releases/download/{args.release}/{asset}"
-            files.append({
+            entry = {
                 "path":   str(rel).replace("\\", "/"),
                 "sha256": sha256(p),
                 "size":   p.stat().st_size,
                 "url":    url,
-            })
+            }
+            if rel.name in FIRST_INSTALL_ONLY:
+                entry["firstInstallOnly"] = True
+            files.append(entry)
 
     manifest = {
         "version":   _dt.datetime.now(_dt.timezone.utc).strftime("%Y.%m.%d-%H%M%S"),

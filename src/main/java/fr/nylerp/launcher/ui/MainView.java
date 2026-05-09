@@ -5,6 +5,7 @@ import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.config.Settings;
 import fr.nylerp.launcher.launch.MinecraftLauncher;
 import fr.nylerp.launcher.update.ModpackUpdater;
+import fr.nylerp.launcher.update.OptionalMods;
 import fr.nylerp.launcher.update.SelfUpdater;
 import javafx.animation.*;
 import javafx.application.Platform;
@@ -786,6 +787,12 @@ public class MainView extends BorderPane {
                             .warn("Modpack sync failed, continuing local: {}", syncErr.toString(), syncErr);
                     Platform.runLater(() -> status.setText("Sync KO, lancement local…"));
                 }
+
+                // Reconcile optional mods (Bobby, Litematica) AFTER the
+                // manifest sync but BEFORE launching MC, so the mods/ folder
+                // matches the user's settings before Fabric scans it.
+                Platform.runLater(() -> status.setText("Mods optionnels…"));
+                OptionalMods.applyAll();
 
                 Account account = fr.nylerp.launcher.auth.AuthManager.loadSaved();
                 int ramMb = Settings.get().ramMb;
