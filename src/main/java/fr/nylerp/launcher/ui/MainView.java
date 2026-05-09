@@ -715,7 +715,15 @@ public class MainView extends BorderPane {
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
         bar.setPadding(new Insets(14, 32, 16, 40));
+        // Clamp height: in BorderPane.bottom this didn't matter, but inside a StackPane
+        // with Pos.BOTTOM_CENTER alignment a HBox without a max-height grows vertically
+        // until it fills the parent, and since .bottom-bar's CSS sets a solid #08080B
+        // background it would paint a black slab over the entire body. Pinning all three
+        // size dimensions to 72 keeps the bar a strip at the bottom.
         bar.setPrefHeight(72);
+        bar.setMinHeight(72);
+        bar.setMaxHeight(72);
+        bar.setMaxWidth(Double.MAX_VALUE);   // still fills horizontally
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
