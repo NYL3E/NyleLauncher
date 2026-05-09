@@ -131,13 +131,11 @@
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
     </InstallUISequence>
 
-    <!-- ================================================================ -->
-    <!-- NyleRP additions: launch the launcher after install. The standard -->
-    <!-- WiX UI pattern: a CustomAction that runs the .exe, a checkbox on  -->
-    <!-- the ExitDialog wired to fire that action when the user clicks    -->
-    <!-- "Finish". The checkbox text + default state come from the two    -->
-    <!-- WIXUI_EXITDIALOGOPTIONALCHECKBOX* properties.                    -->
-    <!-- ================================================================ -->
+    <!-- NyleRP additions: launch the launcher after install. CustomAction +
+         Properties live in <Product>; the UI publish goes in a separate
+         Fragment at <Wix> root so WiX merges it onto the existing JpUI
+         (defined in jpackage's bundled JpUI.wxs Fragment). Putting UI in
+         <Product> here would duplicate-define JpUI and trigger LGHT0094. -->
     <CustomAction Id="LaunchAfterInstall"
                   Directory="INSTALLDIR"
                   ExeCommand="[INSTALLDIR]NyleLauncher.exe"
@@ -145,6 +143,12 @@
                   Return="asyncNoWait"
                   Impersonate="yes" />
 
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Lancer NyleLauncher maintenant" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+  </Product>
+
+  <Fragment>
     <UI Id="JpUI">
       <Publish Dialog="ExitDialog"
                Control="Finish"
@@ -152,9 +156,5 @@
                Event="DoAction"
                Value="LaunchAfterInstall">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT REMOVE</Publish>
     </UI>
-
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Lancer NyleLauncher maintenant" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
-
-  </Product>
+  </Fragment>
 </Wix>
