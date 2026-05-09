@@ -20,6 +20,10 @@ public final class Settings {
     public int ramMb = 4096;
     public boolean optionalLitematica       = false;
     public boolean optionalDistantHorizons  = false;
+    /** Persists the launcher's mute toggle (ambient + music) across sessions
+     *  so players who silenced the launcher once don't have to do it on
+     *  every start. */
+    public boolean launcherAudioMuted       = false;
     // optionalBobby was retired in 1.0.28 (replaced by Distant Horizons). The
     // field is left as a no-op deserialisation target so existing saved
     // settings.json files don't fail to parse for users who had it on; Gson
