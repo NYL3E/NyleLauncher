@@ -57,7 +57,10 @@ public class MainView extends BorderPane {
     private MediaPlayer ambientPlayer;
     /** Foreground music loop ("Left to Bloom" full-length, max-quality). */
     private MediaPlayer musicPlayer;
-    private boolean audioMuted = false;
+    /** Hydrated from {@link Settings#launcherAudioMuted} so the mute choice
+     *  persists across sessions — players who silenced the launcher don't
+     *  need to do it again at every start. */
+    private boolean audioMuted = Settings.get().launcherAudioMuted;
     private SVGPath muteIcon;
     /** Volume for the layered ambient + music tracks. Both stay at the same level so
      *  the music sits naturally on top of the texture without needing a per-track mix. */
@@ -419,7 +422,10 @@ public class MainView extends BorderPane {
                 ambientPlayer = new MediaPlayer(media);
                 ambientPlayer.setVolume(AMBIENT_VOLUME);
                 ambientPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-                ambientPlayer.setAutoPlay(true);
+                // setAutoPlay always starts playback when the player is ready.
+                // If the persisted mute is true, we don't want to start audible —
+                // begin paused, then play() only when the user unmutes.
+                ambientPlayer.setAutoPlay(!audioMuted);
             } catch (Throwable t) {
                 System.err.println("[MainView] ambient audio unavailable: " + t);
             }
@@ -431,7 +437,7 @@ public class MainView extends BorderPane {
                 musicPlayer = new MediaPlayer(media);
                 musicPlayer.setVolume(MUSIC_VOLUME);
                 musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-                musicPlayer.setAutoPlay(true);
+                musicPlayer.setAutoPlay(!audioMuted);
             } catch (Throwable t) {
                 System.err.println("[MainView] music unavailable: " + t);
             }
@@ -480,6 +486,9 @@ public class MainView extends BorderPane {
             else            p.play();
         }
         applyMuteIconShape();
+        // Persist so the choice survives a launcher restart.
+        Settings.get().launcherAudioMuted = audioMuted;
+        Settings.get().save();
     }
 
     private void applyMuteIconShape() {
