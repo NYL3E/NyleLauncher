@@ -125,36 +125,32 @@
       <?endif?>
       <RemoveExistingProducts Before="CostInitialize"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
+      <Custom Action="LaunchAfterInstall" After="InstallFinalize">NOT REMOVE AND UILevel &gt; 2</Custom>
     </InstallExecuteSequence>
 
     <InstallUISequence>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
     </InstallUISequence>
 
-    <!-- NyleRP additions: launch the launcher after install. CustomAction +
-         Properties live in <Product>; the UI publish goes in a separate
-         Fragment at <Wix> root so WiX merges it onto the existing JpUI
-         (defined in jpackage's bundled JpUI.wxs Fragment). Putting UI in
-         <Product> here would duplicate-define JpUI and trigger LGHT0094. -->
+    <!-- NyleRP additions: launch the launcher right after install completes.
+         We do NOT touch JpUI at all — extending it via Fragment caused light.exe
+         linker errors (LGHT0092 — duplicate UI symbol vs jpackage's bundled
+         ui.wixobj). Instead we schedule a deferred CustomAction in
+         InstallExecuteSequence after InstallFinalize. The action runs
+         cmd.exe /c start "" "NyleLauncher.exe" with INSTALLDIR as the working
+         dir, which spawns the launcher as a detached process running under
+         the current user.
+         - Execute="deferred" + Impersonate="yes" : runs as the user, not SYSTEM.
+         - asyncNoWait return : msiexec doesn't block waiting for the launcher.
+         - NOT REMOVE condition skips this on uninstall.
+         - UILevel != 2 skips on /qn silent installs (no UI = probably scripted).
+    -->
     <CustomAction Id="LaunchAfterInstall"
                   Directory="INSTALLDIR"
-                  ExeCommand="[INSTALLDIR]NyleLauncher.exe"
-                  Execute="immediate"
-                  Return="asyncNoWait"
-                  Impersonate="yes" />
-
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Lancer NyleLauncher maintenant" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+                  ExeCommand='cmd.exe /c start "" "NyleLauncher.exe"'
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="asyncNoWait" />
 
   </Product>
-
-  <Fragment>
-    <UI Id="JpUI">
-      <Publish Dialog="ExitDialog"
-               Control="Finish"
-               Order="999"
-               Event="DoAction"
-               Value="LaunchAfterInstall">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT REMOVE</Publish>
-    </UI>
-  </Fragment>
 </Wix>
