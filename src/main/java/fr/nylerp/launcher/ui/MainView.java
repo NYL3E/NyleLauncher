@@ -704,8 +704,18 @@ public class MainView extends BorderPane {
 
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
-        bar.setPadding(new Insets(14, 32, 16, 40));
+        // Vertical padding 0/0 — Pos.CENTER vertically centres the play button
+        // (56 px) and the status+progress column inside the bar's fixed
+        // height, so symmetrical breathing room comes for free without making
+        // the bar grow past 72.
+        bar.setPadding(new Insets(0, 32, 0, 40));
+        // Hard clamps so the HBox cannot grow past 72 even when its children
+        // (the 56-px play button + 14 px of explicit padding earlier) wanted
+        // a taller content box. Without these the bar reported a min height
+        // of ~86 to BorderPane.bottom and bled past the bottom edge.
+        bar.setMinHeight(72);
         bar.setPrefHeight(72);
+        bar.setMaxHeight(72);
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
