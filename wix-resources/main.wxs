@@ -125,7 +125,12 @@
       <?endif?>
       <RemoveExistingProducts Before="CostInitialize"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
-      <Custom Action="LaunchAfterInstall" After="InstallFinalize">NOT REMOVE AND UILevel &gt; 2</Custom>
+      <!-- ICE77: in-script (deferred) custom actions must be sequenced BETWEEN
+           InstallInitialize and InstallFinalize. Scheduling After="InstallFinalize"
+           triggers LGHT0204. Before="InstallFinalize" places the launch right at
+           the end of the deferred phase, just before the install commits. The
+           detached `cmd.exe /c start` survives msiexec exiting. -->
+      <Custom Action="LaunchAfterInstall" Before="InstallFinalize">NOT REMOVE AND UILevel &gt; 2</Custom>
     </InstallExecuteSequence>
 
     <InstallUISequence>
