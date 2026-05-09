@@ -50,14 +50,18 @@ public class MainView extends BorderPane {
     private volatile String launcherUpdateUrl = null;
     private volatile String launcherUpdateTag = null;
 
-    /** Background video player (looping, no audio — audio is on a separate track). */
+    /** Background video player (looping, no audio — audio is on separate tracks). */
     private MediaPlayer videoPlayer;
-    /** Ambient audio player. {@link #AMBIENT_VOLUME} when active, 0 when muted. Survives
-     *  the lifetime of the launcher so the loop doesn't restart between view rebuilds. */
-    private MediaPlayer audioPlayer;
+    /** Ambient texture loop (3-min YouTube cut, low). */
+    private MediaPlayer ambientPlayer;
+    /** Foreground music loop ("Left to Bloom" full-length, max-quality). */
+    private MediaPlayer musicPlayer;
     private boolean audioMuted = false;
     private SVGPath muteIcon;
-    private static final double AMBIENT_VOLUME = 0.30;
+    /** Volume for the layered ambient + music tracks. Both stay at the same level so
+     *  the music sits naturally on top of the texture without needing a per-track mix. */
+    private static final double AMBIENT_VOLUME = 0.08;
+    private static final double MUSIC_VOLUME   = 0.08;
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
@@ -291,10 +295,11 @@ public class MainView extends BorderPane {
         stack.setStyle("-fx-background-color: #08080B;");
 
         // ── Video background — replaces the static fond-launcher.png. Looping silent
-        //    H.264 .mp4 fitted to fill the body area. Cropped (PRESERVE_RATIO + scaled
-        //    so the wider dimension covers) so the StackPane never shows black bars.
+        //    H.264 .mp4 covers the body area (CSS object-fit:cover style — overflow
+        //    clipped, no letterbox). Anchored BOTTOM_CENTER so when the source is taller
+        //    than the body, the top of the video gets cropped instead of the bottom.
         MediaView videoView = buildBackgroundVideo(stack);
-        StackPane.setAlignment(videoView, Pos.CENTER);
+        StackPane.setAlignment(videoView, Pos.BOTTOM_CENTER);
         stack.getChildren().add(videoView);
 
         // ── Ambient audio — separate looping MediaPlayer at 30% by default; toggled
@@ -347,8 +352,13 @@ public class MainView extends BorderPane {
         return stack;
     }
 
-    /** Build a {@link MediaView} that plays the launcher background video on loop,
-     *  always covers the StackPane (cropped if needed, never letterboxed). */
+    /** Build a {@link MediaView} that plays the launcher background video on loop and
+     *  covers the StackPane CSS-{@code object-fit: cover}-style: scaled so the smaller
+     *  dimension fills the viewport, the other axis overflows and is clipped. The
+     *  view is anchored to {@link Pos#BOTTOM_CENTER} so when the video is taller than
+     *  the body, it's the TOP that gets cropped (per user request). The parent StackPane
+     *  receives a Rectangle clip bound to its size so overflow never paints over the
+     *  window chrome. */
     private MediaView buildBackgroundVideo(StackPane parent) {
         MediaView view = new MediaView();
         view.setPreserveRatio(true);
@@ -357,16 +367,40 @@ public class MainView extends BorderPane {
             String url = getClass().getResource("/media/launcher-bg.mp4").toExternalForm();
             Media media = new Media(url);
             videoPlayer = new MediaPlayer(media);
-            videoPlayer.setMute(true);                   // audio is on a separate stream
+            videoPlayer.setMute(true);                   // audio is on separate streams
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
             videoPlayer.setAutoPlay(true);
             view.setMediaPlayer(videoPlayer);
-            // The MediaView's fitWidth/fitHeight crop+cover the StackPane. We bind to
-            // the larger of width / (height * srcAspect) so the video always covers.
-            // For simplicity we just bind both — PreserveRatio=true keeps proportions,
-            // overflow is clipped by the StackPane.
-            view.fitWidthProperty().bind(parent.widthProperty());
-            view.fitHeightProperty().bind(parent.heightProperty());
+
+            // Once the media reports its native dimensions, install listeners that
+            // recompute the cover-scale on every viewport size change.
+            videoPlayer.setOnReady(() -> {
+                int mw = media.getWidth();
+                int mh = media.getHeight();
+                if (mw <= 0 || mh <= 0) {
+                    // fallback if metadata wasn't decoded — fill anyway
+                    view.fitWidthProperty().bind(parent.widthProperty());
+                    view.fitHeightProperty().bind(parent.heightProperty());
+                    return;
+                }
+                Runnable rescale = () -> {
+                    double pw = parent.getWidth();
+                    double ph = parent.getHeight();
+                    if (pw <= 0 || ph <= 0) return;
+                    double s = Math.max(pw / mw, ph / mh);   // cover, never letterbox
+                    view.setFitWidth(mw * s);
+                    view.setFitHeight(mh * s);
+                };
+                parent.widthProperty().addListener((o, a, b) -> rescale.run());
+                parent.heightProperty().addListener((o, a, b) -> rescale.run());
+                rescale.run();
+            });
+
+            // Clip the parent so the overflowing video doesn't paint outside body bounds.
+            Rectangle clip = new Rectangle();
+            clip.widthProperty().bind(parent.widthProperty());
+            clip.heightProperty().bind(parent.heightProperty());
+            parent.setClip(clip);
         } catch (Throwable t) {
             // If the codec is missing or the file is corrupt we'd rather show the empty
             // dark background than crash on startup. Log + carry on.
@@ -376,16 +410,33 @@ public class MainView extends BorderPane {
     }
 
     private void startAmbientAudio() {
-        if (audioPlayer != null) return; // singleton — survive view rebuilds
-        try {
-            String url = getClass().getResource("/media/ambient.mp3").toExternalForm();
-            Media media = new Media(url);
-            audioPlayer = new MediaPlayer(media);
-            audioPlayer.setVolume(AMBIENT_VOLUME);
-            audioPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-            audioPlayer.setAutoPlay(true);
-        } catch (Throwable t) {
-            System.err.println("[MainView] ambient audio unavailable: " + t);
+        // Layered audio: ambient texture loop on track 1 + foreground music loop on
+        // track 2. Both at the same low volume so they sit naturally together — no
+        // per-track ducking needed. Singletons across view rebuilds to keep the loops
+        // continuous instead of restarting from t=0 every time the screen swaps.
+        if (ambientPlayer == null) {
+            try {
+                String url = getClass().getResource("/media/ambient.mp3").toExternalForm();
+                Media media = new Media(url);
+                ambientPlayer = new MediaPlayer(media);
+                ambientPlayer.setVolume(AMBIENT_VOLUME);
+                ambientPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+                ambientPlayer.setAutoPlay(true);
+            } catch (Throwable t) {
+                System.err.println("[MainView] ambient audio unavailable: " + t);
+            }
+        }
+        if (musicPlayer == null) {
+            try {
+                String url = getClass().getResource("/media/music.mp3").toExternalForm();
+                Media media = new Media(url);
+                musicPlayer = new MediaPlayer(media);
+                musicPlayer.setVolume(MUSIC_VOLUME);
+                musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+                musicPlayer.setAutoPlay(true);
+            } catch (Throwable t) {
+                System.err.println("[MainView] music unavailable: " + t);
+            }
         }
     }
 
@@ -422,12 +473,13 @@ public class MainView extends BorderPane {
 
     private void toggleMute() {
         audioMuted = !audioMuted;
-        if (audioPlayer != null) {
-            // Pause rather than just mute volume — saves CPU on the decoder thread when
-            // the user explicitly silences the launcher (matches the user's framing
-            // "couper le son / mettre sur pause").
-            if (audioMuted) audioPlayer.pause();
-            else            audioPlayer.play();
+        // Pause rather than mute volume — saves CPU on the decoder threads when the
+        // user silences the launcher. Both layers (texture + music) toggle together
+        // so the mute state always matches what the user hears.
+        for (MediaPlayer p : new MediaPlayer[] { ambientPlayer, musicPlayer }) {
+            if (p == null) continue;
+            if (audioMuted) p.pause();
+            else            p.play();
         }
         applyMuteIconShape();
     }
