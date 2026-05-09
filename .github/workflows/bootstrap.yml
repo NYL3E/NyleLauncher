@@ -153,15 +153,6 @@ jobs:
               ;;
           esac
 
-          # Windows-only: --resource-dir wix-resources points jpackage at our custom
-          # overrides.wxi, which adds a "[x] Lancer NyleLauncher maintenant" checkbox
-          # on the install wizard's exit dialog. Without it the user has to manually
-          # double-click the desktop shortcut after every install / upgrade.
-          RESOURCE_ARGS=()
-          if [ "${{ matrix.platform }}" = "windows" ]; then
-            RESOURCE_ARGS+=(--resource-dir wix-resources)
-          fi
-
           jpackage \
             --type "$TYPE" \
             --name NyleLauncher \
@@ -176,7 +167,6 @@ jobs:
             --copyright "NyleRP" \
             --icon "$ICON" \
             --add-modules "$ALL_MODULES" \
-            "${RESOURCE_ARGS[@]}" \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
 
