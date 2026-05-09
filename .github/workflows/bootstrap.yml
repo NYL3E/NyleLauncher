@@ -45,13 +45,9 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             ext: deb
-          # macOS jpackage is flaky in CI — re-enable later if we get a working build.
-          # - os: macos-13
-          #   platform: mac-intel
-          #   ext: dmg
-          # - os: macos-14
-          #   platform: mac-arm
-          #   ext: dmg
+          - os: macos-14
+            platform: mac
+            ext: dmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +71,15 @@ jobs:
           case "${{ matrix.ext }}" in
             msi) TYPE=msi ;;
             deb) TYPE=deb ;;
+            dmg) TYPE=dmg ;;
+          esac
+
+          # Pick the platform-appropriate icon: .ico for Windows, .icns for macOS,
+          # .png for Linux. jpackage validates the extension matches the target.
+          case "${{ matrix.platform }}" in
+            windows) ICON=src/main/resources/images/app_icon.ico ;;
+            mac)     ICON=src/main/resources/images/app_icon.icns ;;
+            linux)   ICON=src/main/resources/images/app_icon.png ;;
           esac
 
           # Use jdeps to detect every JDK module the bootstrap actually needs,
@@ -114,6 +119,15 @@ jobs:
                 --linux-deb-maintainer "lennytridat@gmail.com"
               )
               ;;
+            mac)
+              # Stable bundle id (must remain identical across versions for the
+              # in-place .app replacement performed by MacUpdater to be considered
+              # an upgrade by macOS Launch Services).
+              EXTRA_ARGS+=(
+                --mac-package-name "NyleLauncher"
+                --mac-package-identifier "fr.nylerp.launcher"
+              )
+              ;;
           esac
 
           jpackage \
@@ -128,16 +142,23 @@ jobs:
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
-            --icon src/main/resources/images/app_icon.ico \
+            --icon "$ICON" \
             --add-modules "$ALL_MODULES" \
             "${EXTRA_ARGS[@]}" \
             || { echo "jpackage failed"; exit 1; }
 
-          # Rename to the convention old self-updaters expect:
-          # NyleLauncher-windows-v<ver>.msi
-          if [ "${{ matrix.platform }}" = "windows" ] && [ -f "dist/NyleLauncher-${VER}.msi" ]; then
-            mv "dist/NyleLauncher-${VER}.msi" "dist/NyleLauncher-windows-v${VER}.msi"
-          fi
+          # Rename outputs to the convention SelfUpdater + the site /api/launcher
+          # functions match. Names: NyleLauncher-<platform>-v<ver>.<ext>.
+          case "${{ matrix.platform }}" in
+            windows)
+              [ -f "dist/NyleLauncher-${VER}.msi" ] \
+                && mv "dist/NyleLauncher-${VER}.msi" "dist/NyleLauncher-windows-v${VER}.msi"
+              ;;
+            mac)
+              [ -f "dist/NyleLauncher-${VER}.dmg" ] \
+                && mv "dist/NyleLauncher-${VER}.dmg" "dist/NyleLauncher-mac-v${VER}.dmg"
+              ;;
+          esac
           ls -la dist/
 
       - name: Build portable Windows ZIP
@@ -148,6 +169,7 @@ jobs:
           VER="${GITHUB_REF_NAME#v}"
           DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
           ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported"
+          ICON=src/main/resources/images/app_icon.ico
           mkdir -p portable
           jpackage \
             --type app-image \
@@ -161,7 +183,7 @@ jobs:
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
-            --icon src/main/resources/images/app_icon.ico \
+            --icon "$ICON" \
             --add-modules "$ALL_MODULES"
           7z a -r "dist/NyleLauncher-windows-portable-v${VER}.zip" "./portable/NyleLauncher" -mx=5
 
@@ -187,6 +209,7 @@ jobs:
             artifacts/bootstrap-jar/*
             artifacts/bootstrap-windows/*
             artifacts/bootstrap-linux/*
+            artifacts/bootstrap-mac/*
           body: |
             Lightweight bootstrap. **Install this once.** It fetches the actual
             launcher payload from the manifest at every launch, so all future
