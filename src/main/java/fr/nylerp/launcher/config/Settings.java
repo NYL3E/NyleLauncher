@@ -18,8 +18,14 @@ public final class Settings {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public int ramMb = 4096;
-    public boolean optionalLitematica = false;
-    public boolean optionalBobby      = false;
+    public boolean optionalLitematica       = false;
+    public boolean optionalDistantHorizons  = false;
+    // optionalBobby was retired in 1.0.28 (replaced by Distant Horizons). The
+    // field is left as a no-op deserialisation target so existing saved
+    // settings.json files don't fail to parse for users who had it on; Gson
+    // tolerates unknown fields, but keeping the slot avoids a future Gson
+    // strict-mode bump biting us. Remove after a few versions of grace.
+    @SuppressWarnings("unused") public boolean optionalBobby = false;
 
     private static Settings current;
 

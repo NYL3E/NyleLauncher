@@ -163,13 +163,13 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalLitematica,
                 v -> { Settings.get().optionalLitematica = v; Settings.get().save(); });
 
-        HBox bobbyRow = optionalModRow(
-                "Bobby",
-                "Charge et conserve plus de chunks que la distance configurée par le serveur.",
-                Settings.get().optionalBobby,
-                v -> { Settings.get().optionalBobby = v; Settings.get().save(); });
+        HBox dhRow = optionalModRow(
+                "Distant Horizons",
+                "Affiche les chunks éloignés en LOD pour une vue à très longue distance. Demande ~1 GB de RAM en plus.",
+                Settings.get().optionalDistantHorizons,
+                v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); });
 
-        return new VBox(14, h, p, litematicaRow, bobbyRow);
+        return new VBox(14, h, p, litematicaRow, dhRow);
     }
 
     /** A single optional-mod row: title + description on the left, pill switch

@@ -44,18 +44,38 @@ public final class OptionalMods {
                 "https://cdn.modrinth.com/data/bEpr0Arc/versions/aEvrmYqW/litematica-fabric-1.21-0.19.60.jar",
                 "6808c6987a15c6659ceadd7757dcceefbbe3e45dbf5c017d2a7606b6e7d4dcffdeac3206b42950c2024b3f613d55fdb66d93e831d0ed83d874f5e2508c525218",
                 () -> Settings.get().optionalLitematica),
+            // Distant Horizons 3.0.3-b — first DH branch with full Iris 1.8.x +
+            // Sodium 0.6.x compatibility. The older 2.x branch is what was
+            // pulled out of earlier modpack iterations because it shimmered
+            // with shaders and dropped frames against Sodium 0.6 — the 3.x
+            // rewrite resolves both. ~30 MB; uses extra RAM (~1 GB on top of
+            // base allocation), warned about in the SettingsView row.
             new Entry(
-                "bobby-5.2.4+mc1.21.jar",
-                "https://cdn.modrinth.com/data/M08ruV16/versions/oeSOphtG/bobby-5.2.4%2Bmc1.21.jar",
-                "414436bf14ee9ad76ff2f849ffb5a2acda122a7588231d14dfbd27253924d08c22368c73ebd4b0048209d14682579be58743993265daaface4fdec6ec8e6e7ee",
-                () -> Settings.get().optionalBobby)
+                "DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
+                "https://cdn.modrinth.com/data/uCdwusMi/versions/oYXIfeus/DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
+                "8b39994ee6c5d71b8afacc80c2d13dd92fad10281374392c0049d1b6aebc823d7e137125268dee7383d3ff753eacf708fbe87d773cf0087d7b6057a05cf18ad3",
+                () -> Settings.get().optionalDistantHorizons)
+    );
+
+    /** Filenames the launcher itself shipped as optional but that have been
+     *  removed from the registry (e.g. Bobby — superseded by Distant
+     *  Horizons). {@link #applyAll()} unconditionally deletes any of these
+     *  jars from {@code mods/}, so a user who previously toggled them on
+     *  doesn't keep an orphan jar that the modpack manifest no longer manages
+     *  and the optional registry no longer knows about. */
+    private static final List<String> DEPRECATED_FILENAMES = List.of(
+            "bobby-5.2.4+mc1.21.jar"
     );
 
     /** Filenames declared as optional mods — used by {@link ModpackUpdater}
-     *  cleanup so they're not deleted as "unmanaged" files. */
+     *  cleanup so they're not deleted as "unmanaged" files. Includes the
+     *  deprecated set so a still-installed orphan jar isn't deleted by the
+     *  modpack-cleanup pass *before* {@link #applyAll()} gets the chance to
+     *  log the removal as an explicit "deprecated" cleanup. */
     public static List<String> filenames() {
-        List<String> out = new ArrayList<>(ENTRIES.size());
+        List<String> out = new ArrayList<>(ENTRIES.size() + DEPRECATED_FILENAMES.size());
         for (Entry e : ENTRIES) out.add(e.fileName);
+        out.addAll(DEPRECATED_FILENAMES);
         return out;
     }
 
@@ -69,6 +89,20 @@ public final class OptionalMods {
      *  block launch. */
     public static void applyAll() {
         Path modsDir = AppPaths.modsDir();
+        // Always-clean step: jars that were optional in a previous launcher
+        // version but have been retired. Run before applying current entries
+        // so orphans are gone even if the registry shrinks further.
+        for (String name : DEPRECATED_FILENAMES) {
+            Path p = modsDir.resolve(name);
+            if (Files.exists(p)) {
+                try {
+                    Files.deleteIfExists(p);
+                    LOG.info("Removed deprecated optional mod: {}", name);
+                } catch (Exception ex) {
+                    LOG.warn("Could not delete deprecated optional {}: {}", name, ex.toString());
+                }
+            }
+        }
         for (Entry e : ENTRIES) {
             try {
                 applyOne(modsDir, e);
