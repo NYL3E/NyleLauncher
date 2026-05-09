@@ -704,13 +704,13 @@ public class MainView extends BorderPane {
 
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
-        // Bar = play-button height (44 px) + 3 px breathing band above and
-        // below = 50 px total. The vertical padding is what creates that
+        // Bar = play-button height (44 px) + 10 px breathing band above and
+        // below = 64 px total. The vertical padding is what creates that
         // void on top and bottom of the button inside the dark strip.
-        bar.setPadding(new Insets(3, 32, 3, 40));
-        bar.setMinHeight(50);
-        bar.setPrefHeight(50);
-        bar.setMaxHeight(50);
+        bar.setPadding(new Insets(10, 32, 10, 40));
+        bar.setMinHeight(64);
+        bar.setPrefHeight(64);
+        bar.setMaxHeight(64);
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
