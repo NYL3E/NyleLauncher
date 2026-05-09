@@ -22,8 +22,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'liberica'
           java-version: '21'
+          java-package: 'jdk+fx'
       - name: Build bootstrap shadowJar
         run: |
           chmod +x gradlew
@@ -53,8 +54,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          # Liberica Full bundles JavaFX out of the box. Temurin doesn't, which left
+          # the payload (JavaFX-based UI) crashing at QuantumRenderer init with
+          # "no suitable pipeline found" once the bootstrap loaded the launcher jar.
+          distribution: 'liberica'
           java-version: '21'
+          java-package: 'jdk+fx'
 
       - name: Build bootstrap shadowJar
         shell: bash
@@ -92,11 +97,16 @@ jobs:
           fi
           echo "Using app-version: $APP_VER (filename version remains $VER)"
 
-          # Use jdeps to detect every JDK module the bootstrap actually needs,
-          # then add the security/locale modules that jdeps misses (loaded
-          # reflectively at runtime — TLS handshake, DNS, charsets, locale).
+          # Use jdeps to detect every JDK module the bootstrap.jar actually needs,
+          # then add:
+          #   - security/locale modules that jdeps misses (loaded reflectively at
+          #     runtime — TLS handshake, DNS, charsets, locale)
+          #   - JavaFX modules used by the PAYLOAD that the bootstrap will load via
+          #     URLClassLoader. jdeps on bootstrap.jar can't see into the payload, so
+          #     we hard-code the JavaFX set. Without these the runtime image has no
+          #     QuantumRenderer pipeline and the launcher UI crashes at startup.
           DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
-          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported"
+          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported,javafx.base,javafx.graphics,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,jdk.jfr,java.scripting,java.management"
           echo "Detected modules: $DEPS"
           echo "Final --add-modules: $ALL_MODULES"
 
@@ -183,7 +193,7 @@ jobs:
           JAR=$(ls bootstrap/build/libs/nylelauncher-bootstrap-*.jar | head -1)
           VER="${GITHUB_REF_NAME#v}"
           DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
-          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported"
+          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported,javafx.base,javafx.graphics,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,jdk.jfr,java.scripting,java.management"
           ICON=src/main/resources/images/app_icon.ico
           mkdir -p portable
           jpackage \
