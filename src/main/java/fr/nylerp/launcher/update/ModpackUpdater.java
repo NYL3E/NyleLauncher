@@ -71,7 +71,29 @@ public final class ModpackUpdater {
         return Constants.MANIFEST_URL + "?t=" + System.currentTimeMillis();
     }
 
+    /** Prevents concurrent sync() calls — double-clicking "Mettre à jour" or clicking
+     *  "Mettre à jour" while a Play-triggered sync is already running used to spawn two
+     *  threads racing on the same files, which manifested as the download stalling halfway
+     *  through then re-fetching the manifest mid-way (per user log:
+     *  "↓ config/ferritecore.mixin.properties [...] Téléchargement du manifest… [...]
+     *  ↓ config/ferritecore.mixin.properties"). */
+    private static final java.util.concurrent.atomic.AtomicBoolean SYNCING =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+
     public void sync() throws IOException {
+        if (!SYNCING.compareAndSet(false, true)) {
+            LOG.info("sync() ignored — another modpack sync is already running");
+            status("Synchronisation déjà en cours…");
+            return;
+        }
+        try {
+            doSync();
+        } finally {
+            SYNCING.set(false);
+        }
+    }
+
+    private void doSync() throws IOException {
         status("Téléchargement du manifest…");
         String json = Downloader.toString(manifestUrl());
         Manifest remote = GSON.fromJson(json, Manifest.class);
