@@ -66,16 +66,13 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        // No more setTop / setBottom — the body StackPane fills the entire window
-        // and the header capsule, news panel, mute button and bottom bar all overlay
-        // it. This lets the background video extend the full height (no break between
-        // the body and the bottom-bar slot anymore) while the bar paints on top of
-        // the lowest video region.
-        StackPane body = (StackPane) buildContent(account, onLogout, onSettings);
-        Region bottom = buildBottomBar();
-        StackPane.setAlignment(bottom, Pos.BOTTOM_CENTER);
-        body.getChildren().add(bottom);
-        setCenter(body);
+        // BorderPane layout: center = body (StackPane with video + overlays),
+        // bottom = bar. The 1.0.9 attempt to fold the bar into the body StackPane
+        // shifted every overlay's anchor frame and made the video cover-scale to
+        // a much taller area — broke the entire layout. Reverting to the original
+        // structure, the small visual seam between video and bar is acceptable.
+        setCenter(buildContent(account, onLogout, onSettings));
+        setBottom(buildBottomBar());
 
         SelfUpdater.check().thenAccept(info -> Platform.runLater(() -> {
             if (info.hasUpdate() && updateBanner != null) {
@@ -349,11 +346,12 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(rightColumn, Pos.TOP_RIGHT);
         StackPane.setMargin(rightColumn, new Insets(20, 22, 20, 0));
 
-        // ── Mute toggle, bottom-right of the body, sitting JUST above the bottom bar
-        //    (which is 72 px tall + a small breathing gap).
+        // ── Mute toggle, bottom-right of the body. Bottom bar is in BorderPane.bottom
+        //    (separate slot), so the mute button only needs to clear its own breathing
+        //    gap inside the body StackPane.
         Region muteBtn = buildMuteButton();
         StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(muteBtn, new Insets(0, 22, 86, 0));
+        StackPane.setMargin(muteBtn, new Insets(0, 22, 18, 0));
 
         stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn);
         return stack;
@@ -715,15 +713,7 @@ public class MainView extends BorderPane {
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
         bar.setPadding(new Insets(14, 32, 16, 40));
-        // Clamp height: in BorderPane.bottom this didn't matter, but inside a StackPane
-        // with Pos.BOTTOM_CENTER alignment a HBox without a max-height grows vertically
-        // until it fills the parent, and since .bottom-bar's CSS sets a solid #08080B
-        // background it would paint a black slab over the entire body. Pinning all three
-        // size dimensions to 72 keeps the bar a strip at the bottom.
         bar.setPrefHeight(72);
-        bar.setMinHeight(72);
-        bar.setMaxHeight(72);
-        bar.setMaxWidth(Double.MAX_VALUE);   // still fills horizontally
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
