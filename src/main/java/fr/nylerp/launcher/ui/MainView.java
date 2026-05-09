@@ -66,11 +66,16 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        // The body StackPane spans the full window (no setBottom slot) so the
-        // background video extends edge-to-edge. The bottom bar overlays at
-        // BOTTOM_CENTER inside the same StackPane, lifted ~12 px so the dark
-        // strip floats slightly off the very bottom and the video shows beneath.
+        // BorderPane layout:
+        //   - bottom: 72 px play-bar, glued to the bottom of the launcher.
+        //   - center: body StackPane with the video + overlays, so the body
+        //     bottom edge ends exactly at the top of the bar (BorderPane
+        //     reserves the bottom slot first, then sizes the center to fill
+        //     the rest). The MediaView is anchored BOTTOM_CENTER inside the
+        //     body so the bottom of the video kisses the top of the bar
+        //     with no gap or overlap.
         setCenter(buildContent(account, onLogout, onSettings));
+        setBottom(buildBottomBar());
 
         SelfUpdater.check().thenAccept(info -> Platform.runLater(() -> {
             if (info.hasUpdate() && updateBanner != null) {
@@ -344,26 +349,15 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(rightColumn, Pos.TOP_RIGHT);
         StackPane.setMargin(rightColumn, new Insets(20, 22, 20, 0));
 
-        // ── Mute toggle, bottom-right of the body. Cleared above the bottom bar
-        //    (72 px tall + 12 px lift + 14 px breathing gap = 98 px from the
-        //    bottom edge of the body) so it never sits on top of the play button.
+        // ── Mute toggle, bottom-right of the body. The bottom bar lives in
+        //    BorderPane.bottom (separate slot below this StackPane), so the
+        //    body bottom edge already sits at the top of the bar — the mute
+        //    only needs a small breathing gap from the body's own bottom.
         Region muteBtn = buildMuteButton();
         StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(muteBtn, new Insets(0, 22, 104, 0));
+        StackPane.setMargin(muteBtn, new Insets(0, 22, 18, 0));
 
-        // ── Bottom bar overlay (play button + progress) — sits inside the same
-        //    StackPane as the video so the video extends fully behind it.
-        //    Hard width/height clamps are required: without them the HBox would
-        //    grow to fill the StackPane, and its dark CSS background would paint
-        //    a black slab over everything (the 1.0.9 black-screen regression).
-        Region bottomBar = buildBottomBar();
-        bottomBar.setMinHeight(72);
-        bottomBar.setMaxHeight(72);
-        bottomBar.setMaxWidth(Double.MAX_VALUE);
-        StackPane.setAlignment(bottomBar, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(bottomBar, new Insets(0, 0, 18, 0));
-
-        stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn, bottomBar);
+        stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn);
         return stack;
     }
 
