@@ -162,7 +162,10 @@ jobs:
             RESOURCE_ARGS+=(--resource-dir wix-resources)
           fi
 
+          # --verbose surfaces candle.exe + light.exe stderr (otherwise jpackage
+          # only shows the exit code, making WiX errors invisible).
           jpackage \
+            --verbose \
             --type "$TYPE" \
             --name NyleLauncher \
             --app-version "$APP_VER" \
