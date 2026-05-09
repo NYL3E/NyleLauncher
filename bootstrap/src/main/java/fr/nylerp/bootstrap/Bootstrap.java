@@ -35,15 +35,28 @@ import java.util.stream.Stream;
 public final class Bootstrap {
 
     /**
-     * Bootstrap version. This is the SOURCE OF TRUTH for "what is the user running".
-     * jpackage stamps this same string into the .app bundle's Info.plist so OS-level updates
-     * see it too. Bumped together with the launcher's user-visible release tag (v0.3.5, …).
+     * Bootstrap version, read at runtime from the {@code bootstrap-version.properties}
+     * resource that gradle's processResources writes at build time (see bootstrap/build.gradle).
+     * Hard-coding here was a footgun — bumping {@code bootstrap/build.gradle} alone left this
+     * constant stale and the payload's "obsolete bootstrap" check fired even on freshly-installed
+     * users. Falls back to "0.0.0-dev" only when running from gradle/IDE without the resource.
      *
      * Exposed to the payload at runtime via the {@code nyleauth.installedVersion} system
-     * property — that's how SelfUpdater knows whether an update is needed instead of relying
-     * on the payload's own (independently-versioned) {@code Constants.APP_VERSION}.
+     * property — that's how SelfUpdater knows what's actually installed on disk.
      */
-    public static final String VERSION = "0.3.5";
+    public static final String VERSION = readBootstrapVersion();
+
+    private static String readBootstrapVersion() {
+        try (InputStream in = Bootstrap.class.getResourceAsStream("/bootstrap-version.properties")) {
+            if (in == null) return "0.0.0-dev";
+            java.util.Properties p = new java.util.Properties();
+            p.load(in);
+            String v = p.getProperty("version", "").trim();
+            return v.isEmpty() ? "0.0.0-dev" : v;
+        } catch (Exception e) {
+            return "0.0.0-dev";
+        }
+    }
 
     /** The only business URL inside the bootstrap. Stable forever. */
     private static final String MANIFEST_URL =
