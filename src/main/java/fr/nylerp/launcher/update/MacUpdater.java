@@ -35,6 +35,19 @@ public final class MacUpdater {
         if (installedApp == null) {
             throw new IOException("Cannot determine the current .app bundle path — aborting in-place update");
         }
+        // Defensive guard: refuse to update if the running app is on a read-only or
+        // unrelocatable mount. Common case: the user double-clicked the .app inside the DMG
+        // window instead of dragging it to /Applications first. java.home then points under
+        // /Volumes/<DMG-name>/NyleLauncher.app and our script would try to rm-rf the read-only
+        // mount, mount the new DMG over it, and inevitably leave the user with no working
+        // launcher and a leftover orphan mount in /Volumes.
+        String pathStr = installedApp.toAbsolutePath().toString();
+        if (pathStr.startsWith("/Volumes/")) {
+            throw new IOException(
+                "NyleLauncher is running from a DMG mount (" + pathStr + ").\n"
+                + "Drag NyleLauncher.app into /Applications first, then re-launch from there.\n"
+                + "In-place update refuses to overwrite a read-only mount.");
+        }
         LOG.info("In-place update target: {}", installedApp);
 
         // 1) Mount DMG

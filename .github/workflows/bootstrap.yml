@@ -88,18 +88,22 @@ jobs:
           EXTRA_ARGS=()
           case "${{ matrix.platform }}" in
             windows)
-              # --win-console : the launcher .exe is wired as a console app instead
-              # of a GUI app, which means startup errors print to a visible terminal
-              # window. We keep this on until the launcher is confirmed working in
-              # the wild. (Removing it later only hides the console — the launcher
-              # still works either way.)
+              # No --win-console — the bootstrap is now stable enough that we run as a
+              # proper GUI app. (With --win-console, the .exe was a console app and
+              # opened a CMD window every launch displaying the bootstrap log.)
+              #
+              # --win-shortcut-prompt + --win-menu (no -prompt) : the install wizard
+              # asks the user whether to put a shortcut on the Desktop (default checked)
+              # while always installing the Start Menu entry.
+              # --win-dir-chooser : add a wizard step letting the user pick the install
+              # directory rather than running silently.
               EXTRA_ARGS+=(
-                --win-shortcut
+                --win-shortcut-prompt
                 --win-menu
                 --win-menu-group "NyleRP"
+                --win-dir-chooser
                 --win-per-user-install
                 --win-upgrade-uuid "8c1d3a4e-9f5b-4d72-a8b6-7e5c2d1f4a93"
-                --win-console
               )
               ;;
             linux)
