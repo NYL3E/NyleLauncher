@@ -135,14 +135,12 @@ public final class SelfUpdater {
             MacUpdater.runInPlace(file);
             return;
         }
-        ProcessBuilder pb;
-        switch (os) {
-            case "windows" -> pb = new ProcessBuilder(
-                    "msiexec", "/i", file.toString(), "/qb", "/norestart");
-            case "linux" -> pb = new ProcessBuilder("xdg-open", file.toString());
-            default -> throw new UnsupportedOperationException(
-                    "Auto-update not supported on this OS: " + System.getProperty("os.name"));
+        if (os.equals("windows")) {
+            WindowsUpdater.runInPlace(file);
+            return;
         }
+        // Linux still uses xdg-open which surfaces a GUI package manager.
+        ProcessBuilder pb = new ProcessBuilder("xdg-open", file.toString());
         pb.inheritIO();
         pb.start();
         LOG.info("Installer launched: {}", String.join(" ", pb.command()));
