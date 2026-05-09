@@ -66,10 +66,16 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
 
-        // No more setTop — the header capsule overlays the background image,
-        // so there's no black strip above the picture.
-        setCenter(buildContent(account, onLogout, onSettings));
-        setBottom(buildBottomBar());
+        // No more setTop / setBottom — the body StackPane fills the entire window
+        // and the header capsule, news panel, mute button and bottom bar all overlay
+        // it. This lets the background video extend the full height (no break between
+        // the body and the bottom-bar slot anymore) while the bar paints on top of
+        // the lowest video region.
+        StackPane body = (StackPane) buildContent(account, onLogout, onSettings);
+        Region bottom = buildBottomBar();
+        StackPane.setAlignment(bottom, Pos.BOTTOM_CENTER);
+        body.getChildren().add(bottom);
+        setCenter(body);
 
         SelfUpdater.check().thenAccept(info -> Platform.runLater(() -> {
             if (info.hasUpdate() && updateBanner != null) {
@@ -343,10 +349,11 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(rightColumn, Pos.TOP_RIGHT);
         StackPane.setMargin(rightColumn, new Insets(20, 22, 20, 0));
 
-        // ── Mute toggle, bottom-right of the body (above the bottom bar).
+        // ── Mute toggle, bottom-right of the body, sitting JUST above the bottom bar
+        //    (which is 72 px tall + a small breathing gap).
         Region muteBtn = buildMuteButton();
         StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(muteBtn, new Insets(0, 22, 18, 0));
+        StackPane.setMargin(muteBtn, new Insets(0, 22, 86, 0));
 
         stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn);
         return stack;
