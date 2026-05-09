@@ -349,7 +349,7 @@ public class MainView extends BorderPane {
         //    bottom edge of the body) so it never sits on top of the play button.
         Region muteBtn = buildMuteButton();
         StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(muteBtn, new Insets(0, 22, 98, 0));
+        StackPane.setMargin(muteBtn, new Insets(0, 22, 130, 0));
 
         // ── Bottom bar overlay (play button + progress) — sits inside the same
         //    StackPane as the video so the video extends fully behind it.
@@ -361,7 +361,7 @@ public class MainView extends BorderPane {
         bottomBar.setMaxHeight(72);
         bottomBar.setMaxWidth(Double.MAX_VALUE);
         StackPane.setAlignment(bottomBar, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(bottomBar, new Insets(0, 0, 12, 0));
+        StackPane.setMargin(bottomBar, new Insets(0, 0, 44, 0));
 
         stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn, bottomBar);
         return stack;
