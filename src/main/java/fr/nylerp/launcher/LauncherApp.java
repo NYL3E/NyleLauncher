@@ -23,6 +23,17 @@ public class LauncherApp extends Application {
     @Override
     public void start(Stage stage) {
         loadFonts();
+        // Hard-stop screen for users running a bootstrap that's too old. Returns true
+        // when the dialog was shown, in which case we skip the rest of the start-up so
+        // the user can't bypass the redownload by interacting with a half-initialised UI.
+        String installedBs = fr.nylerp.launcher.update.SelfUpdater.installedVersion();
+        LOG.info("Bootstrap version detected: {} (min required: {})",
+                installedBs, fr.nylerp.launcher.update.BrokenBootstrapDialog.MIN_REQUIRED_BOOTSTRAP);
+        if (fr.nylerp.launcher.update.BrokenBootstrapDialog.showIfBootstrapTooOld(installedBs)) {
+            LOG.warn("Bootstrap {} is below the required minimum {} — showing redownload dialog",
+                    installedBs, fr.nylerp.launcher.update.BrokenBootstrapDialog.MIN_REQUIRED_BOOTSTRAP);
+            return;
+        }
         // After JavaFX is up, surface any pending crash reports from previous runs.
         CrashReporter.promptIfPending();
         this.stage = stage;
