@@ -704,16 +704,13 @@ public class MainView extends BorderPane {
 
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
-        // Bar height = play-button height (56 px). No extra breathing room
-        // above/below — keeps the dark strip as thin as possible so the
-        // button visually sits as high as it can while still being glued to
-        // the launcher's bottom edge. Padding stays 0/0 vertically; the
-        // horizontal padding gives the status+progress column its left
-        // breathing margin.
-        bar.setPadding(new Insets(0, 32, 0, 40));
-        bar.setMinHeight(44);
-        bar.setPrefHeight(44);
-        bar.setMaxHeight(44);
+        // Bar = play-button height (44 px) + 3 px breathing band above and
+        // below = 50 px total. The vertical padding is what creates that
+        // void on top and bottom of the button inside the dark strip.
+        bar.setPadding(new Insets(3, 32, 3, 40));
+        bar.setMinHeight(50);
+        bar.setPrefHeight(50);
+        bar.setMaxHeight(50);
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
