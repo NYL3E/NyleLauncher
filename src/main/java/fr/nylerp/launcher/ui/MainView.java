@@ -20,6 +20,9 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
@@ -46,6 +49,15 @@ public class MainView extends BorderPane {
     private volatile boolean modpackUpdatePending = false;
     private volatile String launcherUpdateUrl = null;
     private volatile String launcherUpdateTag = null;
+
+    /** Background video player (looping, no audio — audio is on a separate track). */
+    private MediaPlayer videoPlayer;
+    /** Ambient audio player. {@link #AMBIENT_VOLUME} when active, 0 when muted. Survives
+     *  the lifetime of the launcher so the loop doesn't restart between view rebuilds. */
+    private MediaPlayer audioPlayer;
+    private boolean audioMuted = false;
+    private SVGPath muteIcon;
+    private static final double AMBIENT_VOLUME = 0.30;
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
@@ -276,15 +288,19 @@ public class MainView extends BorderPane {
 
     private Region buildContent(Account account, Runnable onLogout, Runnable onSettings) {
         StackPane stack = new StackPane();
-        String imgUrl = getClass().getResource("/images/fond-launcher.png").toExternalForm();
-        stack.setStyle(
-                "-fx-background-image: url('" + imgUrl + "');" +
-                "-fx-background-size: 100% auto;" +
-                "-fx-background-position: center bottom;" +
-                "-fx-background-repeat: no-repeat;" +
-                "-fx-background-insets: 45 0 -45 0;" +
-                "-fx-background-color: #08080B;"
-        );
+        stack.setStyle("-fx-background-color: #08080B;");
+
+        // ── Video background — replaces the static fond-launcher.png. Looping silent
+        //    H.264 .mp4 fitted to fill the body area. Cropped (PRESERVE_RATIO + scaled
+        //    so the wider dimension covers) so the StackPane never shows black bars.
+        MediaView videoView = buildBackgroundVideo(stack);
+        StackPane.setAlignment(videoView, Pos.CENTER);
+        stack.getChildren().add(videoView);
+
+        // ── Ambient audio — separate looping MediaPlayer at 30% by default; toggled
+        //    via the mute button bottom-right of this panel. Created once for the
+        //    lifetime of the launcher so the loop doesn't restart on view rebuild.
+        startAmbientAudio();
 
         // ── Header capsule overlay (no more black strip above the picture) ──
         Region capsule = buildHeaderCapsule(account, onLogout, onSettings);
@@ -322,8 +338,122 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(rightColumn, Pos.TOP_RIGHT);
         StackPane.setMargin(rightColumn, new Insets(20, 22, 20, 0));
 
-        stack.getChildren().addAll(leftBlock, rightColumn, capsule);
+        // ── Mute toggle, bottom-right of the body (above the bottom bar).
+        Region muteBtn = buildMuteButton();
+        StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(muteBtn, new Insets(0, 22, 18, 0));
+
+        stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn);
         return stack;
+    }
+
+    /** Build a {@link MediaView} that plays the launcher background video on loop,
+     *  always covers the StackPane (cropped if needed, never letterboxed). */
+    private MediaView buildBackgroundVideo(StackPane parent) {
+        MediaView view = new MediaView();
+        view.setPreserveRatio(true);
+        view.setSmooth(true);
+        try {
+            String url = getClass().getResource("/media/launcher-bg.mp4").toExternalForm();
+            Media media = new Media(url);
+            videoPlayer = new MediaPlayer(media);
+            videoPlayer.setMute(true);                   // audio is on a separate stream
+            videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+            videoPlayer.setAutoPlay(true);
+            view.setMediaPlayer(videoPlayer);
+            // The MediaView's fitWidth/fitHeight crop+cover the StackPane. We bind to
+            // the larger of width / (height * srcAspect) so the video always covers.
+            // For simplicity we just bind both — PreserveRatio=true keeps proportions,
+            // overflow is clipped by the StackPane.
+            view.fitWidthProperty().bind(parent.widthProperty());
+            view.fitHeightProperty().bind(parent.heightProperty());
+        } catch (Throwable t) {
+            // If the codec is missing or the file is corrupt we'd rather show the empty
+            // dark background than crash on startup. Log + carry on.
+            System.err.println("[MainView] background video unavailable: " + t);
+        }
+        return view;
+    }
+
+    private void startAmbientAudio() {
+        if (audioPlayer != null) return; // singleton — survive view rebuilds
+        try {
+            String url = getClass().getResource("/media/ambient.mp3").toExternalForm();
+            Media media = new Media(url);
+            audioPlayer = new MediaPlayer(media);
+            audioPlayer.setVolume(AMBIENT_VOLUME);
+            audioPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+            audioPlayer.setAutoPlay(true);
+        } catch (Throwable t) {
+            System.err.println("[MainView] ambient audio unavailable: " + t);
+        }
+    }
+
+    /** Round 44×44 button with a speaker SVG glyph. Toggling sets the audio player's
+     *  volume to 0 / {@link #AMBIENT_VOLUME} and swaps the icon for an X-marked one. */
+    private Region buildMuteButton() {
+        Button btn = new Button();
+        btn.setMinSize(44, 44);
+        btn.setPrefSize(44, 44);
+        btn.setMaxSize(44, 44);
+        btn.setStyle(
+            "-fx-background-color: rgba(8,8,11,0.62);" +
+            "-fx-background-radius: 22;" +
+            "-fx-border-color: rgba(255,255,255,0.12);" +
+            "-fx-border-radius: 22;" +
+            "-fx-border-width: 1;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 0;"
+        );
+        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace(
+            "rgba(8,8,11,0.62)", "rgba(20,20,28,0.78)")));
+        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace(
+            "rgba(20,20,28,0.78)", "rgba(8,8,11,0.62)")));
+        btn.setTooltip(new Tooltip("Couper / réactiver le son d'ambiance"));
+
+        muteIcon = new SVGPath();
+        muteIcon.setFill(Color.web("#F4F4F7"));
+        applyMuteIconShape();
+        btn.setGraphic(muteIcon);
+
+        btn.setOnAction(e -> toggleMute());
+        return btn;
+    }
+
+    private void toggleMute() {
+        audioMuted = !audioMuted;
+        if (audioPlayer != null) {
+            // Pause rather than just mute volume — saves CPU on the decoder thread when
+            // the user explicitly silences the launcher (matches the user's framing
+            // "couper le son / mettre sur pause").
+            if (audioMuted) audioPlayer.pause();
+            else            audioPlayer.play();
+        }
+        applyMuteIconShape();
+    }
+
+    private void applyMuteIconShape() {
+        if (muteIcon == null) return;
+        // Material Icons "volume_up" / "volume_off" path data, rendered at 18px.
+        if (audioMuted) {
+            muteIcon.setContent(
+                "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63z" +
+                "M19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28" +
+                "-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71z" +
+                "M4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18" +
+                "v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z" +
+                "M12 4 9.91 6.09 12 8.18V4z");
+            muteIcon.setScaleX(0.85);
+            muteIcon.setScaleY(0.85);
+        } else {
+            muteIcon.setContent(
+                "M3 9v6h4l5 5V4L7 9H3z" +
+                "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" +
+                "M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 " +
+                "7-8.77s-2.99-7.86-7-8.77z");
+            muteIcon.setScaleX(0.85);
+            muteIcon.setScaleY(0.85);
+        }
     }
 
     private Region buildGlassNewsPanel() {
