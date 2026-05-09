@@ -10,4 +10,9 @@ public final class ManifestEntry {
     public long size;
     /** Absolute URL where to fetch the file from. */
     public String url;
+    /** True for files the user is expected to customise locally (options.txt,
+     *  servers.dat, …). Pulled exactly once on first install; subsequent
+     *  manifest updates leave the local file untouched even if the publisher
+     *  pushed a new SHA. */
+    public boolean firstInstallOnly;
 }

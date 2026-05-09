@@ -19,6 +19,7 @@ public final class Settings {
 
     public int ramMb = 4096;
     public boolean optionalLitematica = false;
+    public boolean optionalBobby      = false;
 
     private static Settings current;
 
