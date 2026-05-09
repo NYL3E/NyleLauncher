@@ -689,7 +689,7 @@ public class MainView extends BorderPane {
         play.setGraphic(playContent);
         play.getStyleClass().add("btn-play");
         play.setPrefWidth(240);
-        play.setPrefHeight(56);
+        play.setPrefHeight(44);
         play.setOnAction(e -> {
             if (launcherUpdateUrl != null) {
                 // Same auto-update flow as the small banner button — never open the browser
@@ -711,9 +711,9 @@ public class MainView extends BorderPane {
         // horizontal padding gives the status+progress column its left
         // breathing margin.
         bar.setPadding(new Insets(0, 32, 0, 40));
-        bar.setMinHeight(56);
-        bar.setPrefHeight(56);
-        bar.setMaxHeight(56);
+        bar.setMinHeight(44);
+        bar.setPrefHeight(44);
+        bar.setMaxHeight(44);
         bar.getStyleClass().add("bottom-bar");
         return bar;
     }
