@@ -367,16 +367,22 @@ public class MainView extends BorderPane {
         return stack;
     }
 
-    /** Build a {@link MediaView} that plays the launcher background video on loop and
-     *  fills the body exactly. Direct width+height bind with preserveRatio=false →
-     *  zero black bars, zero overflow, zero listener juggling. The source video
-     *  (4040×2048 = 1.97 aspect) lines up with the body (1000×524 = 1.91 aspect)
-     *  to within 3 % so the imposed stretch is imperceptible. Earlier cover-style
-     *  algorithms with onReady + size listeners introduced timing-sensitive sizing
-     *  bugs where the video would briefly render at a wildly wrong size. */
+    /** Build a {@link MediaView} that plays the looping background video with a
+     *  proper "object-fit: cover" behaviour — preserveRatio=true, scale by
+     *  {@code max(pw/mw, ph/mh)} so the video always fills the body without ever
+     *  squashing. Whichever dimension exceeds the body gets cropped; the
+     *  MediaView is anchored BOTTOM_CENTER (in {@link #buildContent}) so that the
+     *  bottom of the video is preserved and the top — or sides if the parent
+     *  aspect is taller than the source — falls out of frame. A clip on the
+     *  parent StackPane masks the overflow.
+     *  <p>Earlier 1.0.12 fix used preserveRatio=false to dodge a timing race
+     *  in the listener-based scaler, but that visibly stretched the source.
+     *  Recompute cover sizing via JavaFX bindings keyed on parent w/h + media
+     *  w/h — bindings recompute deterministically on every layout pass, so the
+     *  race-prone manual rescale loop is gone. */
     private MediaView buildBackgroundVideo(StackPane parent) {
         MediaView view = new MediaView();
-        view.setPreserveRatio(false);
+        view.setPreserveRatio(true);
         view.setSmooth(true);
         try {
             String url = getClass().getResource("/media/launcher-bg.mp4").toExternalForm();
@@ -386,8 +392,49 @@ public class MainView extends BorderPane {
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
             videoPlayer.setAutoPlay(true);
             view.setMediaPlayer(videoPlayer);
+
+            // media.getWidth/getHeight return 0 until the metadata is parsed.
+            // Defer the cover-binding setup until the player reports READY,
+            // and cache the source dimensions in finals so the bindings have
+            // stable inputs. Until then, tentatively bind direct fill so the
+            // first frame never shows the default 1×1 MediaView.
             view.fitWidthProperty().bind(parent.widthProperty());
             view.fitHeightProperty().bind(parent.heightProperty());
+
+            videoPlayer.setOnReady(() -> {
+                final double mw = media.getWidth();
+                final double mh = media.getHeight();
+                if (mw <= 0 || mh <= 0) return;
+                view.fitWidthProperty().unbind();
+                view.fitHeightProperty().unbind();
+                javafx.beans.binding.DoubleBinding fitW =
+                    javafx.beans.binding.Bindings.createDoubleBinding(() -> {
+                        double pw = parent.getWidth();
+                        double ph = parent.getHeight();
+                        if (pw <= 0 || ph <= 0) return mw;
+                        double s = Math.max(pw / mw, ph / mh);
+                        return mw * s;
+                    }, parent.widthProperty(), parent.heightProperty());
+                javafx.beans.binding.DoubleBinding fitH =
+                    javafx.beans.binding.Bindings.createDoubleBinding(() -> {
+                        double pw = parent.getWidth();
+                        double ph = parent.getHeight();
+                        if (pw <= 0 || ph <= 0) return mh;
+                        double s = Math.max(pw / mw, ph / mh);
+                        return mh * s;
+                    }, parent.widthProperty(), parent.heightProperty());
+                view.fitWidthProperty().bind(fitW);
+                view.fitHeightProperty().bind(fitH);
+            });
+
+            // Clip the body to its own bounds so the overflowing video edges
+            // (always at the top because the MediaView is anchored
+            // BOTTOM_CENTER, or symmetrically on the sides if vertical scale
+            // dominates) get masked instead of bleeding outside the window.
+            Rectangle clip = new Rectangle();
+            clip.widthProperty().bind(parent.widthProperty());
+            clip.heightProperty().bind(parent.heightProperty());
+            parent.setClip(clip);
         } catch (Throwable t) {
             System.err.println("[MainView] background video unavailable: " + t);
         }
