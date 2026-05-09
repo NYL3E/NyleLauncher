@@ -320,8 +320,16 @@ public class MainView extends BorderPane {
 
         // updateBanner will be stacked under the news panel — see VBox below.
 
-        // ── Left overlay: big white logo + player count ───────────────────
-        NyleLogo logo = new NyleLogo(96, Color.WHITE);
+        // ── Left overlay: brand mark (transparent PNG) + player count ─────
+        // Uses the new logo-mark.png the user supplied — replaces the old
+        // SVG-stroked NyleLogo "N" glyph. Smooth + cache so the upscale from
+        // 875×875 doesn't shimmer on every layout pass.
+        ImageView logo = new ImageView(new Image(
+                getClass().getResourceAsStream("/images/logo-mark.png")));
+        logo.setFitHeight(96);
+        logo.setPreserveRatio(true);
+        logo.setSmooth(true);
+        logo.setCache(true);
         Circle dot = new Circle(6, Color.web("#22C55E"));
         pulse(dot);
         Label online = new Label("42 JOUEURS EN LIGNE");
