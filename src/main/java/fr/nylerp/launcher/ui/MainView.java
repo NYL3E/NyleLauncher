@@ -358,15 +358,15 @@ public class MainView extends BorderPane {
     }
 
     /** Build a {@link MediaView} that plays the launcher background video on loop and
-     *  covers the StackPane CSS-{@code object-fit: cover}-style: scaled so the smaller
-     *  dimension fills the viewport, the other axis overflows and is clipped. The
-     *  view is anchored to {@link Pos#BOTTOM_CENTER} so when the video is taller than
-     *  the body, it's the TOP that gets cropped (per user request). The parent StackPane
-     *  receives a Rectangle clip bound to its size so overflow never paints over the
-     *  window chrome. */
+     *  fills the body exactly. Direct width+height bind with preserveRatio=false →
+     *  zero black bars, zero overflow, zero listener juggling. The source video
+     *  (4040×2048 = 1.97 aspect) lines up with the body (1000×524 = 1.91 aspect)
+     *  to within 3 % so the imposed stretch is imperceptible. Earlier cover-style
+     *  algorithms with onReady + size listeners introduced timing-sensitive sizing
+     *  bugs where the video would briefly render at a wildly wrong size. */
     private MediaView buildBackgroundVideo(StackPane parent) {
         MediaView view = new MediaView();
-        view.setPreserveRatio(true);
+        view.setPreserveRatio(false);
         view.setSmooth(true);
         try {
             String url = getClass().getResource("/media/launcher-bg.mp4").toExternalForm();
@@ -376,39 +376,9 @@ public class MainView extends BorderPane {
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
             videoPlayer.setAutoPlay(true);
             view.setMediaPlayer(videoPlayer);
-
-            // Once the media reports its native dimensions, install listeners that
-            // recompute the cover-scale on every viewport size change.
-            videoPlayer.setOnReady(() -> {
-                int mw = media.getWidth();
-                int mh = media.getHeight();
-                if (mw <= 0 || mh <= 0) {
-                    // fallback if metadata wasn't decoded — fill anyway
-                    view.fitWidthProperty().bind(parent.widthProperty());
-                    view.fitHeightProperty().bind(parent.heightProperty());
-                    return;
-                }
-                Runnable rescale = () -> {
-                    double pw = parent.getWidth();
-                    double ph = parent.getHeight();
-                    if (pw <= 0 || ph <= 0) return;
-                    double s = Math.max(pw / mw, ph / mh);   // cover, never letterbox
-                    view.setFitWidth(mw * s);
-                    view.setFitHeight(mh * s);
-                };
-                parent.widthProperty().addListener((o, a, b) -> rescale.run());
-                parent.heightProperty().addListener((o, a, b) -> rescale.run());
-                rescale.run();
-            });
-
-            // Clip the parent so the overflowing video doesn't paint outside body bounds.
-            Rectangle clip = new Rectangle();
-            clip.widthProperty().bind(parent.widthProperty());
-            clip.heightProperty().bind(parent.heightProperty());
-            parent.setClip(clip);
+            view.fitWidthProperty().bind(parent.widthProperty());
+            view.fitHeightProperty().bind(parent.heightProperty());
         } catch (Throwable t) {
-            // If the codec is missing or the file is corrupt we'd rather show the empty
-            // dark background than crash on startup. Log + carry on.
             System.err.println("[MainView] background video unavailable: " + t);
         }
         return view;
