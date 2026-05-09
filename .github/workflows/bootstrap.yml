@@ -82,6 +82,16 @@ jobs:
             linux)   ICON=src/main/resources/images/app_icon.png ;;
           esac
 
+          # macOS jpackage rejects CFBundleShortVersionString that starts with 0
+          # ("The first number in an app-version cannot be zero or negative").
+          # Map 0.x.y → 1.x.y on Mac only — the user-facing filename rename keeps
+          # the real $VER, so SelfUpdater + site naming stay aligned across platforms.
+          APP_VER="$VER"
+          if [ "${{ matrix.platform }}" = "mac" ]; then
+            APP_VER=$(echo "$VER" | sed -E 's/^0\./1./')
+          fi
+          echo "Using app-version: $APP_VER (filename version remains $VER)"
+
           # Use jdeps to detect every JDK module the bootstrap actually needs,
           # then add the security/locale modules that jdeps misses (loaded
           # reflectively at runtime — TLS handshake, DNS, charsets, locale).
@@ -133,7 +143,7 @@ jobs:
           jpackage \
             --type "$TYPE" \
             --name NyleLauncher \
-            --app-version "$VER" \
+            --app-version "$APP_VER" \
             --input bootstrap/build/libs \
             --main-jar "$(basename "$JAR")" \
             --main-class fr.nylerp.bootstrap.Bootstrap \
@@ -149,14 +159,16 @@ jobs:
 
           # Rename outputs to the convention SelfUpdater + the site /api/launcher
           # functions match. Names: NyleLauncher-<platform>-v<ver>.<ext>.
+          # NB: jpackage names the DMG after $APP_VER (which differs from $VER on
+          # macOS due to the leading-zero workaround), so use the actual disk file.
           case "${{ matrix.platform }}" in
             windows)
-              [ -f "dist/NyleLauncher-${VER}.msi" ] \
-                && mv "dist/NyleLauncher-${VER}.msi" "dist/NyleLauncher-windows-v${VER}.msi"
+              [ -f "dist/NyleLauncher-${APP_VER}.msi" ] \
+                && mv "dist/NyleLauncher-${APP_VER}.msi" "dist/NyleLauncher-windows-v${VER}.msi"
               ;;
             mac)
-              [ -f "dist/NyleLauncher-${VER}.dmg" ] \
-                && mv "dist/NyleLauncher-${VER}.dmg" "dist/NyleLauncher-mac-v${VER}.dmg"
+              [ -f "dist/NyleLauncher-${APP_VER}.dmg" ] \
+                && mv "dist/NyleLauncher-${APP_VER}.dmg" "dist/NyleLauncher-mac-v${VER}.dmg"
               ;;
           esac
           ls -la dist/
