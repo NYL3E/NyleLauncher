@@ -411,10 +411,18 @@ public class MainView extends BorderPane {
     }
 
     private void startAmbientAudio() {
-        // Layered audio: ambient texture loop on track 1 + foreground music loop on
-        // track 2. Both at the same low volume so they sit naturally together — no
-        // per-track ducking needed. Singletons across view rebuilds to keep the loops
-        // continuous instead of restarting from t=0 every time the screen swaps.
+        // Layered audio: ambient texture loop + foreground music loop. Both
+        // ALWAYS auto-play and stay in the PLAYING state. Mute is controlled
+        // exclusively via {@link MediaPlayer#setMute} — that flag is
+        // state-independent, applied by the audio output stage every sample,
+        // so toggling it never races with the player's state machine.
+        //
+        // The previous implementation used pause()/play() which only work
+        // from a subset of states (READY/PAUSED/STOPPED/PLAYING/STALLED).
+        // If the user clicked the mute button DURING a transitional state
+        // (e.g. UNKNOWN before READY fired, or STALLED during a buffer
+        // underrun) the call silently no-op'd and the audio drifted out of
+        // sync with the icon — the "sometimes doesn't toggle" bug.
         if (ambientPlayer == null) {
             try {
                 String url = getClass().getResource("/media/ambient.mp3").toExternalForm();
@@ -422,10 +430,8 @@ public class MainView extends BorderPane {
                 ambientPlayer = new MediaPlayer(media);
                 ambientPlayer.setVolume(AMBIENT_VOLUME);
                 ambientPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-                // setAutoPlay always starts playback when the player is ready.
-                // If the persisted mute is true, we don't want to start audible —
-                // begin paused, then play() only when the user unmutes.
-                ambientPlayer.setAutoPlay(!audioMuted);
+                ambientPlayer.setMute(audioMuted);
+                ambientPlayer.setAutoPlay(true);
             } catch (Throwable t) {
                 System.err.println("[MainView] ambient audio unavailable: " + t);
             }
@@ -437,7 +443,8 @@ public class MainView extends BorderPane {
                 musicPlayer = new MediaPlayer(media);
                 musicPlayer.setVolume(MUSIC_VOLUME);
                 musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-                musicPlayer.setAutoPlay(!audioMuted);
+                musicPlayer.setMute(audioMuted);
+                musicPlayer.setAutoPlay(true);
             } catch (Throwable t) {
                 System.err.println("[MainView] music unavailable: " + t);
             }
@@ -477,16 +484,16 @@ public class MainView extends BorderPane {
 
     private void toggleMute() {
         audioMuted = !audioMuted;
-        // Pause rather than mute volume — saves CPU on the decoder threads when the
-        // user silences the launcher. Both layers (texture + music) toggle together
-        // so the mute state always matches what the user hears.
+        // setMute is a per-sample audio-output flag, applied independently of
+        // the player's state machine. It always takes effect — no
+        // "ignored because we're in UNKNOWN/STALLED" surprises like the
+        // previous pause()/play() approach. Both layers toggle together so
+        // the icon never drifts from what the user actually hears.
         for (MediaPlayer p : new MediaPlayer[] { ambientPlayer, musicPlayer }) {
             if (p == null) continue;
-            if (audioMuted) p.pause();
-            else            p.play();
+            p.setMute(audioMuted);
         }
         applyMuteIconShape();
-        // Persist so the choice survives a launcher restart.
         Settings.get().launcherAudioMuted = audioMuted;
         Settings.get().save();
     }
