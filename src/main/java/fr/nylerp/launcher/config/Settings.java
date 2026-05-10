@@ -17,7 +17,13 @@ public final class Settings {
     private static final Logger LOG = LoggerFactory.getLogger(Settings.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    public int ramMb = 4096;
+    // Default heap bumped 4 → 6 GB. 4 GB was too tight for the 80-mod stack
+    // (~3.5 GB resident after init = constant young-GC churn, observed in
+    // the validated freeze reports). 6 GB gives the young generation enough
+    // room to breathe so GC pauses stay short (~30-50 ms target). Players
+    // who customized ramMb keep their setting via the persisted settings
+    // file — this default only affects fresh installs / Reset configurations.
+    public int ramMb = 6144;
     public boolean optionalLitematica       = false;
     public boolean optionalDistantHorizons  = false;
     public boolean optionalSkinLayer3D      = false;
