@@ -20,6 +20,7 @@ public final class Settings {
     public int ramMb = 4096;
     public boolean optionalLitematica       = false;
     public boolean optionalDistantHorizons  = false;
+    public boolean optionalSkinLayer3D      = false;
     /** Persists the launcher's mute toggle (ambient + music) across sessions
      *  so players who silenced the launcher once don't have to do it on
      *  every start. */

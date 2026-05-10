@@ -54,7 +54,12 @@ public final class OptionalMods {
                 "DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
                 "https://cdn.modrinth.com/data/uCdwusMi/versions/oYXIfeus/DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
                 "8b39994ee6c5d71b8afacc80c2d13dd92fad10281374392c0049d1b6aebc823d7e137125268dee7383d3ff753eacf708fbe87d773cf0087d7b6057a05cf18ad3",
-                () -> Settings.get().optionalDistantHorizons)
+                () -> Settings.get().optionalDistantHorizons),
+            new Entry(
+                "skinlayers3d-fabric-1.11.1-mc1.21.1.jar",
+                "https://cdn.modrinth.com/data/zV5r3pPn/versions/U0nPT3LQ/skinlayers3d-fabric-1.11.1-mc1.21.1.jar",
+                "c9c0e11d8874d815ab067e72a27804ff2149b0162afe36cf239b0a6df2faf2699fed25ba433f0a6ca5148d47444a3982fbce56aaba8d43bfffd3593ecda55661",
+                () -> Settings.get().optionalSkinLayer3D)
     );
 
     /** Filenames the launcher itself shipped as optional but that have been
