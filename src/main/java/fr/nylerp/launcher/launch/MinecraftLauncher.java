@@ -60,6 +60,12 @@ public final class MinecraftLauncher {
         FabricInstaller.Result fabric = FabricInstaller.install(Constants.MC_VERSION, loaderVer);
 
         Path gameDir = AppPaths.gameDir();
+        // Ensure the modpack's required resource pack is in the active list of
+        // options.txt — without this, a player who already had options.txt
+        // (firstInstallOnly path) sees the pack downloaded into resourcepacks/
+        // but inactive in their pack stack.
+        OptionsTxtMigration.ensureResourcePackEnabled(gameDir, "NYLERP-PACK.zip");
+
         Path mcRoot  = AppPaths.rootDir().resolve("minecraft");
         Path clientJar = mcRoot.resolve("versions").resolve(Constants.MC_VERSION)
                 .resolve(Constants.MC_VERSION + ".jar");
