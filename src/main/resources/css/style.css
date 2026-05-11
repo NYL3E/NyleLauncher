@@ -376,28 +376,49 @@
     -fx-border-color: -c-glass-brd-hi;
 }
 
-/* Pill-style switch */
+/* Pill-style switch — refined design
+ * OFF: matte dark track, subtle 1 px border, thumb in muted grey shifted left.
+ * ON:  accent gradient track with a soft glow, thumb pure white shifted right.
+ * Generous 52×28 hit area for comfortable click targets. */
+.pill-switch {
+    -fx-cursor: hand;
+}
 .pill-switch > .box {
-    -fx-background-color: rgba(255,255,255,0.06);
+    -fx-background-color: rgba(255,255,255,0.04);
     -fx-background-radius: 999;
-    -fx-border-color: -c-glass-brd;
+    -fx-border-color: rgba(255,255,255,0.12);
     -fx-border-radius: 999;
     -fx-border-width: 1;
-    -fx-min-width: 40; -fx-max-width: 40;
-    -fx-min-height: 22; -fx-max-height: 22;
+    -fx-min-width: 52; -fx-max-width: 52;
+    -fx-min-height: 28; -fx-max-height: 28;
     -fx-padding: 0;
+}
+.pill-switch:hover > .box {
+    -fx-border-color: rgba(255,255,255,0.22);
+    -fx-background-color: rgba(255,255,255,0.07);
 }
 .pill-switch > .box > .mark {
-    -fx-background-color: -c-text-2;
+    -fx-background-color: #9CA0AB;
     -fx-background-radius: 999;
-    -fx-min-width: 14; -fx-max-width: 14;
-    -fx-min-height: 14; -fx-max-height: 14;
+    -fx-min-width: 18; -fx-max-width: 18;
+    -fx-min-height: 18; -fx-max-height: 18;
     -fx-padding: 0;
     -fx-shape: "M4,0 a4,4 0 1,1 -0.001,0 z";
-    -fx-translate-x: -8;
+    -fx-translate-x: -12;
 }
-.pill-switch:selected > .box { -fx-background-color: -c-accent; -fx-border-color: -c-accent; }
-.pill-switch:selected > .box > .mark { -fx-background-color: -c-text; -fx-translate-x: 8; }
+.pill-switch:selected > .box {
+    -fx-background-color: linear-gradient(to right, #6E44FF 0%, #8C5BFF 100%);
+    -fx-border-color: rgba(140,91,255,0.55);
+    -fx-effect: dropshadow(gaussian, rgba(110,68,255,0.45), 14, 0.18, 0, 0);
+}
+.pill-switch:selected > .box > .mark {
+    -fx-background-color: #FFFFFF;
+    -fx-translate-x: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 4, 0, 0, 1);
+}
+.pill-switch:selected:hover > .box {
+    -fx-background-color: linear-gradient(to right, #8C5BFF 0%, #A879FF 100%);
+}
 
 /* Slider */
 .ram-slider-big .track {
@@ -415,6 +436,27 @@
     -fx-pref-height: 22;
 }
 .ram-slider-big:hover .thumb { -fx-background-color: -c-accent; }
+
+/* Audio volume slider — compact horizontal control with filled track */
+.audio-slider .track {
+    -fx-background-color: rgba(255,255,255,0.07);
+    -fx-background-radius: 999;
+    -fx-pref-height: 4;
+}
+.audio-slider .thumb {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 999;
+    -fx-border-color: -c-bg;
+    -fx-border-radius: 999;
+    -fx-border-width: 3;
+    -fx-pref-width: 18;
+    -fx-pref-height: 18;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 4, 0, 0, 1);
+    -fx-cursor: hand;
+}
+.audio-slider:hover .thumb {
+    -fx-background-color: linear-gradient(to bottom, #FFFFFF 0%, #C8B6FF 100%);
+}
 
 /* Settings ScrollPane */
 /* News-panel internal scroll — custom thin pill scrollbar, no arrows */

@@ -48,6 +48,7 @@ public class SettingsView extends BorderPane {
         col.setMaxWidth(720);
         col.getChildren().addAll(
                 memorySection(),
+                audioSection(),
                 modsSection(),
                 aboutSection()
         );
@@ -143,6 +144,81 @@ public class SettingsView extends BorderPane {
         }
 
         return new VBox(10, h, p, maxRow, numLane, slider, scale);
+    }
+
+    // ── Audio ───────────────────────────────────────────────────────────────
+
+    private VBox audioSection() {
+        Label h = new Label("Audio du launcher");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+
+        Label p = new Label("Volume de la musique et de l'ambiance crépitement de feu jouées sur l'écran d'accueil.");
+        p.setFont(Fonts.medium(13));
+        p.setTextFill(Color.web("#A2A2AC"));
+        p.setWrapText(true);
+
+        Region ambientRow = volumeRow(
+                "Ambiance — Feu de camp",
+                "Crépitement de feu en boucle. Couche sub-musique discrète.",
+                Settings.get().ambientVolume,
+                v -> {
+                    Settings.get().ambientVolume = v;
+                    Settings.get().save();
+                    MainView.setLiveAmbientVolume(v);
+                });
+
+        Region musicRow = volumeRow(
+                "Musique",
+                "Boucle musicale principale, posée par-dessus l'ambiance.",
+                Settings.get().musicVolume,
+                v -> {
+                    Settings.get().musicVolume = v;
+                    Settings.get().save();
+                    MainView.setLiveMusicVolume(v);
+                });
+
+        return new VBox(14, h, p, ambientRow, musicRow);
+    }
+
+    /** A single volume row: title + description + Slider 0..100 + live %.
+     *  Visually paired with the optionalModRow / memorySection styling. */
+    private Region volumeRow(String title, String desc, double initial,
+                             java.util.function.Consumer<Double> onChange) {
+        Label modTitle = new Label(title);
+        modTitle.setFont(Fonts.semi(14));
+        modTitle.setTextFill(Color.web("#F4F4F7"));
+
+        Label modDesc = new Label(desc);
+        modDesc.setFont(Fonts.medium(12));
+        modDesc.setTextFill(Color.web("#A2A2AC"));
+        modDesc.setWrapText(true);
+
+        Label pct = new Label(String.format("%.0f%%", initial * 100.0));
+        pct.setFont(Fonts.bold(16));
+        pct.setTextFill(Color.web("#F4F4F7"));
+        pct.setMinWidth(56);
+        pct.setAlignment(Pos.CENTER_RIGHT);
+
+        Slider slider = new Slider(0, 100, initial * 100.0);
+        slider.setBlockIncrement(1);
+        slider.getStyleClass().add("audio-slider");
+        slider.setPrefHeight(20);
+        HBox.setHgrow(slider, Priority.ALWAYS);
+
+        slider.valueProperty().addListener((obs, a, b) -> {
+            double v = b.doubleValue() / 100.0;
+            pct.setText(String.format("%.0f%%", b.doubleValue()));
+            onChange.accept(v);
+        });
+
+        HBox sliderRow = new HBox(16, slider, pct);
+        sliderRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox body = new VBox(10, modTitle, modDesc, sliderRow);
+        body.setPadding(new Insets(16, 20, 16, 20));
+        body.getStyleClass().add("mod-row");
+        return body;
     }
 
     // ── Mods optionnels ─────────────────────────────────────────────────────

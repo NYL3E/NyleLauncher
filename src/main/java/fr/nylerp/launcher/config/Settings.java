@@ -31,6 +31,14 @@ public final class Settings {
      *  so players who silenced the launcher once don't have to do it on
      *  every start. */
     public boolean launcherAudioMuted       = false;
+    /** Volume of the ambient campfire loop. Range 0.0–1.0. Default 0.125
+     *  matches the design brief — a soft sub-music layer that adds texture
+     *  without dominating the foreground music. */
+    public double ambientVolume             = 0.125;
+    /** Volume of the foreground music loop. Range 0.0–1.0. Default 0.30
+     *  matches the design brief — present and listenable without burying
+     *  speech or notifications. */
+    public double musicVolume               = 0.30;
     // optionalBobby was retired in 1.0.28 (replaced by Distant Horizons). The
     // field is left as a no-op deserialisation target so existing saved
     // settings.json files don't fail to parse for users who had it on; Gson

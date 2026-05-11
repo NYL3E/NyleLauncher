@@ -54,19 +54,29 @@ public class MainView extends BorderPane {
 
     /** Background video player (looping, no audio — audio is on separate tracks). */
     private MediaPlayer videoPlayer;
-    /** Ambient texture loop (3-min YouTube cut, low). */
-    private MediaPlayer ambientPlayer;
-    /** Foreground music loop ("Left to Bloom" full-length, max-quality). */
-    private MediaPlayer musicPlayer;
+    /** Ambient texture loop (3-min YouTube cut, low). Static so SettingsView can
+     *  push a live volume update while it's playing. */
+    private static MediaPlayer ambientPlayer;
+    /** Foreground music loop. Static for the same reason — live volume updates. */
+    private static MediaPlayer musicPlayer;
+
+    /** Live volume setter for the ambient track — used by the Settings slider. */
+    public static void setLiveAmbientVolume(double v) {
+        if (ambientPlayer != null) {
+            try { ambientPlayer.setVolume(Math.max(0, Math.min(1, v))); } catch (Throwable ignored) {}
+        }
+    }
+    /** Live volume setter for the music track — used by the Settings slider. */
+    public static void setLiveMusicVolume(double v) {
+        if (musicPlayer != null) {
+            try { musicPlayer.setVolume(Math.max(0, Math.min(1, v))); } catch (Throwable ignored) {}
+        }
+    }
     /** Hydrated from {@link Settings#launcherAudioMuted} so the mute choice
      *  persists across sessions — players who silenced the launcher don't
      *  need to do it again at every start. */
     private boolean audioMuted = Settings.get().launcherAudioMuted;
     private SVGPath muteIcon;
-    /** Volume for the layered ambient + music tracks. Both stay at the same level so
-     *  the music sits naturally on top of the texture without needing a per-track mix. */
-    private static final double AMBIENT_VOLUME = 0.08;
-    private static final double MUSIC_VOLUME   = 0.08;
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
@@ -485,7 +495,7 @@ public class MainView extends BorderPane {
                 media.setOnError(() -> System.err.println("[MainView] ambient media error: " + media.getError()));
                 ambientPlayer = new MediaPlayer(media);
                 ambientPlayer.setOnError(() -> System.err.println("[MainView] ambient player error: " + ambientPlayer.getError()));
-                ambientPlayer.setVolume(AMBIENT_VOLUME);
+                ambientPlayer.setVolume(Settings.get().ambientVolume);
                 ambientPlayer.setCycleCount(MediaPlayer.INDEFINITE);
                 ambientPlayer.setMute(audioMuted);
                 ambientPlayer.setAutoPlay(true);
@@ -500,7 +510,7 @@ public class MainView extends BorderPane {
                 media.setOnError(() -> System.err.println("[MainView] music media error: " + media.getError()));
                 musicPlayer = new MediaPlayer(media);
                 musicPlayer.setOnError(() -> System.err.println("[MainView] music player error: " + musicPlayer.getError()));
-                musicPlayer.setVolume(MUSIC_VOLUME);
+                musicPlayer.setVolume(Settings.get().musicVolume);
                 musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
                 musicPlayer.setMute(audioMuted);
                 musicPlayer.setAutoPlay(true);
@@ -510,8 +520,9 @@ public class MainView extends BorderPane {
         }
     }
 
-    /** Round 44×44 button with a speaker SVG glyph. Toggling sets the audio player's
-     *  volume to 0 / {@link #AMBIENT_VOLUME} and swaps the icon for an X-marked one. */
+    /** Round 44×44 button with a speaker SVG glyph. Toggling calls
+     *  {@link MediaPlayer#setMute(boolean)} on both audio layers and swaps
+     *  the icon for an X-marked one. */
     private Region buildMuteButton() {
         Button btn = new Button();
         btn.setMinSize(44, 44);
