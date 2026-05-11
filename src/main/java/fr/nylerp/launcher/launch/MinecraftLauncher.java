@@ -94,41 +94,47 @@ public final class MinecraftLauncher {
         cmd.add("-Xmx" + ramMb + "M");
         cmd.add("-Xms" + ramMb + "M");
 
-        // ── Low-pause GC tuning (G1) ────────────────────────────────────
-        // Replaces the JDK 21 default G1 args, which produce 250-300 ms
-        // young-generation pauses on a 6-8 GB heap with 80+ mods (proven
-        // in MrCedriic + Nonolcad freeze reports — both excellent PCs
-        // had recurring micro-freezes that aligned with G1 Young pauses).
-        // After this tuning, target pauses drop to ~30-50 ms — perceptible
-        // only as a tiny "stutter" once per ~30 sec of intense allocation
-        // instead of the multi-100ms drops that ruined the play feel.
+        // ── Low-pause GC tuning v2 (G1) ─────────────────────────────────
+        // v1 (1.0.33) targeted MaxGCPauseMillis=50 — proved insufficient on
+        // MrCedriic 23:58 report (max pause still 323 ms, 7 collections in
+        // 60 s = 1 every 8 s). v2 (1.0.34) tightens the pause budget and
+        // gives G1 more young-gen headroom so collections are rarer.
         //
         // Each flag's role:
-        //   MaxGCPauseMillis=50            target pause budget per young GC
+        //   MaxGCPauseMillis=25            half of a 60 fps frame (16.7 ms × 2 budget)
+        //   GCTimeRatio=99                 cap GC time at 1% of total runtime (default ~8%)
+        //   G1NewSizePercent=30            eden 50% bigger → ~50% fewer collections
+        //   G1MaxNewSizePercent=50         lets eden grow up to 50% under bursty alloc
+        //   InitiatingHeapOccupancyPercent=10  concurrent mark starts at 10% old-gen
+        //   ParallelGCThreads/ConcGCThreads explicit — set after CPU count is known
         //   G1HeapRegionSize=8M            larger regions reduce per-GC overhead on big heaps
-        //   G1NewSizePercent=20            keep eden small so young GCs are fast
-        //   G1MaxNewSizePercent=40         cap young so old gen has room for long-lived mod state
-        //   G1ReservePercent=20            headroom to avoid evac failures
+        //   G1ReservePercent=20            headroom to avoid evacuation failures
         //   G1HeapWastePercent=5           tolerate 5% fragmentation, no extra mixed GCs
-        //   InitiatingHeapOccupancyPercent=15  start concurrent marking early, prevents full GC
         //   G1MixedGCCountTarget=4         spread mixed GCs across cycles
-        //   SurvivorRatio=32               most young objects die — small survivor space is fine
+        //   SurvivorRatio=32               most young objects die — small survivor is fine
         //   +AlwaysPreTouch                touch all heap pages at start to avoid PF stalls
         //   +DisableExplicitGC             ignore mod-triggered System.gc() calls
         //   +UseStringDeduplication        dedup repeated String values, ~5-10% heap saving
         //   +ParallelRefProcEnabled        parallel reference processing during GC pauses
         //   +PerfDisableSharedMem          skip /tmp/hsperfdata file IO (small win)
-        //   ReservedCodeCacheSize=512M     JIT compiler artifacts cache (80-mod load fills the default 240M)
+        //   ReservedCodeCacheSize=512M     JIT compiler cache (80-mod load fills default 240M)
+        int cpus = Runtime.getRuntime().availableProcessors();
+        int parallelThreads = Math.max(2, Math.min(8, cpus / 2));
+        int concThreads     = Math.max(1, Math.min(4, cpus / 4));
+
         cmd.add("-XX:+UseG1GC");
-        cmd.add("-XX:MaxGCPauseMillis=50");
+        cmd.add("-XX:MaxGCPauseMillis=25");
+        cmd.add("-XX:GCTimeRatio=99");
+        cmd.add("-XX:ParallelGCThreads=" + parallelThreads);
+        cmd.add("-XX:ConcGCThreads=" + concThreads);
         cmd.add("-XX:+UnlockExperimentalVMOptions");
         cmd.add("-XX:+ParallelRefProcEnabled");
         cmd.add("-XX:G1HeapRegionSize=8M");
-        cmd.add("-XX:G1NewSizePercent=20");
-        cmd.add("-XX:G1MaxNewSizePercent=40");
+        cmd.add("-XX:G1NewSizePercent=30");
+        cmd.add("-XX:G1MaxNewSizePercent=50");
         cmd.add("-XX:G1ReservePercent=20");
         cmd.add("-XX:G1HeapWastePercent=5");
-        cmd.add("-XX:InitiatingHeapOccupancyPercent=15");
+        cmd.add("-XX:InitiatingHeapOccupancyPercent=10");
         cmd.add("-XX:G1MixedGCCountTarget=4");
         cmd.add("-XX:SurvivorRatio=32");
         cmd.add("-XX:+AlwaysPreTouch");
