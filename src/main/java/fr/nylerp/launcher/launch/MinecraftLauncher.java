@@ -94,54 +94,49 @@ public final class MinecraftLauncher {
         cmd.add("-Xmx" + ramMb + "M");
         cmd.add("-Xms" + ramMb + "M");
 
-        // ── Low-pause GC tuning v2 (G1) ─────────────────────────────────
-        // v1 (1.0.33) targeted MaxGCPauseMillis=50 — proved insufficient on
-        // MrCedriic 23:58 report (max pause still 323 ms, 7 collections in
-        // 60 s = 1 every 8 s). v2 (1.0.34) tightens the pause budget and
-        // gives G1 more young-gen headroom so collections are rarer.
+        // ── Sub-millisecond GC pauses via Generational ZGC ──────────────
+        // Why ZGC instead of G1:
+        //   G1 v1 (1.0.33, MaxGCPauseMillis=50): max pause 323 ms, 7 GCs/min
+        //   G1 v2 (1.0.34, MaxGCPauseMillis=25, bigger eden): max pause
+        //     522 ms, 10 GCs/min — v2 made it WORSE because bigger young
+        //     gen + bursty mod allocations meant G1 couldn't meet the
+        //     tighter pause budget and just blew past it.
         //
-        // Each flag's role:
-        //   MaxGCPauseMillis=25            half of a 60 fps frame (16.7 ms × 2 budget)
-        //   GCTimeRatio=99                 cap GC time at 1% of total runtime (default ~8%)
-        //   G1NewSizePercent=30            eden 50% bigger → ~50% fewer collections
-        //   G1MaxNewSizePercent=50         lets eden grow up to 50% under bursty alloc
-        //   InitiatingHeapOccupancyPercent=10  concurrent mark starts at 10% old-gen
-        //   ParallelGCThreads/ConcGCThreads explicit — set after CPU count is known
-        //   G1HeapRegionSize=8M            larger regions reduce per-GC overhead on big heaps
-        //   G1ReservePercent=20            headroom to avoid evacuation failures
-        //   G1HeapWastePercent=5           tolerate 5% fragmentation, no extra mixed GCs
-        //   G1MixedGCCountTarget=4         spread mixed GCs across cycles
-        //   SurvivorRatio=32               most young objects die — small survivor is fine
-        //   +AlwaysPreTouch                touch all heap pages at start to avoid PF stalls
-        //   +DisableExplicitGC             ignore mod-triggered System.gc() calls
-        //   +UseStringDeduplication        dedup repeated String values, ~5-10% heap saving
-        //   +ParallelRefProcEnabled        parallel reference processing during GC pauses
-        //   +PerfDisableSharedMem          skip /tmp/hsperfdata file IO (small win)
-        //   ReservedCodeCacheSize=512M     JIT compiler cache (80-mod load fills default 240M)
-        int cpus = Runtime.getRuntime().availableProcessors();
-        int parallelThreads = Math.max(2, Math.min(8, cpus / 2));
-        int concThreads     = Math.max(1, Math.min(4, cpus / 4));
-
-        cmd.add("-XX:+UseG1GC");
-        cmd.add("-XX:MaxGCPauseMillis=25");
-        cmd.add("-XX:GCTimeRatio=99");
-        cmd.add("-XX:ParallelGCThreads=" + parallelThreads);
-        cmd.add("-XX:ConcGCThreads=" + concThreads);
+        // Generational ZGC (JEP 439, production-ready in JDK 21) does its
+        // marking + relocation concurrently with the application. Real
+        // pause budget is sub-millisecond — invisible to the player.
+        //
+        // Crucially, MrCedriic's chronic glfwPollEvents stalls (500-1300 ms
+        // each, 81 in one session!) are DOWNSTREAM of GC pauses: every GC
+        // pause leaves Windows event queue piled up (mouse moves, etc.)
+        // and the next glfwPollEvents drains it all. Killing GC pauses
+        // also fixes the glfwPollEvents storm.
+        //
+        // Cost: ZGC reserves more virtual memory (Windows committed) and
+        // adds ~5-10% CPU overhead. On modern hardware (Cedriic = Ryzen
+        // 5800X + RTX 3060) this is invisible — and far less than what
+        // GC pauses are currently costing.
+        cmd.add("-XX:+UseZGC");
+        cmd.add("-XX:+ZGenerational");
         cmd.add("-XX:+UnlockExperimentalVMOptions");
-        cmd.add("-XX:+ParallelRefProcEnabled");
-        cmd.add("-XX:G1HeapRegionSize=8M");
-        cmd.add("-XX:G1NewSizePercent=30");
-        cmd.add("-XX:G1MaxNewSizePercent=50");
-        cmd.add("-XX:G1ReservePercent=20");
-        cmd.add("-XX:G1HeapWastePercent=5");
-        cmd.add("-XX:InitiatingHeapOccupancyPercent=10");
-        cmd.add("-XX:G1MixedGCCountTarget=4");
-        cmd.add("-XX:SurvivorRatio=32");
         cmd.add("-XX:+AlwaysPreTouch");
         cmd.add("-XX:+DisableExplicitGC");
-        cmd.add("-XX:+UseStringDeduplication");
         cmd.add("-XX:+PerfDisableSharedMem");
         cmd.add("-XX:ReservedCodeCacheSize=512M");
+
+        // ── AWT / Java2D mitigation ─────────────────────────────────────
+        // MenuCanvas (used by Nyle menus) uses BufferedImage + Graphics2D
+        // which lazily initialises Windows AWT (sun.awt.windows.WToolkit).
+        // After init, AWT spawns a "AWT-Windows" thread that pumps Windows
+        // messages and can compete with GLFW's main-thread poll, slowing
+        // glfwPollEvents. Disabling DDraw/D3D/OpenGL Java2D pipelines and
+        // letting AWT use the basic software renderer reduces this
+        // footprint substantially.
+        cmd.add("-Dsun.java2d.noddraw=true");
+        cmd.add("-Dsun.java2d.d3d=false");
+        cmd.add("-Dsun.java2d.opengl=false");
+        cmd.add("-Dsun.awt.noerasebackground=true");
+        cmd.add("-Dsun.awt.disablegrab=true");
 
         cmd.add("-Djava.library.path=" + mcRoot.resolve("natives"));
         cmd.add("-Dminecraft.launcher.brand=nylelauncher");
