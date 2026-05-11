@@ -390,15 +390,17 @@ public class MainView extends BorderPane {
     }
 
     /** Install the static fallback image + the H.264 video MediaView directly
-     *  as siblings in the body StackPane. No wrapper container — the wrapper
-     *  introduced in 1.0.37 had an intrinsic prefHeight derived from the
-     *  ImageView that bubbled up the layout chain and pushed BorderPane's
-     *  bottom slot off the window.
-     *  <p>Both views bind fitWidth + fitHeight to the body, with
-     *  preserveRatio=true, so they fit ENTIRELY within it (contain-style).
-     *  Even on extreme aspect ratios the views never exceed the body slot.
-     *  Combined with the body's own paint clip, the bottom bar in
-     *  BorderPane.bottom is guaranteed to stay flush against the window. */
+     *  as siblings in the body StackPane.
+     *  <p>Critical detail: bind ONLY fitWidth, NOT fitHeight. With both
+     *  bound to a property that starts at 0 (during initial layout, before
+     *  the scene resizes the body), ImageView's docs spec that values ≤ 0
+     *  trigger fallback to INTRINSIC size — and once the view latches onto
+     *  the 4096×2081 intrinsic size on first render, the later binding
+     *  update to 1000 doesn't recover correctly. Result was the
+     *  "ultra-zoomed" crop the user reported. Pattern that has worked since
+     *  1.0.18: only fitWidth bound, preserveRatio=true derives the height
+     *  from aspect on every frame, body's paint clip handles any vertical
+     *  overflow into the bar's slot. */
     private void installBackground(StackPane body) {
         ImageView fallback = new ImageView();
         try {
@@ -409,14 +411,12 @@ public class MainView extends BorderPane {
         fallback.setPreserveRatio(true);
         fallback.setSmooth(true);
         fallback.fitWidthProperty().bind(body.widthProperty());
-        fallback.fitHeightProperty().bind(body.heightProperty());
         StackPane.setAlignment(fallback, Pos.BOTTOM_CENTER);
 
         MediaView view = new MediaView();
         view.setPreserveRatio(true);
         view.setSmooth(true);
         view.fitWidthProperty().bind(body.widthProperty());
-        view.fitHeightProperty().bind(body.heightProperty());
         StackPane.setAlignment(view, Pos.BOTTOM_CENTER);
 
         body.getChildren().add(fallback);
