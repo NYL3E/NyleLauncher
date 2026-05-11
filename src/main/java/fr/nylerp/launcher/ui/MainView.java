@@ -304,6 +304,17 @@ public class MainView extends BorderPane {
         StackPane stack = new StackPane();
         stack.setStyle("-fx-background-color: #08080B;");
 
+        // Hard clip on the body so NOTHING — video, fallback image, or any
+        // overlay — can paint outside its slot. BorderPane.center is sized
+        // to (window − bottom-bar), so this clip is what guarantees the
+        // bottom bar (which lives in BorderPane.bottom) is ALWAYS visible
+        // at the bottom of the window, no matter what the background source
+        // aspect ratio is.
+        Rectangle bodyClip = new Rectangle();
+        bodyClip.widthProperty().bind(stack.widthProperty());
+        bodyClip.heightProperty().bind(stack.heightProperty());
+        stack.setClip(bodyClip);
+
         // ── Video background — replaces the static fond-launcher.png. Looping silent
         //    H.264 .mp4 covers the body area. On Windows N/Education without Media
         //    Feature Pack (no H.264 codec), the MediaPlayer fails to play. We
@@ -384,11 +395,12 @@ public class MainView extends BorderPane {
     }
 
     /** Background — H.264 video when the OS has the codec, static image fallback
-     *  otherwise. The container is a StackPane that holds the MediaView on top
-     *  of an ImageView; we wire both Media + MediaPlayer error callbacks so
-     *  if H.264 isn't available (Windows N/Education without Media Feature
-     *  Pack) the MediaView hides itself and the player sees fond-launcher.png
-     *  instead of a black screen. */
+     *  otherwise. Both fitWidth AND fitHeight are bound to the parent so the
+     *  view always fits ENTIRELY within the body slot (contain-style with
+     *  preserveRatio=true). Even though this introduces letterbox bands on
+     *  the sides at certain aspect ratios, it guarantees the body slot is
+     *  never exceeded and the bottom bar (in BorderPane.bottom) stays
+     *  glued to the window bottom. */
     private Node buildBackgroundVideo(StackPane parent) {
         ImageView fallback = new ImageView();
         try {
@@ -399,16 +411,22 @@ public class MainView extends BorderPane {
         fallback.setPreserveRatio(true);
         fallback.setSmooth(true);
         fallback.fitWidthProperty().bind(parent.widthProperty());
+        fallback.fitHeightProperty().bind(parent.heightProperty());
 
         MediaView view = new MediaView();
         view.setPreserveRatio(true);
         view.setSmooth(true);
         view.fitWidthProperty().bind(parent.widthProperty());
+        view.fitHeightProperty().bind(parent.heightProperty());
 
         // Stack the video on top of the static fallback. If the video plays,
         // it covers the image. If the video fails, we hide the MediaView and
-        // the image stays visible underneath.
+        // the image stays visible underneath. The wrapper StackPane's height
+        // is capped at the parent's so its prefHeight can never force the
+        // BorderPane to grow past the window height.
         StackPane bg = new StackPane(fallback, view);
+        bg.maxHeightProperty().bind(parent.heightProperty());
+        bg.maxWidthProperty().bind(parent.widthProperty());
         StackPane.setAlignment(fallback, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(view, Pos.BOTTOM_CENTER);
 
