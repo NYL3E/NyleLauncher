@@ -12,6 +12,7 @@ import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -70,9 +71,10 @@ public class MainView extends BorderPane {
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
         // BorderPane layout: bottom = 64 px play-bar (hard-clamped), center
-        // = body StackPane. BorderPane reserves bottom first then sizes
-        // center to the remainder. As scene root, MainView is resized by
-        // the Scene to the Stage's content area — no need to touch min/pref/max.
+        // = body StackPane. The Scene forces this BorderPane to the stage
+        // content size; we don't touch min/pref/max (any value here can
+        // either collapse the layout or push it past the visible scene
+        // bounds on platforms whose title bar is bigger than expected).
         setCenter(buildContent(account, onLogout, onSettings));
         setBottom(buildBottomBar());
 
@@ -402,17 +404,32 @@ public class MainView extends BorderPane {
      *  from aspect on every frame, body's paint clip handles any vertical
      *  overflow into the bar's slot. */
     private void installBackground(StackPane body) {
-        ImageView fallback = new ImageView();
+        // Static fallback as a Region with a BackgroundImage — canonical
+        // JavaFX way to render a scaled image without ImageView's quirky
+        // fitWidth=0 → intrinsic fallback that kept biting us. The Region
+        // sizes itself to the parent (no prefSize inflation), and the
+        // BackgroundSize is set to cover so the image fills the body while
+        // preserving aspect (crops top/sides if needed).
+        Region fallback = new Region();
         try {
-            fallback.setImage(new Image(getClass().getResourceAsStream("/images/fond-launcher.png")));
+            Image img = new Image(getClass().getResourceAsStream("/images/fond-launcher.png"));
+            fallback.setBackground(new Background(new BackgroundImage(
+                    img,
+                    BackgroundRepeat.NO_REPEAT,
+                    BackgroundRepeat.NO_REPEAT,
+                    new BackgroundPosition(Side.LEFT, 0, true, Side.BOTTOM, 0, true),
+                    // width=100%, height=100%, widthAsPercent=true, heightAsPercent=true,
+                    // contain=false, cover=true → image fills the region preserving aspect
+                    new BackgroundSize(1.0, 1.0, true, true, false, true)
+            )));
         } catch (Throwable t) {
             System.err.println("[MainView] fallback image unavailable: " + t);
         }
-        fallback.setPreserveRatio(true);
-        fallback.setSmooth(true);
-        fallback.fitWidthProperty().bind(body.widthProperty());
-        StackPane.setAlignment(fallback, Pos.BOTTOM_CENTER);
 
+        // MediaView for the H.264 video. fitWidth bound to parent width —
+        // preserveRatio=true derives the height from aspect. We do NOT bind
+        // fitHeight because that triggers ImageView/MediaView's intrinsic-
+        // fallback path when fitHeight=0 during initial layout.
         MediaView view = new MediaView();
         view.setPreserveRatio(true);
         view.setSmooth(true);
