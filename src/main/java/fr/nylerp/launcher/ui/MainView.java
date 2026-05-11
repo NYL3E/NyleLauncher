@@ -305,10 +305,11 @@ public class MainView extends BorderPane {
         stack.setStyle("-fx-background-color: #08080B;");
 
         // ── Video background — replaces the static fond-launcher.png. Looping silent
-        //    H.264 .mp4 covers the body area (CSS object-fit:cover style — overflow
-        //    clipped, no letterbox). Anchored BOTTOM_CENTER so when the source is taller
-        //    than the body, the top of the video gets cropped instead of the bottom.
-        MediaView videoView = buildBackgroundVideo(stack);
+        //    H.264 .mp4 covers the body area. On Windows N/Education without Media
+        //    Feature Pack (no H.264 codec), the MediaPlayer fails to play. We
+        //    detect that via an error handler and swap to the static fond-launcher.png
+        //    fallback so the player never sees an empty black background.
+        Node videoView = buildBackgroundVideo(stack);
         StackPane.setAlignment(videoView, Pos.BOTTOM_CENTER);
         stack.getChildren().add(videoView);
 
@@ -369,45 +370,73 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(muteBtn, new Insets(0, 22, 18, 0));
 
-        stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn);
+        // ── Payload version footer (bottom-left, low-contrast). Lets the
+        //    user see at a glance which silent payload update they're on.
+        Label versionLbl = new Label("v" + fr.nylerp.launcher.config.Constants.PAYLOAD_VERSION);
+        versionLbl.setFont(Fonts.medium(10));
+        versionLbl.setTextFill(Color.web("#6B6F7A"));
+        versionLbl.setStyle("-fx-letter-spacing: 0.12em;");
+        StackPane.setAlignment(versionLbl, Pos.BOTTOM_LEFT);
+        StackPane.setMargin(versionLbl, new Insets(0, 0, 22, 28));
+
+        stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn, versionLbl);
         return stack;
     }
 
-    /** Background video locked to the launcher's exact width with the source
-     *  aspect ratio preserved — no stretch, no squash. Binding only fitWidth
-     *  (and leaving fitHeight at 0) tells {@link MediaView} to derive height
-     *  from the source aspect, so the view auto-sizes to
-     *  {@code parent_w × parent_w / source_aspect} on every layout pass.
-     *  <p>The MediaView is anchored BOTTOM_CENTER in {@link #buildContent}, so
-     *  if the resulting height differs from the body height: when smaller, a
-     *  thin band of the body's #08080B background shows above; when taller,
-     *  the top of the video falls out of frame. Either way the bottom of the
-     *  source video stays anchored and nothing is distorted.
-     *  <p>The 1.0.17 implementation re-bound the dimensions on
-     *  {@code MediaPlayer.READY} to switch from direct-fill to a cover algo,
-     *  which produced a visible zoom-in flash on launcher startup. With this
-     *  single static bind there is nothing to re-fire, so the layout is
-     *  stable from frame 0. */
-    private MediaView buildBackgroundVideo(StackPane parent) {
+    /** Background — H.264 video when the OS has the codec, static image fallback
+     *  otherwise. The container is a StackPane that holds the MediaView on top
+     *  of an ImageView; we wire both Media + MediaPlayer error callbacks so
+     *  if H.264 isn't available (Windows N/Education without Media Feature
+     *  Pack) the MediaView hides itself and the player sees fond-launcher.png
+     *  instead of a black screen. */
+    private Node buildBackgroundVideo(StackPane parent) {
+        ImageView fallback = new ImageView();
+        try {
+            fallback.setImage(new Image(getClass().getResourceAsStream("/images/fond-launcher.png")));
+        } catch (Throwable t) {
+            System.err.println("[MainView] fallback image unavailable: " + t);
+        }
+        fallback.setPreserveRatio(true);
+        fallback.setSmooth(true);
+        fallback.fitWidthProperty().bind(parent.widthProperty());
+
         MediaView view = new MediaView();
         view.setPreserveRatio(true);
         view.setSmooth(true);
+        view.fitWidthProperty().bind(parent.widthProperty());
+
+        // Stack the video on top of the static fallback. If the video plays,
+        // it covers the image. If the video fails, we hide the MediaView and
+        // the image stays visible underneath.
+        StackPane bg = new StackPane(fallback, view);
+        StackPane.setAlignment(fallback, Pos.BOTTOM_CENTER);
+        StackPane.setAlignment(view, Pos.BOTTOM_CENTER);
+
         try {
             String url = getClass().getResource("/media/launcher-bg.mp4").toExternalForm();
             Media media = new Media(url);
+            // Media.onError fires when the demuxer can't parse the file or
+            // the codec can't be resolved (the H.264 case on Windows N).
+            media.setOnError(() -> {
+                System.err.println("[MainView] media decode error: " + media.getError());
+                Platform.runLater(() -> view.setVisible(false));
+            });
             videoPlayer = new MediaPlayer(media);
+            // MediaPlayer.onError fires for everything else (network, format,
+            // platform errors). Either way → hide video, show static image.
+            videoPlayer.setOnError(() -> {
+                System.err.println("[MainView] mediaplayer error: " + videoPlayer.getError());
+                Platform.runLater(() -> view.setVisible(false));
+            });
             videoPlayer.setMute(true);                   // audio is on separate streams
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
             videoPlayer.setAutoPlay(true);
             view.setMediaPlayer(videoPlayer);
-            // Width-only bind — preserveRatio=true derives height from the
-            // source aspect automatically. No setOnReady acrobatics, no
-            // re-bind, no zoom flash on startup.
-            view.fitWidthProperty().bind(parent.widthProperty());
         } catch (Throwable t) {
             System.err.println("[MainView] background video unavailable: " + t);
+            view.setVisible(false);
         }
-        return view;
+        return bg;
     }
 
     private void startAmbientAudio() {
@@ -427,7 +456,9 @@ public class MainView extends BorderPane {
             try {
                 String url = getClass().getResource("/media/ambient.mp3").toExternalForm();
                 Media media = new Media(url);
+                media.setOnError(() -> System.err.println("[MainView] ambient media error: " + media.getError()));
                 ambientPlayer = new MediaPlayer(media);
+                ambientPlayer.setOnError(() -> System.err.println("[MainView] ambient player error: " + ambientPlayer.getError()));
                 ambientPlayer.setVolume(AMBIENT_VOLUME);
                 ambientPlayer.setCycleCount(MediaPlayer.INDEFINITE);
                 ambientPlayer.setMute(audioMuted);
@@ -440,7 +471,9 @@ public class MainView extends BorderPane {
             try {
                 String url = getClass().getResource("/media/music.mp3").toExternalForm();
                 Media media = new Media(url);
+                media.setOnError(() -> System.err.println("[MainView] music media error: " + media.getError()));
                 musicPlayer = new MediaPlayer(media);
+                musicPlayer.setOnError(() -> System.err.println("[MainView] music player error: " + musicPlayer.getError()));
                 musicPlayer.setVolume(MUSIC_VOLUME);
                 musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
                 musicPlayer.setMute(audioMuted);
@@ -485,13 +518,17 @@ public class MainView extends BorderPane {
     private void toggleMute() {
         audioMuted = !audioMuted;
         // setMute is a per-sample audio-output flag, applied independently of
-        // the player's state machine. It always takes effect — no
-        // "ignored because we're in UNKNOWN/STALLED" surprises like the
-        // previous pause()/play() approach. Both layers toggle together so
-        // the icon never drifts from what the user actually hears.
+        // the player's state machine. Wrapped in try because on Windows N /
+        // Education edition (no Media Feature Pack) the MediaPlayer can be
+        // in HALTED state and setMute throws MediaException — the icon must
+        // still flip so the user's choice is recorded and persisted for the
+        // next start, where the audio may yet succeed.
         for (MediaPlayer p : new MediaPlayer[] { ambientPlayer, musicPlayer }) {
             if (p == null) continue;
-            p.setMute(audioMuted);
+            try { p.setMute(audioMuted); }
+            catch (Throwable t) {
+                System.err.println("[MainView] setMute failed (player likely halted): " + t);
+            }
         }
         applyMuteIconShape();
         Settings.get().launcherAudioMuted = audioMuted;
