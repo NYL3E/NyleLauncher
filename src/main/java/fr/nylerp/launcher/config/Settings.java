@@ -17,24 +17,18 @@ public final class Settings {
     private static final Logger LOG = LoggerFactory.getLogger(Settings.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // Default heap bumped 6 → 8 GB. MrCedriic 12:32 report showed a G1 Old
-    // Generation Compaction Pause of 926 ms triggered at 4 GB used on a 6 GB
-    // heap (66% occupancy). With 8 GB, the same working set sits at 50% so
-    // G1 stays in young-only collection mode and the mixed/compaction
-    // pauses don't fire. 193-mod modpack with Iris+Sodium+PointBlank needs
-    // the extra headroom.
-    public int ramMb = 8192;
-    /** Sentinel that we've already one-time-bumped this user's heap to the
-     *  current minimum recommended value. Without it, existing players with
-     *  saved values below the new floor (6 GB Cedric / 4 GB Nyle) keep
-     *  running with too little RAM after a default bump — the user's
-     *  saved settings.json wins over our updated default. */
-    public boolean heapMigratedToV2 = false;
-    /** Minimum heap we want every player to run with on this modpack. The
-     *  one-time migration above bumps any saved {@code ramMb} below this
-     *  value up to it. Players can still manually go BELOW this in the
-     *  Settings UI after the migration — we only enforce once. */
-    public static final int MIN_RECOMMENDED_RAM_MB = 8192;
+    // Default heap = 4 GB per user request. Refurbished Furniture (the chronic
+    // tick allocator at 1.29M ms cumulative across MrCedriic's sessions) has
+    // been removed from the modpack so allocation rate drops back to a level
+    // 4 GB can sustain without pushing G1 into the Old Generation Compaction
+    // pause zone. Players can manually bump in Settings if they want more.
+    public int ramMb = 4096;
+    /** Legacy field kept for backwards-compatible Gson deserialisation —
+     *  earlier payload (1.0.46) used this to one-time bump 6 GB users to
+     *  8 GB. We no longer enforce a minimum, so the field is read-only
+     *  here. Don't delete: Gson would reject the unknown property on
+     *  existing settings.json files. */
+    @SuppressWarnings("unused") public boolean heapMigratedToV2 = false;
     public boolean optionalLitematica       = false;
     public boolean optionalDistantHorizons  = false;
     public boolean optionalSkinLayer3D      = false;
@@ -73,21 +67,9 @@ public final class Settings {
         } else {
             current = new Settings();
         }
-        // One-shot migration: bump any saved ramMb below the new floor up to
-        // it. Sentinel flag prevents re-bumping if the player later chooses
-        // to go below the floor manually.
-        if (!current.heapMigratedToV2 && current.ramMb < MIN_RECOMMENDED_RAM_MB) {
-            LOG.info("Heap migration v2: ramMb {} → {} MB (one-time bump)",
-                    current.ramMb, MIN_RECOMMENDED_RAM_MB);
-            current.ramMb = MIN_RECOMMENDED_RAM_MB;
-            current.heapMigratedToV2 = true;
-            current.save();
-        } else if (!current.heapMigratedToV2) {
-            // Already above the floor — just mark the migration done so we
-            // don't re-evaluate every launch.
-            current.heapMigratedToV2 = true;
-            current.save();
-        }
+        // No auto-bump — the user is the source of truth on their RAM
+        // setting. Fresh installs get the default (4 GB) and players who
+        // already chose a value above or below keep it.
         return current;
     }
 
