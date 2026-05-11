@@ -17,13 +17,13 @@ public final class Settings {
     private static final Logger LOG = LoggerFactory.getLogger(Settings.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // Default heap bumped 4 → 6 GB. 4 GB was too tight for the 80-mod stack
-    // (~3.5 GB resident after init = constant young-GC churn, observed in
-    // the validated freeze reports). 6 GB gives the young generation enough
-    // room to breathe so GC pauses stay short (~30-50 ms target). Players
-    // who customized ramMb keep their setting via the persisted settings
-    // file — this default only affects fresh installs / Reset configurations.
-    public int ramMb = 6144;
+    // Default heap bumped 6 → 8 GB. MrCedriic 12:32 report showed a G1 Old
+    // Generation Compaction Pause of 926 ms triggered at 4 GB used on a 6 GB
+    // heap (66% occupancy). With 8 GB, the same working set sits at 50% so
+    // G1 stays in young-only collection mode and the mixed/compaction
+    // pauses don't fire. 193-mod modpack with Iris+Sodium+PointBlank needs
+    // the extra headroom. Only affects fresh installs / Reset.
+    public int ramMb = 8192;
     public boolean optionalLitematica       = false;
     public boolean optionalDistantHorizons  = false;
     public boolean optionalSkinLayer3D      = false;
