@@ -69,19 +69,10 @@ public class MainView extends BorderPane {
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
-
-        // BorderPane layout: bottom = 64 px play-bar, center = body StackPane.
-        // BorderPane reserves the bottom slot first then sizes center to the
-        // remainder, so as long as nothing inside the body grows past the
-        // available space, the bar's bottom edge = window's bottom edge.
-        //
-        // We hard-cap MainView's pref/min/max height to 0..MAX so the
-        // BorderPane itself never inflates past the scene size driven by
-        // a child's prefH. JavaFX layout will still grow it to fit the
-        // scene, but it can't ask for MORE than the scene gives.
-        setMinHeight(0);
-        setPrefHeight(0);
-        setMaxHeight(Double.MAX_VALUE);
+        // BorderPane layout: bottom = 64 px play-bar (hard-clamped), center
+        // = body StackPane. BorderPane reserves bottom first then sizes
+        // center to the remainder. As scene root, MainView is resized by
+        // the Scene to the Stage's content area — no need to touch min/pref/max.
         setCenter(buildContent(account, onLogout, onSettings));
         setBottom(buildBottomBar());
 
@@ -307,19 +298,15 @@ public class MainView extends BorderPane {
     private Region buildContent(Account account, Runnable onLogout, Runnable onSettings) {
         StackPane stack = new StackPane();
         stack.setStyle("-fx-background-color: #08080B;");
-        // Pref/max size of the body cannot be inferred from its tallest child;
-        // BorderPane.center will get whatever space remains after .bottom is
-        // allocated, so we cap pref height at 0 — JavaFX layout will grow
-        // the stack to fill the available space anyway. Without this, an
-        // ImageView/MediaView child's intrinsic prefHeight could bubble up
-        // and push BorderPane's bottom slot off the window.
-        stack.setMinHeight(0);
-        stack.setPrefHeight(0);
-        stack.setMaxHeight(Double.MAX_VALUE);
+        // BorderPane.center forces this StackPane to fill the remaining
+        // space (scene height − bar height = 532 px). We DON'T touch
+        // min/pref/max — JavaFX layout handles sizing; manually setting
+        // pref=0 was making the StackPane resolve to 0 before the scene
+        // gave it a forced size, hiding everything.
 
-        // Hard paint clip on the body so NOTHING — video, fallback image,
-        // or any overlay — can paint outside its slot. Guarantees the
-        // bottom bar in BorderPane.bottom is visually unobstructed.
+        // Paint clip so children visually can't overflow into the bar slot
+        // even if their intrinsic size temporarily exceeds the stack height
+        // during layout.
         Rectangle bodyClip = new Rectangle();
         bodyClip.widthProperty().bind(stack.widthProperty());
         bodyClip.heightProperty().bind(stack.heightProperty());
