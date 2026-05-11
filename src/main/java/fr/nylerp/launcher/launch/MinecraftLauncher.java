@@ -94,44 +94,47 @@ public final class MinecraftLauncher {
         cmd.add("-Xmx" + ramMb + "M");
         cmd.add("-Xms" + ramMb + "M");
 
-        // ── Sub-millisecond GC pauses via Generational ZGC ──────────────
-        // Why ZGC instead of G1:
-        //   G1 v1 (1.0.33, MaxGCPauseMillis=50): max pause 323 ms, 7 GCs/min
-        //   G1 v2 (1.0.34, MaxGCPauseMillis=25, bigger eden): max pause
-        //     522 ms, 10 GCs/min — v2 made it WORSE because bigger young
-        //     gen + bursty mod allocations meant G1 couldn't meet the
-        //     tighter pause budget and just blew past it.
+        // ── G1 GC (back to v1 baseline after ZGC regression) ────────────
+        // Tested progression on MrCedriic (RTX 3060, 8 GB heap, 193 mods):
+        //   1.0.33 G1 v1 (MaxGCPauseMillis=50, NewSize=20%):
+        //     max pause 323 ms, ~7 hitches/min, glfwPollEvents max 1264 ms
+        //   1.0.34 G1 v2 (MaxGCPauseMillis=25, NewSize=30%):
+        //     max pause 522 ms (WORSE — bigger eden, smaller budget bust)
+        //   1.0.35 ZGC:
+        //     STW pauses <1 ms (great), BUT Cycles ate CPU concurrently —
+        //     when heap hit 75%+ ZGC fired Major cycles back-to-back, each
+        //     using ~25 s of CPU concurrent work over 8 cycles, starving
+        //     the render thread. Result: glfwPollEvents stalls 2.3-3.7 s
+        //     each (vs 1.2 s with G1) — visually MUCH worse for player.
         //
-        // Generational ZGC (JEP 439, production-ready in JDK 21) does its
-        // marking + relocation concurrently with the application. Real
-        // pause budget is sub-millisecond — invisible to the player.
-        //
-        // Crucially, MrCedriic's chronic glfwPollEvents stalls (500-1300 ms
-        // each, 81 in one session!) are DOWNSTREAM of GC pauses: every GC
-        // pause leaves Windows event queue piled up (mouse moves, etc.)
-        // and the next glfwPollEvents drains it all. Killing GC pauses
-        // also fixes the glfwPollEvents storm.
-        //
-        // Cost: ZGC reserves more virtual memory (Windows committed) and
-        // adds ~5-10% CPU overhead. On modern hardware (Cedriic = Ryzen
-        // 5800X + RTX 3060) this is invisible — and far less than what
-        // GC pauses are currently costing.
-        cmd.add("-XX:+UseZGC");
-        cmd.add("-XX:+ZGenerational");
+        // Lesson: with 8 GB heap + 193 mods + 20 MB/s sustained alloc,
+        // ZGC has no headroom and concurrent collection competes with
+        // rendering. G1 v1 with its predictable short young-gen pauses
+        // is the better tradeoff until we either:
+        //   (a) reduce mod count, (b) raise default heap, or (c) make
+        //   Iris+heavy mods optional.
+        cmd.add("-XX:+UseG1GC");
+        cmd.add("-XX:MaxGCPauseMillis=50");
         cmd.add("-XX:+UnlockExperimentalVMOptions");
+        cmd.add("-XX:+ParallelRefProcEnabled");
+        cmd.add("-XX:G1HeapRegionSize=8M");
+        cmd.add("-XX:G1NewSizePercent=20");
+        cmd.add("-XX:G1MaxNewSizePercent=40");
+        cmd.add("-XX:G1ReservePercent=20");
+        cmd.add("-XX:G1HeapWastePercent=5");
+        cmd.add("-XX:InitiatingHeapOccupancyPercent=15");
+        cmd.add("-XX:G1MixedGCCountTarget=4");
+        cmd.add("-XX:SurvivorRatio=32");
         cmd.add("-XX:+AlwaysPreTouch");
         cmd.add("-XX:+DisableExplicitGC");
+        cmd.add("-XX:+UseStringDeduplication");
         cmd.add("-XX:+PerfDisableSharedMem");
         cmd.add("-XX:ReservedCodeCacheSize=512M");
 
-        // ── AWT / Java2D mitigation ─────────────────────────────────────
+        // ── AWT / Java2D mitigation (keep — independent of GC choice) ──
         // MenuCanvas (used by Nyle menus) uses BufferedImage + Graphics2D
         // which lazily initialises Windows AWT (sun.awt.windows.WToolkit).
-        // After init, AWT spawns a "AWT-Windows" thread that pumps Windows
-        // messages and can compete with GLFW's main-thread poll, slowing
-        // glfwPollEvents. Disabling DDraw/D3D/OpenGL Java2D pipelines and
-        // letting AWT use the basic software renderer reduces this
-        // footprint substantially.
+        // Disabling DDraw/D3D/OpenGL Java2D pipelines reduces AWT footprint.
         cmd.add("-Dsun.java2d.noddraw=true");
         cmd.add("-Dsun.java2d.d3d=false");
         cmd.add("-Dsun.java2d.opengl=false");
