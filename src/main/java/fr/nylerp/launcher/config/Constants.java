@@ -7,11 +7,11 @@ public final class Constants {
      *  {@code payload-X.Y.Z} git tag. Displayed in the launcher footer so a
      *  player can visually confirm which payload they're running after a
      *  silent bootstrap refresh. */
-    public static final String PAYLOAD_VERSION = "1.0.44";
+    public static final String PAYLOAD_VERSION = "1.0.45";
     public static final String MC_VERSION   = "1.21.1";
     public static final String LOADER       = "fabric";
-    public static final String SERVER_HOST  = "play.nylerp.fr";
-    public static final int    SERVER_PORT  = 25565;
+    public static final String SERVER_HOST  = "83.143.117.51";
+    public static final int    SERVER_PORT  = 20652;
     public static final String DISCORD_URL  = "https://discord.gg/nylerp"; // TODO: real invite
     public static final String WEBSITE      = "https://nylerp.fr";
 
