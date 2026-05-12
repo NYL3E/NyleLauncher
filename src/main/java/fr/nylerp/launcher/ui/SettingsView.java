@@ -239,9 +239,15 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalLitematica,
                 v -> { Settings.get().optionalLitematica = v; Settings.get().save(); });
 
+        HBox irisRow = optionalModRow(
+                "Iris (shaders)",
+                "Active le support des shader packs et le rendu compatible Iris. Recommandé GPU dédié.",
+                Settings.get().optionalIris,
+                v -> { Settings.get().optionalIris = v; Settings.get().save(); });
+
         HBox dhRow = optionalModRow(
                 "Distant Horizons",
-                "Affiche les chunks éloignés en LOD pour une vue à très longue distance. Demande ~1 GB de RAM en plus.",
+                "Affiche les chunks éloignés en LOD. Active Iris automatiquement (requis pour le rendu fluide). ~1 GB de RAM en plus.",
                 Settings.get().optionalDistantHorizons,
                 v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); });
 
@@ -251,7 +257,7 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalSkinLayer3D,
                 v -> { Settings.get().optionalSkinLayer3D = v; Settings.get().save(); });
 
-        return new VBox(14, h, p, litematicaRow, dhRow, slRow);
+        return new VBox(14, h, p, litematicaRow, irisRow, dhRow, slRow);
     }
 
     /** A single optional-mod row: title + description on the left, pill switch

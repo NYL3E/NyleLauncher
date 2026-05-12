@@ -44,17 +44,32 @@ public final class OptionalMods {
                 "https://cdn.modrinth.com/data/bEpr0Arc/versions/aEvrmYqW/litematica-fabric-1.21-0.19.60.jar",
                 "6808c6987a15c6659ceadd7757dcceefbbe3e45dbf5c017d2a7606b6e7d4dcffdeac3206b42950c2024b3f613d55fdb66d93e831d0ed83d874f5e2508c525218",
                 () -> Settings.get().optionalLitematica),
-            // Distant Horizons 3.0.3-b — first DH branch with full Iris 1.8.x +
-            // Sodium 0.6.x compatibility. The older 2.x branch is what was
-            // pulled out of earlier modpack iterations because it shimmered
-            // with shaders and dropped frames against Sodium 0.6 — the 3.x
-            // rewrite resolves both. ~30 MB; uses extra RAM (~1 GB on top of
-            // base allocation), warned about in the SettingsView row.
+            // Distant Horizons 2.4.5-b — dropped back from the 3.0.3-b branch
+            // we previously shipped (2026-05-12 freeze investigation). On
+            // 3.0.3-b, terrain shader binds + buffer uploads were producing
+            // 1+ second hitches when not paired with Iris (16.6 s of stalls
+            // measured across 3 player sessions). 2.4.5-b is the consensus
+            // stable branch on 1.21.1 — ~6 months of bug-fix iteration and
+            // smaller (~24 MB vs ~29 MB), with the same LOD feature set the
+            // player actually cares about. Auto-coupled to Iris (see below):
+            // toggling DH on forces Iris on too, because without Iris DH's
+            // shader pipeline still hits the legacy bind paths that stutter.
             new Entry(
-                "DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
-                "https://cdn.modrinth.com/data/uCdwusMi/versions/oYXIfeus/DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
-                "8b39994ee6c5d71b8afacc80c2d13dd92fad10281374392c0049d1b6aebc823d7e137125268dee7383d3ff753eacf708fbe87d773cf0087d7b6057a05cf18ad3",
+                "DistantHorizons-2.4.5-b-1.21.1-fabric-neoforge.jar",
+                "https://cdn.modrinth.com/data/uCdwusMi/versions/bLPLghy9/DistantHorizons-2.4.5-b-1.21.1-fabric-neoforge.jar",
+                "6ee8b04af858450eac2e0fe6c3a6cb09dfc0f9c1691fb0f76f79bbc73e08e5dca6f18257294ba647b1520d4fb2110bbbb085830e536c8f4638995c75f66fe1eb",
                 () -> Settings.get().optionalDistantHorizons),
+            // Iris 1.8.8 — back as an optional after the 2026-05-11 removal.
+            // Re-introduced 2026-05-12 because Distant Horizons depends on it
+            // for a stutter-free render path. Iris alone (no DH) is fine too,
+            // for players who want shader packs without the LOD load. The DH
+            // toggle force-enables this (see Settings.get().optionalIris being
+            // OR'd with optionalDistantHorizons below).
+            new Entry(
+                "iris-fabric-1.8.8+mc1.21.1.jar",
+                "https://cdn.modrinth.com/data/YL57xq9U/versions/zsoi0dso/iris-fabric-1.8.8%2Bmc1.21.1.jar",
+                "2e6ba2ffa1e1a6799288245a7e0ac68ee8df1d41b98362189df58f535cae34fa9277801e4136633467341b7dae5be0e5c698011b480b3d91b66d3dd4f7567aa6",
+                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons),
             new Entry(
                 "skinlayers3d-fabric-1.11.1-mc1.21.1.jar",
                 "https://cdn.modrinth.com/data/zV5r3pPn/versions/U0nPT3LQ/skinlayers3d-fabric-1.11.1-mc1.21.1.jar",
@@ -69,7 +84,13 @@ public final class OptionalMods {
      *  doesn't keep an orphan jar that the modpack manifest no longer manages
      *  and the optional registry no longer knows about. */
     private static final List<String> DEPRECATED_FILENAMES = List.of(
-            "bobby-5.2.4+mc1.21.jar"
+            "bobby-5.2.4+mc1.21.jar",
+            // DH 3.0.3-b — replaced 2026-05-12 by the 2.4.5-b consensus stable
+            // (without-Iris pipeline on 3.0.3 was producing 1+ second hitches).
+            // Any client that previously toggled DH on under the 3.0.3 entry
+            // is auto-purged here; OptionalMods.applyAll() then installs the
+            // 2.4.5 filename listed in ENTRIES.
+            "DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar"
     );
 
     /** Filenames declared as optional mods — used by {@link ModpackUpdater}

@@ -74,6 +74,18 @@ def main():
     # personal settings — see ModpackUpdater.firstInstallOnly handling.
     FIRST_INSTALL_ONLY = {"options.txt", "optionsof.txt", "servers.dat"}
 
+    # Path-PREFIX based first-install protection. Use this for entire config
+    # subtrees that the user reconfigures in-game (mic device, volumes,
+    # hotkeys, onboarding state). Without this, the file matches by name
+    # outside the set above and gets overwritten on every pack sync — which
+    # is exactly the "voicechat keeps resetting" bug 2026-05-11.
+    FIRST_INSTALL_PREFIXES = (
+        # Simple Voice Chat — mic, speaker, gain, PTT, onboarding, per-player
+        # & per-category volumes, username cache. Every one of these is set
+        # by the user via the in-game SVC menu and must persist across syncs.
+        "config/voicechat/",
+    )
+
     files = []
     for p in sorted(PACK.rglob("*")):
         if p.is_file():
@@ -91,7 +103,9 @@ def main():
                 "size":   p.stat().st_size,
                 "url":    url,
             }
-            if rel.name in FIRST_INSTALL_ONLY:
+            rel_str = str(rel).replace("\\", "/")
+            if (rel.name in FIRST_INSTALL_ONLY
+                    or any(rel_str.startswith(p) for p in FIRST_INSTALL_PREFIXES)):
                 entry["firstInstallOnly"] = True
             files.append(entry)
 
