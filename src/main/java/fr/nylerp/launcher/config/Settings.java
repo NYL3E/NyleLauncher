@@ -31,6 +31,11 @@ public final class Settings {
     @SuppressWarnings("unused") public boolean heapMigratedToV2 = false;
     public boolean optionalLitematica       = false;
     public boolean optionalDistantHorizons  = false;
+    /** Iris shaders toggle. Independent of DH so a player can run shader packs
+     *  without DH's far-LOD load, but DH unconditionally force-installs Iris
+     *  too — see {@code OptionalMods.ENTRIES} — because DH's render pipeline
+     *  produces 1+ second hitches on the no-Iris fallback path. */
+    public boolean optionalIris             = false;
     public boolean optionalSkinLayer3D      = false;
     /** Persists the launcher's mute toggle (ambient + music) across sessions
      *  so players who silenced the launcher once don't have to do it on
