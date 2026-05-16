@@ -323,14 +323,37 @@ public class MainView extends BorderPane {
 
     // ── Body (fond image + header overlay + logo + glass news) ────────────
 
+    /** Aspect ratio of the bundled launcher background videos
+     *  (videolauncher1.mp4 and videolauncher2.mp4 are both 1942×1080 — see
+     *  the ffmpeg recipe in the payload commit). The body StackPane height
+     *  is pinned to {@code STAGE_WIDTH × BG_VIDEO_ASPECT} so the MediaView
+     *  fills the body EXACTLY — no fallback region peeking out above the
+     *  video, no overflow under the bar. Stage outer height
+     *  ({@link LauncherApp}) is set to match interior + macOS chrome
+     *  (28 px). If the source videos are re-encoded with a different
+     *  aspect, bump both constants and the stage height together. */
+    private static final double BG_VIDEO_ASPECT = 1080.0 / 1942.0;
+    private static final double STAGE_INNER_WIDTH = 1000.0;
+    /** Height the body StackPane MUST take so the bottom-anchored
+     *  fitWidth-bound MediaView fills it edge-to-edge. */
+    public static final double BODY_HEIGHT = STAGE_INNER_WIDTH * BG_VIDEO_ASPECT;
+
     private Region buildContent(Account account, Runnable onLogout, Runnable onSettings) {
         StackPane stack = new StackPane();
         stack.setStyle("-fx-background-color: #08080B;");
-        // BorderPane.center forces this StackPane to fill the remaining
-        // space (scene height − bar height = 532 px). We DON'T touch
-        // min/pref/max — JavaFX layout handles sizing; manually setting
-        // pref=0 was making the StackPane resolve to 0 before the scene
-        // gave it a forced size, hiding everything.
+        // 2026-05-16 — pin the body height to exactly match the video's
+        // displayed height at width 1000. Previously this was left to
+        // BorderPane's auto-fill, so the body grew/shrank with the stage
+        // and either (a) showed the legacy fallback image above the video
+        // when there was vertical slack (user reported "média qui dépasse
+        // au-dessus du fond du launcher") or (b) pushed the 64-px bottom
+        // bar off-screen when the video's intrinsic pref height ate the
+        // bar's slot. Pinning min=pref=max guarantees a fixed 556.13 px
+        // body, so interior height = body + bar = exactly
+        // BODY_HEIGHT + 64 px regardless of titlebar variance.
+        stack.setMinHeight(BODY_HEIGHT);
+        stack.setPrefHeight(BODY_HEIGHT);
+        stack.setMaxHeight(BODY_HEIGHT);
 
         // Paint clip so children visually can't overflow into the bar slot
         // even if their intrinsic size temporarily exceeds the stack height
