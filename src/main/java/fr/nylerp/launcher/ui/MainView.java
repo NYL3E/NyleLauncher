@@ -481,34 +481,21 @@ public class MainView extends BorderPane {
      *  swap MediaView visibility. The off-screen player is paused, never
      *  disposed, so the next swap is instant. */
     private void installBackground(StackPane body) {
-        // Static fallback as a Region with a BackgroundImage — canonical
-        // JavaFX way to render a scaled image without ImageView's quirky
-        // fitWidth=0 → intrinsic fallback that kept biting us. The Region
-        // sizes itself to the parent (no prefSize inflation), and the
-        // BackgroundSize is set to cover so the image fills the body while
-        // preserving aspect (crops top/sides if needed).
-        Region fallback = new Region();
-        try {
-            Image img = new Image(getClass().getResourceAsStream("/images/fond-launcher.png"));
-            fallback.setBackground(new Background(new BackgroundImage(
-                    img,
-                    BackgroundRepeat.NO_REPEAT,
-                    BackgroundRepeat.NO_REPEAT,
-                    new BackgroundPosition(Side.LEFT, 0, true, Side.BOTTOM, 0, true),
-                    // width=100%, height=100%, widthAsPercent=true, heightAsPercent=true,
-                    // contain=false, cover=true → image fills the region preserving aspect
-                    new BackgroundSize(1.0, 1.0, true, true, false, true)
-            )));
-        } catch (Throwable t) {
-            System.err.println("[MainView] fallback image unavailable: " + t);
-        }
+        // 2026-05-16 — fallback Region with fond-launcher.png REMOVED. The
+        // image was the cause of the "vieille photo qui flash" the player
+        // saw when navigating Settings → Home: a freshly-built MainView
+        // would render the fallback for the ~50–200 ms between when the
+        // MediaPlayer was constructed and when its first decoded frame
+        // arrived on the MediaView, exposing the legacy png briefly. The
+        // body's own background-color (#08080B) covers that decode window
+        // now, and LauncherApp caches the MainView instance so subsequent
+        // navigations don't tear down + re-instantiate the players at all.
 
         view1 = newBgMediaView(body);
         view2 = newBgMediaView(body);
         // view2 starts hidden — first clip is always videolauncher1.
         view2.setVisible(false);
 
-        body.getChildren().add(fallback);
         body.getChildren().add(view1);
         body.getChildren().add(view2);
 

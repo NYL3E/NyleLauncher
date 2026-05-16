@@ -19,6 +19,15 @@ public class LauncherApp extends Application {
 
     private Stage stage;
     private Account account;
+    /** Cached MainView instance — reused across {@code Home → Settings → Home}
+     *  navigation so the background MediaPlayers stay alive (and frame 0 of
+     *  videolauncher1 is already decoded + rendering by the time the scene
+     *  reattaches). Without this, every {@code show(new MainView(...))} call
+     *  built fresh players whose first decoded frame arrived ~50–200 ms
+     *  AFTER the scene was visible — that's the gap where the legacy
+     *  fond-launcher.png used to flash through (now removed; the gap itself
+     *  is closed by this cache). Rebuilt only on a fresh login. */
+    private MainView mainView;
 
     @Override
     public void start(Stage stage) {
@@ -104,13 +113,24 @@ public class LauncherApp extends Application {
     public void onAuthenticated(Account account) {
         this.account = account;
         AuthManager.save(account);
-        show(new MainView(account, this::onLogout, this::showSettings));
+        // Fresh login → fresh MainView (drops any previously cached instance
+        // so a different account doesn't see the previous user's media
+        // players or auth-derived state).
+        mainView = new MainView(account, this::onLogout, this::showSettings);
+        show(mainView);
     }
 
     public void showSettings() {
         show(new SettingsView(() -> {
             if (account != null) {
-                show(new MainView(account, this::onLogout, this::showSettings));
+                // Re-use the cached MainView so its background MediaPlayers
+                // keep playing through the navigation — frame 0 of video1 is
+                // already on the MediaView when the scene attaches, so the
+                // user sees video1 immediately with no decode flash.
+                if (mainView == null) {
+                    mainView = new MainView(account, this::onLogout, this::showSettings);
+                }
+                show(mainView);
             } else {
                 showLogin();
             }
@@ -120,6 +140,7 @@ public class LauncherApp extends Application {
     public void onLogout() {
         AuthManager.clear();
         this.account = null;
+        mainView = null;       // drop the cached players too
         showLogin();
     }
 
