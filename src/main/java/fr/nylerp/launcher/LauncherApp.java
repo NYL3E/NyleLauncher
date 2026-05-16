@@ -40,13 +40,21 @@ public class LauncherApp extends Application {
         stage.setTitle(Constants.APP_NAME);
         stage.setResizable(false);
         stage.setWidth(1000);
-        // 596 → 680 (2026-05-16): the bottom 64-px nav bar was getting
-        // clipped on Mac builds where the system-rendered title bar +
-        // window chrome eats more than the assumed ~28 px (Sequoia + retina
-        // + dark mode can push it past 50 px). 680 leaves enough vertical
-        // room that the bar's full 64-px band is visible at 100 % across
-        // every macOS / Windows config we've tested.
-        stage.setHeight(680);
+        // Stage outer height = body (matches video display rect at width
+        // 1000) + bottom bar 64 px + macOS chrome 28 px ≈ 648 px.
+        // {@code MainView.BODY_HEIGHT} (= 1000 × 1080/1942 = 556.13) is
+        // the source of truth — see comment there. Updating the videos to
+        // a different aspect requires bumping both constants together.
+        //
+        // 2026-05-16 — was 680 px (assumed up to 50-px chrome) but that
+        // left ~30 px of slack above the video, exposing the fallback
+        // background image. 648 fits the inner content edge-to-edge with
+        // no slack at the top.
+        stage.setHeight(
+                fr.nylerp.launcher.ui.MainView.BODY_HEIGHT
+                + 64.0    // bottom bar
+                + 28.0    // macOS standard non-resizable titlebar
+        );
         try {
             stage.getIcons().add(new javafx.scene.image.Image(
                     getClass().getResourceAsStream("/images/app_icon.png")));
