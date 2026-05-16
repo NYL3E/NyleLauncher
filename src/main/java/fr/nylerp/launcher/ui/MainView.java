@@ -52,8 +52,24 @@ public class MainView extends BorderPane {
     private volatile String launcherUpdateUrl = null;
     private volatile String launcherUpdateTag = null;
 
-    /** Background video player (looping, no audio — audio is on separate tracks). */
-    private MediaPlayer videoPlayer;
+    /** Background video players — two parallel loops with weighted random swap.
+     *  98% of the time the next playthrough is {@link #player1}; 2% is
+     *  {@link #player2}. {@link #forceVideo2Next} overrides the dice roll to
+     *  force {@link #player2} once (the "agent" easter egg). Both players are
+     *  pre-buffered and ALWAYS in the PLAYING state — we swap visibility on
+     *  the {@link MediaView}s on end-of-media so the transition is instant
+     *  (no demux/decode latency on the swap because the next clip is already
+     *  decoded and rendering off-screen). */
+    private MediaPlayer player1;
+    private MediaPlayer player2;
+    private MediaView   view1;
+    private MediaView   view2;
+    private MediaPlayer currentPlayer; // == player1 OR player2 at all times
+    /** Set by the {@code "agent"} key-typed easter egg installed in
+     *  {@link #installAgentEasterEgg}. Consumed on the NEXT end-of-media
+     *  swap, forcing the upcoming clip to be {@link #player2}. */
+    private static volatile boolean forceVideo2Next = false;
+    private static final java.util.Random RNG = new java.util.Random();
     /** Ambient texture loop (3-min YouTube cut, low). Static so SettingsView can
      *  push a live volume update while it's playing. */
     private static MediaPlayer ambientPlayer;
@@ -412,7 +428,14 @@ public class MainView extends BorderPane {
      *  "ultra-zoomed" crop the user reported. Pattern that has worked since
      *  1.0.18: only fitWidth bound, preserveRatio=true derives the height
      *  from aspect on every frame, body's paint clip handles any vertical
-     *  overflow into the bar's slot. */
+     *  overflow into the bar's slot.
+     *
+     *  <p>Since payload 1.0.49: two videos are stacked (videolauncher1.mp4
+     *  98%, videolauncher2.mp4 2%). Both are pre-buffered MediaPlayers; on
+     *  end-of-media we pick the next clip by weighted dice + the "agent"
+     *  easter-egg override, seek the chosen player to ZERO and play(), and
+     *  swap MediaView visibility. The off-screen player is paused, never
+     *  disposed, so the next swap is instant. */
     private void installBackground(StackPane body) {
         // Static fallback as a Region with a BackgroundImage — canonical
         // JavaFX way to render a scaled image without ImageView's quirky
@@ -436,43 +459,146 @@ public class MainView extends BorderPane {
             System.err.println("[MainView] fallback image unavailable: " + t);
         }
 
-        // MediaView for the H.264 video. fitWidth bound to parent width —
-        // preserveRatio=true derives the height from aspect. We do NOT bind
-        // fitHeight because that triggers ImageView/MediaView's intrinsic-
-        // fallback path when fitHeight=0 during initial layout.
-        MediaView view = new MediaView();
-        view.setPreserveRatio(true);
-        view.setSmooth(true);
-        view.fitWidthProperty().bind(body.widthProperty());
-        StackPane.setAlignment(view, Pos.BOTTOM_CENTER);
+        view1 = newBgMediaView(body);
+        view2 = newBgMediaView(body);
+        // view2 starts hidden — first clip is always videolauncher1.
+        view2.setVisible(false);
 
         body.getChildren().add(fallback);
-        body.getChildren().add(view);
+        body.getChildren().add(view1);
+        body.getChildren().add(view2);
 
         try {
-            String url = getClass().getResource("/media/launcher-bg.mp4").toExternalForm();
-            Media media = new Media(url);
-            // Media.onError fires when the demuxer can't parse the file or
-            // the codec can't be resolved (the H.264 case on Windows N).
-            media.setOnError(() -> {
-                System.err.println("[MainView] media decode error: " + media.getError());
-                Platform.runLater(() -> view.setVisible(false));
-            });
-            videoPlayer = new MediaPlayer(media);
-            // MediaPlayer.onError fires for everything else (network, format,
-            // platform errors). Either way → hide video, show static image.
-            videoPlayer.setOnError(() -> {
-                System.err.println("[MainView] mediaplayer error: " + videoPlayer.getError());
-                Platform.runLater(() -> view.setVisible(false));
-            });
-            videoPlayer.setMute(true);                   // audio is on separate streams
-            videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-            videoPlayer.setAutoPlay(true);
-            view.setMediaPlayer(videoPlayer);
+            player1 = newBgPlayer("/media/videolauncher1.mp4", view1);
+            player2 = newBgPlayer("/media/videolauncher2.mp4", view2);
+            if (player1 == null || player2 == null) {
+                System.err.println("[MainView] one of the background videos failed to load");
+                if (view1 != null) view1.setVisible(false);
+                if (view2 != null) view2.setVisible(false);
+                return;
+            }
+            // End-of-media → swap to the next clip, picked per the 98/2 dice
+            // unless `forceVideo2Next` was set by the "agent" easter egg.
+            player1.setOnEndOfMedia(this::swapBackgroundVideo);
+            player2.setOnEndOfMedia(this::swapBackgroundVideo);
+            currentPlayer = player1;
+            player1.setAutoPlay(true);
+            // Pre-warm player2 so the first swap is instant — Media decode
+            // and the first decoded frame arrive WAY before we'd ever use
+            // them (a 98% probability skip means user almost never sees the
+            // swap on first cycle, but the buffer is ready regardless).
+            player2.play();
+            player2.pause();
         } catch (Throwable t) {
-            System.err.println("[MainView] background video unavailable: " + t);
-            view.setVisible(false);
+            System.err.println("[MainView] background videos unavailable: " + t);
+            if (view1 != null) view1.setVisible(false);
+            if (view2 != null) view2.setVisible(false);
         }
+
+        installAgentEasterEgg(body);
+    }
+
+    /** Build a MediaView wired up exactly like the legacy launcher-bg view:
+     *  fitWidth bound to body.widthProperty, preserveRatio + smooth ON,
+     *  anchored at BOTTOM_CENTER. Returns the view, NOT yet attached to a
+     *  player (caller adds the player). */
+    private static MediaView newBgMediaView(StackPane body) {
+        MediaView v = new MediaView();
+        v.setPreserveRatio(true);
+        v.setSmooth(true);
+        v.fitWidthProperty().bind(body.widthProperty());
+        StackPane.setAlignment(v, Pos.BOTTOM_CENTER);
+        return v;
+    }
+
+    /** Construct a muted, single-cycle MediaPlayer for the given resource
+     *  path, wire it to the supplied MediaView, and return it. Cycle count
+     *  is 1 (manual swap on EndOfMedia, NOT INDEFINITE auto-loop) — we drive
+     *  the next clip selection from {@link #swapBackgroundVideo}. */
+    private MediaPlayer newBgPlayer(String resourcePath, MediaView attachedView) {
+        try {
+            String url = getClass().getResource(resourcePath).toExternalForm();
+            Media media = new Media(url);
+            media.setOnError(() -> {
+                System.err.println("[MainView] media decode error (" + resourcePath + "): " + media.getError());
+                Platform.runLater(() -> attachedView.setVisible(false));
+            });
+            MediaPlayer p = new MediaPlayer(media);
+            p.setOnError(() -> {
+                System.err.println("[MainView] mediaplayer error (" + resourcePath + "): " + p.getError());
+                Platform.runLater(() -> attachedView.setVisible(false));
+            });
+            p.setMute(true);            // audio is on separate streams (ambient.mp3 + music.mp3)
+            p.setCycleCount(1);
+            attachedView.setMediaPlayer(p);
+            return p;
+        } catch (Throwable t) {
+            System.err.println("[MainView] failed to build player for " + resourcePath + ": " + t);
+            return null;
+        }
+    }
+
+    /** Pick the next background clip and swap. 2% videolauncher2, 98%
+     *  videolauncher1 — unless {@link #forceVideo2Next} was set by the
+     *  "agent" easter egg, in which case videolauncher2 wins this round.
+     *  Both players stay in memory; we just seek the chosen one to ZERO,
+     *  play it, hide the previous MediaView and show the new one. The
+     *  decoded-frame latency is sub-frame because the off-screen player
+     *  was already buffered. */
+    private void swapBackgroundVideo() {
+        boolean force = forceVideo2Next;
+        forceVideo2Next = false; // single-use override
+        boolean pickVideo2 = force || RNG.nextDouble() < 0.02;
+
+        MediaPlayer next     = pickVideo2 ? player2 : player1;
+        MediaView   nextView = pickVideo2 ? view2   : view1;
+        MediaView   prevView = (currentPlayer == player1) ? view1 : view2;
+
+        try {
+            next.seek(javafx.util.Duration.ZERO);
+            next.play();
+        } catch (Throwable t) {
+            System.err.println("[MainView] swap play() failed: " + t);
+        }
+        nextView.setVisible(true);
+        prevView.setVisible(false);
+        // Pause (not stop) the previous one so seek(ZERO) on its NEXT turn
+        // doesn't re-trigger a media-ready cycle.
+        try { currentPlayer.pause(); } catch (Throwable ignored) {}
+        currentPlayer = next;
+    }
+
+    /** Install a scene-level KEY_TYPED filter that watches for the substring
+     *  {@code "agent"} appearing in the rolling buffer of the last 8 typed
+     *  characters. Match → set {@link #forceVideo2Next} so the NEXT clip
+     *  rotation is forcibly videolauncher2. No UI, no sound, no log line —
+     *  purely a side-channel. Existing focus targets (TextFields etc.)
+     *  receive the events normally because we use an EventFilter that does
+     *  NOT consume the event. */
+    private void installAgentEasterEgg(StackPane body) {
+        // The scene isn't attached at construction time; defer via sceneProperty().
+        body.sceneProperty().addListener((obs, oldScene, scene) -> {
+            if (scene == null) return;
+            final StringBuilder buf = new StringBuilder(8);
+            scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, e -> {
+                String ch = e.getCharacter();
+                if (ch == null || ch.isEmpty()) return;
+                // Append every printable char (incl. casing) lower-cased for
+                // a case-insensitive match — "Agent" still triggers.
+                for (int i = 0; i < ch.length(); i++) {
+                    char c = Character.toLowerCase(ch.charAt(i));
+                    if (c < 0x20) continue; // skip control characters
+                    buf.append(c);
+                }
+                if (buf.length() > 8) buf.delete(0, buf.length() - 8);
+                if (buf.toString().endsWith("agent")) {
+                    forceVideo2Next = true;
+                    buf.setLength(0); // reset so a re-typing immediately re-arms
+                }
+                // Do NOT consume — TextFields and other focus targets must
+                // still see the key event.
+            });
+        });
     }
 
     private void startAmbientAudio() {

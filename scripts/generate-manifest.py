@@ -84,6 +84,44 @@ def main():
         # & per-category volumes, username cache. Every one of these is set
         # by the user via the in-game SVC menu and must persist across syncs.
         "config/voicechat/",
+        # Just Zoom keybind + zoom slope preferences live in this subdir.
+        "config/justzoom/",
+        # Sophisticated Storage user-side toggles (visuals, sort modes, etc.).
+        "config/sophisticatedcore-client.toml",
+        "config/sophisticatedstorage-client.toml",
+        # Watut player-tracker UI prefs (font sizes, where the panel sits).
+        "config/watut-client.toml",
+        "config/watut-item-arm-adjustments.json",
+        # Exposure camera mod client prefs.
+        "config/exposure-client.toml",
+        "config/exposure_polaroid-client.toml",
+        # JEI bookmarks + filter settings.
+        "config/jei/",
+        # Iris shader pack selection + per-pack settings.
+        "config/iris.properties",
+        "config/iris/",
+        # Backpacked client-only toggles.
+        "config/backpacked.client.toml",
+        # ConfiguredAPI client tweaks.
+        "config/configured-client.properties",
+        # Farmer's Delight client toggles.
+        "config/farmersdelight-client.json",
+        # Immersive Armor HUD client placement.
+        "config/immersivearmorhud-client.toml",
+        # Brewin & Chewin client visuals.
+        "config/brewinandchewin-client.toml",
+        # Exposure_polaroid client-side prefs.
+        # NOTE: we DELIBERATELY do NOT protect:
+        #   - sodium-options.json (we tune chunk_builder_threads)
+        #   - DistantHorizons.toml (we tune lodRadius/SSAO/transparency,
+        #     and 2026-05-16 we force enableAutoUpdater=false so the in-game
+        #     update prompt is killed for every existing player on next sync)
+        #   - modmenu.json (we force update_checker=false /
+        #     button_update_badge=false so the ModMenu mod page never shows
+        #     an "update available" badge — must propagate to every player)
+        #   - pointblank-common.toml (we tune pipScopeRefreshRate/iris flag)
+        # Those configs stay under publisher control so future tuning
+        # reaches existing players.
     )
 
     files = []
