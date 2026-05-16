@@ -40,7 +40,13 @@ public class LauncherApp extends Application {
         stage.setTitle(Constants.APP_NAME);
         stage.setResizable(false);
         stage.setWidth(1000);
-        stage.setHeight(596);
+        // 596 → 680 (2026-05-16): the bottom 64-px nav bar was getting
+        // clipped on Mac builds where the system-rendered title bar +
+        // window chrome eats more than the assumed ~28 px (Sequoia + retina
+        // + dark mode can push it past 50 px). 680 leaves enough vertical
+        // room that the bar's full 64-px band is visible at 100 % across
+        // every macOS / Windows config we've tested.
+        stage.setHeight(680);
         try {
             stage.getIcons().add(new javafx.scene.image.Image(
                     getClass().getResourceAsStream("/images/app_icon.png")));
