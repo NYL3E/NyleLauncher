@@ -14,6 +14,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -65,10 +66,6 @@ public class MainView extends BorderPane {
     private MediaView   view1;
     private MediaView   view2;
     private MediaPlayer currentPlayer; // == player1 OR player2 at all times
-    /** Set by the {@code "agent"} key-typed easter egg installed in
-     *  {@link #installAgentEasterEgg}. Consumed on the NEXT end-of-media
-     *  swap, forcing the upcoming clip to be {@link #player2}. */
-    private static volatile boolean forceVideo2Next = false;
     private static final java.util.Random RNG = new java.util.Random();
     /** Ambient texture loop (3-min YouTube cut, low). Static so SettingsView can
      *  push a live volume update while it's playing. */
@@ -570,67 +567,87 @@ public class MainView extends BorderPane {
 
     /** Player1's cycle just ended and the next cycle is about to start.
      *  Roll the 98/2 dice — videolauncher1 stays on screen 98 % of the
-     *  time. On the 2 % win (or when {@link #forceVideo2Next} was set by
-     *  the "agent" easter egg) we swap visibility to view2 and let player2
-     *  take the screen for ONE cycle. Both MediaPlayers keep playing in
+     *  time. On the 2 % win we seek player2 to zero so it starts fresh
+     *  on screen and swap visibility. Both MediaPlayers keep playing in
      *  the background regardless, so the swap itself is just a visibility
      *  flip — no media reload, no decode warm-up, instant. */
     private void onPlayer1Repeat() {
-        boolean force = forceVideo2Next;
-        boolean pickVideo2 = force || RNG.nextDouble() < 0.02;
-        if (!pickVideo2) return;       // 98 % — stay on view1, nothing to do
-        forceVideo2Next = false;        // single-use override consumed
+        if (RNG.nextDouble() >= 0.02) return;     // 98 % — stay on view1
+        try { player2.seek(javafx.util.Duration.ZERO); } catch (Throwable ignored) {}
         view2.setVisible(true);
         view1.setVisible(false);
         currentPlayer = player2;
     }
 
-    /** Player2's cycle just ended. By default we always swap back to
-     *  videolauncher1 (the next dice roll happens on player1.onRepeat).
-     *  Exception: if the user typed "agent" AGAIN while player2 was on
-     *  screen, {@link #forceVideo2Next} is set and we keep videolauncher2
-     *  for one more cycle. */
+    /** Player2's cycle just ended. Always swap back to videolauncher1; the
+     *  next dice roll happens at the upcoming player1.onRepeat. */
     private void onPlayer2Repeat() {
-        if (forceVideo2Next) {
-            forceVideo2Next = false;   // consume the re-trigger
-            return;                     // stay on view2 for another cycle
-        }
         view1.setVisible(true);
         view2.setVisible(false);
         currentPlayer = player1;
     }
 
+    /** Force videolauncher2 to take the screen RIGHT NOW, starting from
+     *  frame 0. Called by the {@code "agent"} key-typed easter egg in
+     *  {@link #installAgentEasterEgg}. Player2 is already PLAYING in the
+     *  background (cycleCount=INDEFINITE), so we just seek it back to
+     *  zero — JavaFX teleports the decode head to frame 0 — and flip
+     *  view visibility. On the upcoming {@link #onPlayer2Repeat} (i.e.
+     *  after one full pass of video2 from start), we return to view1.
+     *  Re-typing "agent" while video2 is on screen re-seeks player2 to
+     *  zero, restarting the secret clip from the beginning — visible
+     *  feedback that the easter egg fired. */
+    private void triggerSecretVideo() {
+        if (player1 == null || player2 == null || view1 == null || view2 == null) return;
+        try { player2.seek(javafx.util.Duration.ZERO); } catch (Throwable ignored) {}
+        view2.setVisible(true);
+        view1.setVisible(false);
+        currentPlayer = player2;
+    }
+
     /** Install a scene-level KEY_TYPED filter that watches for the substring
      *  {@code "agent"} appearing in the rolling buffer of the last 8 typed
-     *  characters. Match → set {@link #forceVideo2Next} so the NEXT clip
-     *  rotation is forcibly videolauncher2. No UI, no sound, no log line —
-     *  purely a side-channel. Existing focus targets (TextFields etc.)
-     *  receive the events normally because we use an EventFilter that does
-     *  NOT consume the event. */
+     *  characters. Match → {@link #triggerSecretVideo} fires immediately
+     *  (no waiting for cycle boundary; the old design queued the trigger
+     *  on a static flag consumed at the NEXT player1.onRepeat, which
+     *  meant the user might wait up to one full video1 cycle AND see
+     *  video2 start mid-frame — that's the "ne fonctionne plus" the
+     *  player reported in 1.0.51). No UI, no sound, no log line — purely
+     *  a side-channel. TextField focus targets keep receiving the events
+     *  normally because we use an EventFilter that does NOT consume.
+     *
+     *  <p>Registration is defensive: if the scene is already attached at
+     *  install time (rare but possible when navigating between views),
+     *  we register immediately; otherwise we wait on
+     *  {@code sceneProperty()} for the first scene assignment. */
     private void installAgentEasterEgg(StackPane body) {
-        // The scene isn't attached at construction time; defer via sceneProperty().
-        body.sceneProperty().addListener((obs, oldScene, scene) -> {
+        Runnable doRegister = () -> {
+            Scene scene = body.getScene();
             if (scene == null) return;
-            final StringBuilder buf = new StringBuilder(8);
+            final StringBuilder buf = new StringBuilder();
             scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, e -> {
                 String ch = e.getCharacter();
                 if (ch == null || ch.isEmpty()) return;
-                // Append every printable char (incl. casing) lower-cased for
-                // a case-insensitive match — "Agent" still triggers.
                 for (int i = 0; i < ch.length(); i++) {
                     char c = Character.toLowerCase(ch.charAt(i));
-                    if (c < 0x20) continue; // skip control characters
+                    if (c < 0x20 || c > 0x7E) continue;       // skip control + non-ASCII
                     buf.append(c);
                 }
                 if (buf.length() > 8) buf.delete(0, buf.length() - 8);
                 if (buf.toString().endsWith("agent")) {
-                    forceVideo2Next = true;
-                    buf.setLength(0); // reset so a re-typing immediately re-arms
+                    buf.setLength(0);                          // re-arm immediately
+                    triggerSecretVideo();
                 }
-                // Do NOT consume — TextFields and other focus targets must
-                // still see the key event.
+                // EventFilter does not consume — TextFields still get the key.
             });
-        });
+        };
+        if (body.getScene() != null) {
+            doRegister.run();
+        } else {
+            body.sceneProperty().addListener((obs, oldS, newS) -> {
+                if (newS != null) doRegister.run();
+            });
+        }
     }
 
     private void startAmbientAudio() {
