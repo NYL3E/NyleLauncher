@@ -67,18 +67,41 @@ public class MainView extends BorderPane {
     private MediaView   view2;
     private MediaPlayer currentPlayer; // == player1 OR player2 at all times
     private static final java.util.Random RNG = new java.util.Random();
+    /** Set by the "agent" key-typed easter egg. Stays true until the next
+     *  {@link #onPlayer1Repeat} fires AT video1's natural cycle boundary —
+     *  i.e. video1 finishes its current loop UNINTERRUPTED, and only THEN
+     *  do we substitute video2 for what would have been the next video1
+     *  iteration. This is the user-explicit behaviour: do not cut video1,
+     *  do not cut video2 before its end either; the easter egg simply
+     *  swaps the next "natural" loop iteration. */
+    private static volatile boolean queueVideo2NextLoop = false;
     /** Ambient texture loop (3-min YouTube cut, low). Static so SettingsView can
      *  push a live volume update while it's playing. */
     private static MediaPlayer ambientPlayer;
     /** Foreground music loop. Static for the same reason — live volume updates. */
     private static MediaPlayer musicPlayer;
 
-    /** Live volume setter for the ambient track — used by the Settings slider. */
+    /** Live volume setter for the ambient track — used by the Settings slider.
+     *  Also propagates the same volume to the easter-egg video2 audio so the
+     *  player setting "Crépitement de feu" controls both layers (matches the
+     *  user spec: videolauncher2 audio plays at the same percentage as the
+     *  fire/ambient slider). videolauncher2 stays MUTED when off-screen and
+     *  is un-muted only while view2 is visible — see {@link #setView2Audio}. */
     public static void setLiveAmbientVolume(double v) {
+        double clamped = Math.max(0, Math.min(1, v));
         if (ambientPlayer != null) {
-            try { ambientPlayer.setVolume(Math.max(0, Math.min(1, v))); } catch (Throwable ignored) {}
+            try { ambientPlayer.setVolume(clamped); } catch (Throwable ignored) {}
+        }
+        if (instanceForLiveUpdate != null) {
+            try { instanceForLiveUpdate.applyAmbientVolumeToVideo2(clamped); } catch (Throwable ignored) {}
         }
     }
+    /** Tracking pointer to the most-recently-built MainView so the static
+     *  {@link #setLiveAmbientVolume} hook (called from SettingsView via
+     *  reflection-style static call) can reach the instance-bound player2.
+     *  Stays valid for the lifetime of the current MainView; replaced when
+     *  the user re-enters MainView (e.g. after going through SettingsView). */
+    private static volatile MainView instanceForLiveUpdate;
     /** Live volume setter for the music track — used by the Settings slider. */
     public static void setLiveMusicVolume(double v) {
         if (musicPlayer != null) {
@@ -93,6 +116,7 @@ public class MainView extends BorderPane {
 
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
         getStyleClass().add("main-root");
+        instanceForLiveUpdate = this;       // expose to static volume hooks
         // BorderPane layout: bottom = 64 px play-bar (hard-clamped), center
         // = body StackPane. The Scene forces this BorderPane to the stage
         // content size; we don't touch min/pref/max (any value here can
@@ -508,6 +532,17 @@ public class MainView extends BorderPane {
             player1.setOnRepeat(this::onPlayer1Repeat);
             player2.setOnRepeat(this::onPlayer2Repeat);
             currentPlayer = player1;
+            // player1 has no audio track; player2 ships with AAC audio so
+            // when the secret video plays the player hears the campfire
+            // crackle synced to it. Mute player2 by default — it loops in
+            // background continuously (INDEFINITE) so unmuting it now would
+            // leak its audio under view1. We flip the mute when view2 takes
+            // the screen, and re-mute when we swap back. Volume comes from
+            // Settings.ambientVolume (same slider as the existing campfire
+            // ambient track) so both layers move together.
+            player1.setMute(true);
+            player2.setMute(true);
+            applyAmbientVolumeToVideo2(Settings.get().ambientVolume);
             // Both players auto-play; one is visible, the other off-screen
             // but already decoding so the swap is INSTANT (no demux/decode
             // latency at swap time).
@@ -565,61 +600,75 @@ public class MainView extends BorderPane {
         }
     }
 
-    /** Player1's cycle just ended and the next cycle is about to start.
-     *  Roll the 98/2 dice — videolauncher1 stays on screen 98 % of the
-     *  time. On the 2 % win we seek player2 to zero so it starts fresh
-     *  on screen and swap visibility. Both MediaPlayers keep playing in
-     *  the background regardless, so the swap itself is just a visibility
-     *  flip — no media reload, no decode warm-up, instant. */
+    /** Player1's cycle just ended at its natural boundary. If the "agent"
+     *  easter egg has queued a video2 swap (or the 2 % random dice rolls
+     *  it), seek player2 back to frame 0 so video2 starts FROM THE START,
+     *  then flip view visibility. Player1 keeps looping in the background
+     *  but its onRepeat from this point on is a no-op (the
+     *  {@code currentPlayer != player1} guard), so video2 plays its full
+     *  cycle uninterrupted. */
     private void onPlayer1Repeat() {
-        if (RNG.nextDouble() >= 0.02) return;     // 98 % — stay on view1
+        // Guard: this method may also fire while we're showing view2 (player1
+        // is INDEFINITE and keeps looping in the background). Don't act
+        // unless player1 is the one currently on screen, otherwise the 2 %
+        // dice or a stale queueVideo2NextLoop flag could cut video2 short.
+        if (currentPlayer != player1) return;
+        boolean queued    = queueVideo2NextLoop;
+        boolean pickRand2 = RNG.nextDouble() < 0.02;
+        if (!queued && !pickRand2) return;            // stay on view1
+        queueVideo2NextLoop = false;                  // single-use, consume now
         try { player2.seek(javafx.util.Duration.ZERO); } catch (Throwable ignored) {}
         view2.setVisible(true);
         view1.setVisible(false);
+        // Audio: un-mute player2 so its AAC track plays while it's on screen
+        // — UNLESS the player has the global launcher mute toggled on, in
+        // which case respect that. Volume tracks Settings.ambientVolume.
+        try { player2.setMute(audioMuted); } catch (Throwable ignored) {}
         currentPlayer = player2;
     }
 
     /** Player2's cycle just ended. Always swap back to videolauncher1; the
-     *  next dice roll happens at the upcoming player1.onRepeat. */
+     *  next dice / easter-egg roll happens at the upcoming player1.onRepeat.
+     *  Guard mirrors {@link #onPlayer1Repeat}: ignore the event if player2
+     *  isn't actually the on-screen player (defensive — shouldn't happen,
+     *  but harmless if it does). */
     private void onPlayer2Repeat() {
+        if (currentPlayer != player2) return;
         view1.setVisible(true);
         view2.setVisible(false);
+        // Mute player2 again — it keeps looping in background but we don't
+        // want its audio bleeding through under view1.
+        try { player2.setMute(true); } catch (Throwable ignored) {}
         currentPlayer = player1;
     }
 
-    /** Force videolauncher2 to take the screen RIGHT NOW, starting from
-     *  frame 0. Called by the {@code "agent"} key-typed easter egg in
-     *  {@link #installAgentEasterEgg}. Player2 is already PLAYING in the
-     *  background (cycleCount=INDEFINITE), so we just seek it back to
-     *  zero — JavaFX teleports the decode head to frame 0 — and flip
-     *  view visibility. On the upcoming {@link #onPlayer2Repeat} (i.e.
-     *  after one full pass of video2 from start), we return to view1.
-     *  Re-typing "agent" while video2 is on screen re-seeks player2 to
-     *  zero, restarting the secret clip from the beginning — visible
-     *  feedback that the easter egg fired. */
-    private void triggerSecretVideo() {
-        if (player1 == null || player2 == null || view1 == null || view2 == null) return;
-        try { player2.seek(javafx.util.Duration.ZERO); } catch (Throwable ignored) {}
-        view2.setVisible(true);
-        view1.setVisible(false);
-        currentPlayer = player2;
+    /** Apply the campfire/ambient slider volume to the easter-egg video2's
+     *  audio track. Range 0.0 – 1.0. Called from
+     *  {@link #setLiveAmbientVolume} (slider drag) and once at MainView
+     *  startup with {@code Settings.get().ambientVolume}. Mute state is
+     *  managed separately by {@link #onPlayer1Repeat}/{@link #onPlayer2Repeat}
+     *  on swap — the volume sticks regardless of mute. */
+    private void applyAmbientVolumeToVideo2(double v) {
+        if (player2 == null) return;
+        try { player2.setVolume(Math.max(0, Math.min(1, v))); } catch (Throwable ignored) {}
     }
 
     /** Install a scene-level KEY_TYPED filter that watches for the substring
      *  {@code "agent"} appearing in the rolling buffer of the last 8 typed
-     *  characters. Match → {@link #triggerSecretVideo} fires immediately
-     *  (no waiting for cycle boundary; the old design queued the trigger
-     *  on a static flag consumed at the NEXT player1.onRepeat, which
-     *  meant the user might wait up to one full video1 cycle AND see
-     *  video2 start mid-frame — that's the "ne fonctionne plus" the
-     *  player reported in 1.0.51). No UI, no sound, no log line — purely
-     *  a side-channel. TextField focus targets keep receiving the events
-     *  normally because we use an EventFilter that does NOT consume.
+     *  characters. Match → set {@link #queueVideo2NextLoop} so that at
+     *  video1's NEXT natural cycle boundary (no cut), video2 is substituted
+     *  for what would have been the next video1 iteration. Video2 then
+     *  plays its FULL duration before video1 resumes — explicit user spec:
+     *  do not cut video1, do not cut video2.
+     *
+     *  <p>Re-typing "agent" while video2 is already on screen re-arms the
+     *  flag, so after video2 finishes + video1 plays one cycle, video2
+     *  plays again. No UI feedback, no sound — purely a side-channel.
      *
      *  <p>Registration is defensive: if the scene is already attached at
-     *  install time (rare but possible when navigating between views),
-     *  we register immediately; otherwise we wait on
-     *  {@code sceneProperty()} for the first scene assignment. */
+     *  install time (e.g. when navigating between views), we register
+     *  immediately; otherwise we listen on {@code sceneProperty()} for
+     *  the first scene assignment. */
     private void installAgentEasterEgg(StackPane body) {
         Runnable doRegister = () -> {
             Scene scene = body.getScene();
@@ -630,13 +679,13 @@ public class MainView extends BorderPane {
                 if (ch == null || ch.isEmpty()) return;
                 for (int i = 0; i < ch.length(); i++) {
                     char c = Character.toLowerCase(ch.charAt(i));
-                    if (c < 0x20 || c > 0x7E) continue;       // skip control + non-ASCII
+                    if (c < 0x20 || c > 0x7E) continue;
                     buf.append(c);
                 }
                 if (buf.length() > 8) buf.delete(0, buf.length() - 8);
                 if (buf.toString().endsWith("agent")) {
-                    buf.setLength(0);                          // re-arm immediately
-                    triggerSecretVideo();
+                    buf.setLength(0);
+                    queueVideo2NextLoop = true;
                 }
                 // EventFilter does not consume — TextFields still get the key.
             });
@@ -741,6 +790,13 @@ public class MainView extends BorderPane {
             catch (Throwable t) {
                 System.err.println("[MainView] setMute failed (player likely halted): " + t);
             }
+        }
+        // player2 (easter-egg video): only follow audioMuted if it's
+        // currently on screen. Off-screen it MUST stay muted regardless,
+        // otherwise its INDEFINITE background loop would leak audio under
+        // view1 the moment the global mute is released.
+        if (player2 != null && currentPlayer == player2) {
+            try { player2.setMute(audioMuted); } catch (Throwable ignored) {}
         }
         applyMuteIconShape();
         Settings.get().launcherAudioMuted = audioMuted;
