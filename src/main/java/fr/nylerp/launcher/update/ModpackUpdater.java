@@ -143,8 +143,7 @@ public final class ModpackUpdater {
         }
 
         // Cleanup — remove managed files that disappeared from manifest.
-        // Two exclusion lists protect files that the manifest doesn't list
-        // but that we must keep:
+        // Three exclusion lists protect files we must keep:
         //   1. Optional-mod jar filenames toggled by the user via Settings
         //      (Bobby, Litematica, …). They live in mods/ but are NOT in the
         //      manifest, so the naive "delete everything not in manifest"
@@ -152,12 +151,19 @@ public final class ModpackUpdater {
         //   2. config/ subtrees that hold user-tweaked per-mod settings.
         //      We deliberately don't sync user-touchable mod configs through
         //      the manifest (handled by firstInstallOnly above), so cleanup
-        //      should leave config/ alone entirely.
+        //      doesn't even walk config/.
+        //   3. shaderpacks/ — REMOVED from the cleanup loop on 2026-05-17
+        //      because the modpack never ships shader packs ourselves: every
+        //      .zip in there is user-installed. The previous behaviour wiped
+        //      them on every sync; user reported losing both the pack and
+        //      effectively their settings (which still lived in config/iris/
+        //      but were useless without the pack file). Shaderpacks now live
+        //      under the user's exclusive control.
         Set<Path> expected = new HashSet<>();
         for (ManifestEntry e : remote.files) expected.add(gameDir.resolve(e.path).normalize());
         Set<String> optionalModNames = new HashSet<>(OptionalMods.filenames());
 
-        for (String sub : new String[]{"mods", "resourcepacks", "shaderpacks"}) {
+        for (String sub : new String[]{"mods", "resourcepacks"}) {
             Path dir = gameDir.resolve(sub);
             if (!Files.isDirectory(dir)) continue;
             try (Stream<Path> walk = Files.walk(dir)) {
