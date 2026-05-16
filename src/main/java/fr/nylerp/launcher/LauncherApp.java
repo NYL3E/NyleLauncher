@@ -144,10 +144,24 @@ public class LauncherApp extends Application {
         showLogin();
     }
 
+    /** Single Scene reused for the whole app lifetime. Earlier versions
+     *  built a fresh Scene on every navigation, which crashed with
+     *  "MainView is already set as root of another scene" the moment we
+     *  started caching MainView (1.0.54): JavaFX does NOT auto-detach a
+     *  Parent from its previous Scene when you call {@code new Scene(parent)},
+     *  it throws IllegalArgumentException. Reusing one Scene + swapping
+     *  via {@link Scene#setRoot} is the canonical fix and also avoids
+     *  re-loading stylesheets on every nav. */
+    private Scene scene;
+
     private void show(javafx.scene.Parent root) {
-        Scene s = new Scene(root);
-        s.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
-        stage.setScene(s);
+        if (scene == null) {
+            scene = new Scene(root);
+            scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+            stage.setScene(scene);
+        } else {
+            scene.setRoot(root);
+        }
     }
 
     private static void loadFonts() {

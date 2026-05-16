@@ -521,19 +521,29 @@ public class MainView extends BorderPane {
             currentPlayer = player1;
             // player1 has no audio track; player2 ships with AAC audio so
             // when the secret video plays the player hears the campfire
-            // crackle synced to it. Mute player2 by default — it loops in
-            // background continuously (INDEFINITE) so unmuting it now would
-            // leak its audio under view1. We flip the mute when view2 takes
-            // the screen, and re-mute when we swap back. Volume comes from
-            // Settings.ambientVolume (same slider as the existing campfire
-            // ambient track) so both layers move together.
+            // crackle synced to it.
             player1.setMute(true);
             player2.setMute(true);
             applyAmbientVolumeToVideo2(Settings.get().ambientVolume);
-            // Both players auto-play; one is visible, the other off-screen
-            // but already decoding so the swap is INSTANT (no demux/decode
-            // latency at swap time).
+            // player1: INDEFINITE looping, always playing, default view.
             player1.play();
+            // player2: pre-pause AT FRAME 0 so a future easter-egg trigger
+            // can call play() without paying the demux + seek-to-zero
+            // latency the user described as a "mini délai" — switching
+            // from view1 to view2 is now a state transition (PAUSED →
+            // PLAYING) which JavaFX completes within one render pulse.
+            // The setOnReady callback fires once the MediaPlayer enters
+            // READY (after media parsing); we use it as a safe point to
+            // seek + pause without racing the auto-play. The player
+            // remains in PAUSED at offset 0 until {@link #onPlayer1Repeat}
+            // resumes it on a cycle boundary or the "agent" easter egg
+            // queues a swap.
+            player2.setOnReady(() -> {
+                try {
+                    player2.seek(javafx.util.Duration.ZERO);
+                    player2.pause();
+                } catch (Throwable ignored) {}
+            });
             player2.play();
         } catch (Throwable t) {
             System.err.println("[MainView] background videos unavailable: " + t);
@@ -604,40 +614,44 @@ public class MainView extends BorderPane {
         boolean pickRand2 = RNG.nextDouble() < 0.02;
         if (!queued && !pickRand2) return;            // stay on view1
         queueVideo2NextLoop = false;                  // single-use, consume now
-        try { player2.seek(javafx.util.Duration.ZERO); } catch (Throwable ignored) {}
+        // player2 has been pre-paused at frame 0 (see installBackground +
+        // onPlayer2Repeat). play() flips PAUSED → PLAYING within one render
+        // pulse, so the swap is now instant — no demux, no seek, no
+        // decoder warm-up the way the previous "seek then show" path had.
         view2.setVisible(true);
         view1.setVisible(false);
-        // Audio: un-mute player2 so its AAC track plays while it's on screen
-        // — UNLESS the player has the global launcher mute toggled on, in
-        // which case respect that. Volume tracks Settings.ambientVolume.
-        try { player2.setMute(audioMuted); } catch (Throwable ignored) {}
+        try { player2.setMute(audioMuted); } catch (Throwable ignored) {}   // respect global mute
+        try { player2.play(); } catch (Throwable ignored) {}
         currentPlayer = player2;
     }
 
-    /** Player2's cycle just ended. Always swap back to videolauncher1; the
-     *  next dice / easter-egg roll happens at the upcoming player1.onRepeat.
-     *  Guard mirrors {@link #onPlayer1Repeat}: ignore the event if player2
-     *  isn't actually the on-screen player (defensive — shouldn't happen,
-     *  but harmless if it does). */
+    /** Player2's cycle just ended. Always swap back to videolauncher1, then
+     *  re-arm player2: mute, pause, seek to frame 0 — so the next time the
+     *  easter egg or the 2 % dice triggers a swap, player2 is already
+     *  positioned at frame 0 and play() is instant. */
     private void onPlayer2Repeat() {
         if (currentPlayer != player2) return;
         view1.setVisible(true);
         view2.setVisible(false);
-        // Mute player2 again — it keeps looping in background but we don't
-        // want its audio bleeding through under view1.
-        try { player2.setMute(true); } catch (Throwable ignored) {}
+        try {
+            player2.setMute(true);
+            player2.pause();
+            player2.seek(javafx.util.Duration.ZERO);
+        } catch (Throwable ignored) {}
         currentPlayer = player1;
     }
 
     /** Apply the campfire/ambient slider volume to the easter-egg video2's
-     *  audio track. Range 0.0 – 1.0. Called from
-     *  {@link #setLiveAmbientVolume} (slider drag) and once at MainView
-     *  startup with {@code Settings.get().ambientVolume}. Mute state is
-     *  managed separately by {@link #onPlayer1Repeat}/{@link #onPlayer2Repeat}
-     *  on swap — the volume sticks regardless of mute. */
+     *  audio track. Range 0.0 – 1.0 on input. The user asked (2026-05-16)
+     *  for the secret-clip audio to be +100 % vs. the ambient slider so the
+     *  campfire crackling reads louder in context — we multiply by 2 and
+     *  clamp to [0, 1]. Mute state is managed separately by
+     *  {@link #onPlayer1Repeat}/{@link #onPlayer2Repeat} on swap — the
+     *  volume sticks regardless of mute. */
     private void applyAmbientVolumeToVideo2(double v) {
         if (player2 == null) return;
-        try { player2.setVolume(Math.max(0, Math.min(1, v))); } catch (Throwable ignored) {}
+        double boosted = Math.min(1.0, Math.max(0.0, v) * 2.0);
+        try { player2.setVolume(boosted); } catch (Throwable ignored) {}
     }
 
     /** Install a scene-level KEY_TYPED filter that watches for the substring
@@ -656,34 +670,47 @@ public class MainView extends BorderPane {
      *  install time (e.g. when navigating between views), we register
      *  immediately; otherwise we listen on {@code sceneProperty()} for
      *  the first scene assignment. */
+    private Scene agentFilterScene;
+    private javafx.event.EventHandler<javafx.scene.input.KeyEvent> agentFilter;
+
     private void installAgentEasterEgg(StackPane body) {
-        Runnable doRegister = () -> {
-            Scene scene = body.getScene();
-            if (scene == null) return;
-            final StringBuilder buf = new StringBuilder();
-            scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, e -> {
-                String ch = e.getCharacter();
-                if (ch == null || ch.isEmpty()) return;
-                for (int i = 0; i < ch.length(); i++) {
-                    char c = Character.toLowerCase(ch.charAt(i));
-                    if (c < 0x20 || c > 0x7E) continue;
-                    buf.append(c);
-                }
-                if (buf.length() > 8) buf.delete(0, buf.length() - 8);
-                if (buf.toString().endsWith("agent")) {
-                    buf.setLength(0);
-                    queueVideo2NextLoop = true;
-                }
-                // EventFilter does not consume — TextFields still get the key.
-            });
+        // Filter built ONCE and re-used across scene re-attachments. Without
+        // this, the prior implementation accumulated a fresh filter every
+        // time body.sceneProperty fired non-null (each Settings → Home
+        // navigation, now that MainView is cached + reused across scenes),
+        // causing the rolling buffer to spawn many times per keystroke.
+        final StringBuilder buf = new StringBuilder();
+        agentFilter = e -> {
+            String ch = e.getCharacter();
+            if (ch == null || ch.isEmpty()) return;
+            for (int i = 0; i < ch.length(); i++) {
+                char c = Character.toLowerCase(ch.charAt(i));
+                if (c < 0x20 || c > 0x7E) continue;
+                buf.append(c);
+            }
+            if (buf.length() > 8) buf.delete(0, buf.length() - 8);
+            if (buf.toString().endsWith("agent")) {
+                buf.setLength(0);
+                queueVideo2NextLoop = true;
+            }
+            // EventFilter does not consume — TextFields still get the key.
         };
-        if (body.getScene() != null) {
-            doRegister.run();
-        } else {
-            body.sceneProperty().addListener((obs, oldS, newS) -> {
-                if (newS != null) doRegister.run();
-            });
-        }
+
+        Runnable sync = () -> {
+            Scene now = body.getScene();
+            if (now == agentFilterScene) return;
+            if (agentFilterScene != null) {
+                try { agentFilterScene.removeEventFilter(
+                        javafx.scene.input.KeyEvent.KEY_TYPED, agentFilter); } catch (Throwable ignored) {}
+            }
+            if (now != null) {
+                try { now.addEventFilter(
+                        javafx.scene.input.KeyEvent.KEY_TYPED, agentFilter); } catch (Throwable ignored) {}
+            }
+            agentFilterScene = now;
+        };
+        sync.run();
+        body.sceneProperty().addListener((obs, oldS, newS) -> sync.run());
     }
 
     private void startAmbientAudio() {
