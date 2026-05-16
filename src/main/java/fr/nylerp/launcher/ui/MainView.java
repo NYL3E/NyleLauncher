@@ -477,18 +477,22 @@ public class MainView extends BorderPane {
                 if (view2 != null) view2.setVisible(false);
                 return;
             }
-            // End-of-media → swap to the next clip, picked per the 98/2 dice
-            // unless `forceVideo2Next` was set by the "agent" easter egg.
-            player1.setOnEndOfMedia(this::swapBackgroundVideo);
-            player2.setOnEndOfMedia(this::swapBackgroundVideo);
+            // CRITICAL — both players run with cycleCount=INDEFINITE so they
+            // NEVER enter the STOPPED state (which, in JavaFX, makes the
+            // MediaView render NOTHING — that's the bug that exposed the
+            // old fallback image when v1.0.49's cycleCount=1 + onEndOfMedia
+            // swap fired). With INDEFINITE both videos keep producing
+            // frames forever; we only toggle visibility on the two
+            // MediaViews. The swap decision happens on `onRepeat`, which
+            // JavaFX fires on the FX thread at every cycle boundary.
+            player1.setOnRepeat(this::onPlayer1Repeat);
+            player2.setOnRepeat(this::onPlayer2Repeat);
             currentPlayer = player1;
-            player1.setAutoPlay(true);
-            // Pre-warm player2 so the first swap is instant — Media decode
-            // and the first decoded frame arrive WAY before we'd ever use
-            // them (a 98% probability skip means user almost never sees the
-            // swap on first cycle, but the buffer is ready regardless).
+            // Both players auto-play; one is visible, the other off-screen
+            // but already decoding so the swap is INSTANT (no demux/decode
+            // latency at swap time).
+            player1.play();
             player2.play();
-            player2.pause();
         } catch (Throwable t) {
             System.err.println("[MainView] background videos unavailable: " + t);
             if (view1 != null) view1.setVisible(false);
@@ -511,10 +515,13 @@ public class MainView extends BorderPane {
         return v;
     }
 
-    /** Construct a muted, single-cycle MediaPlayer for the given resource
-     *  path, wire it to the supplied MediaView, and return it. Cycle count
-     *  is 1 (manual swap on EndOfMedia, NOT INDEFINITE auto-loop) — we drive
-     *  the next clip selection from {@link #swapBackgroundVideo}. */
+    /** Construct a muted, INDEFINITELY-looping MediaPlayer for the given
+     *  resource path, wire it to the supplied MediaView, and return it.
+     *  cycleCount=INDEFINITE is the load-bearing detail: it keeps the
+     *  player out of the STOPPED state at end-of-media, so the MediaView
+     *  always has a decoded frame to display and never exposes the
+     *  fallback image behind it. Swap logic is driven by `onRepeat` (fires
+     *  at every cycle boundary, on the FX thread). */
     private MediaPlayer newBgPlayer(String resourcePath, MediaView attachedView) {
         try {
             String url = getClass().getResource(resourcePath).toExternalForm();
@@ -529,7 +536,7 @@ public class MainView extends BorderPane {
                 Platform.runLater(() -> attachedView.setVisible(false));
             });
             p.setMute(true);            // audio is on separate streams (ambient.mp3 + music.mp3)
-            p.setCycleCount(1);
+            p.setCycleCount(MediaPlayer.INDEFINITE);
             attachedView.setMediaPlayer(p);
             return p;
         } catch (Throwable t) {
@@ -538,34 +545,36 @@ public class MainView extends BorderPane {
         }
     }
 
-    /** Pick the next background clip and swap. 2% videolauncher2, 98%
-     *  videolauncher1 — unless {@link #forceVideo2Next} was set by the
-     *  "agent" easter egg, in which case videolauncher2 wins this round.
-     *  Both players stay in memory; we just seek the chosen one to ZERO,
-     *  play it, hide the previous MediaView and show the new one. The
-     *  decoded-frame latency is sub-frame because the off-screen player
-     *  was already buffered. */
-    private void swapBackgroundVideo() {
+    /** Player1's cycle just ended and the next cycle is about to start.
+     *  Roll the 98/2 dice — videolauncher1 stays on screen 98 % of the
+     *  time. On the 2 % win (or when {@link #forceVideo2Next} was set by
+     *  the "agent" easter egg) we swap visibility to view2 and let player2
+     *  take the screen for ONE cycle. Both MediaPlayers keep playing in
+     *  the background regardless, so the swap itself is just a visibility
+     *  flip — no media reload, no decode warm-up, instant. */
+    private void onPlayer1Repeat() {
         boolean force = forceVideo2Next;
-        forceVideo2Next = false; // single-use override
         boolean pickVideo2 = force || RNG.nextDouble() < 0.02;
+        if (!pickVideo2) return;       // 98 % — stay on view1, nothing to do
+        forceVideo2Next = false;        // single-use override consumed
+        view2.setVisible(true);
+        view1.setVisible(false);
+        currentPlayer = player2;
+    }
 
-        MediaPlayer next     = pickVideo2 ? player2 : player1;
-        MediaView   nextView = pickVideo2 ? view2   : view1;
-        MediaView   prevView = (currentPlayer == player1) ? view1 : view2;
-
-        try {
-            next.seek(javafx.util.Duration.ZERO);
-            next.play();
-        } catch (Throwable t) {
-            System.err.println("[MainView] swap play() failed: " + t);
+    /** Player2's cycle just ended. By default we always swap back to
+     *  videolauncher1 (the next dice roll happens on player1.onRepeat).
+     *  Exception: if the user typed "agent" AGAIN while player2 was on
+     *  screen, {@link #forceVideo2Next} is set and we keep videolauncher2
+     *  for one more cycle. */
+    private void onPlayer2Repeat() {
+        if (forceVideo2Next) {
+            forceVideo2Next = false;   // consume the re-trigger
+            return;                     // stay on view2 for another cycle
         }
-        nextView.setVisible(true);
-        prevView.setVisible(false);
-        // Pause (not stop) the previous one so seek(ZERO) on its NEXT turn
-        // doesn't re-trigger a media-ready cycle.
-        try { currentPlayer.pause(); } catch (Throwable ignored) {}
-        currentPlayer = next;
+        view1.setVisible(true);
+        view2.setVisible(false);
+        currentPlayer = player1;
     }
 
     /** Install a scene-level KEY_TYPED filter that watches for the substring
