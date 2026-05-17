@@ -47,6 +47,13 @@ public class MainView extends BorderPane {
     private Button playBtn;
     private Label playLabel;
     private SVGPath playIcon;
+    /** 8-cube ring spinner shown next to the play label whenever a launch
+     *  is in flight (modpack sync, Fabric install, MC bootstrap) and while
+     *  the MC process is alive. Replaces the static play arrow so the
+     *  player has an unambiguous "something is happening" affordance —
+     *  previously the button just went disabled with no motion, which
+     *  read as "frozen" when the launch took more than a few seconds. */
+    private CubeSpinner playSpinner;
     // When true, clicking the main button runs the modpack sync instead of
     // launching. Set from background checks at startup.
     private volatile boolean modpackUpdatePending = false;
@@ -1018,7 +1025,8 @@ public class MainView extends BorderPane {
         playLabel = new Label("JOUER");
         playLabel.setFont(Fonts.bold(22));
         playLabel.setTextFill(Color.WHITE);
-        HBox playContent = new HBox(10, playIcon, playLabel);
+        playSpinner = new CubeSpinner(28.0);   // fits inside the 44-px-tall button
+        HBox playContent = new HBox(10, playIcon, playSpinner, playLabel);
         playContent.setAlignment(Pos.CENTER);
 
         Button play = new Button();
@@ -1104,6 +1112,12 @@ public class MainView extends BorderPane {
         play.setDisable(true);
         progress.setProgress(0);
         status.setText("Synchronisation du modpack…");
+        // Swap the static play arrow for the animated 8-cube ring so the
+        // user has a continuous "something is happening" signal — covers
+        // every phase from modpack sync through Fabric install to the MC
+        // process being alive. Reset on MC exit + on error below.
+        if (playSpinner != null) playSpinner.start();
+        if (playIcon != null) { playIcon.setVisible(false); playIcon.setManaged(false); }
 
         new Thread(() -> {
             try {
@@ -1162,6 +1176,7 @@ public class MainView extends BorderPane {
                             status.setText("Prêt à jouer");
                             progress.setProgress(0);
                             play.setDisable(false);
+                            if (playSpinner != null) playSpinner.stop();
                             playIcon.setVisible(true);
                             playIcon.setManaged(true);
                             refreshPlayButton();
@@ -1172,6 +1187,7 @@ public class MainView extends BorderPane {
                 Platform.runLater(() -> {
                     status.setText("Erreur: " + ex.getMessage());
                     play.setDisable(false);
+                    if (playSpinner != null) playSpinner.stop();
                     playIcon.setVisible(true);
                     playIcon.setManaged(true);
                     refreshPlayButton();
