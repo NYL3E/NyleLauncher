@@ -170,6 +170,7 @@ public class MainView extends BorderPane {
         }
         play.setDisable(true);
         playLabel.setText("0%");
+        setPlayBusy(true);          // 8-cube ring while we DL the installer
         SelfUpdater.downloadUpdate(launcherUpdateTag, (done, total) -> {
             if (total > 0) {
                 int pct = (int) Math.min(100L, done * 100L / total);
@@ -179,10 +180,13 @@ public class MainView extends BorderPane {
             if (err != null) {
                 playLabel.setText("RÉESSAYER");
                 play.setDisable(false);
+                setPlayBusy(false);
                 return;
             }
             try {
                 playLabel.setText("INSTALLATION");
+                // Keep the spinner running — the installer is about to run
+                // and the process will exit on its own (System.exit below).
                 SelfUpdater.runInstaller(file);
                 new Thread(() -> {
                     try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
@@ -191,8 +195,27 @@ public class MainView extends BorderPane {
             } catch (Exception ex) {
                 playLabel.setText("RÉESSAYER");
                 play.setDisable(false);
+                setPlayBusy(false);
             }
         }));
+    }
+
+    /** Toggle the Play button between "idle arrow" and "8-cube spinner".
+     *  Centralised so all three call sites (launcher update, modpack
+     *  update, game launch) flip both bits the same way — previously
+     *  only {@link #startPlay} wired the spinner, so clicking
+     *  {@code METTRE À JOUR} just disabled the button with no motion. */
+    private void setPlayBusy(boolean busy) {
+        if (playSpinner == null || playIcon == null) return;
+        if (busy) {
+            playSpinner.start();
+            playIcon.setVisible(false);
+            playIcon.setManaged(false);
+        } else {
+            playSpinner.stop();
+            playIcon.setVisible(true);
+            playIcon.setManaged(true);
+        }
     }
 
     /**
@@ -1080,6 +1103,7 @@ public class MainView extends BorderPane {
         playLabel.setText("MISE À JOUR…");
         progress.setProgress(0);
         status.setText("Téléchargement des mises à jour…");
+        setPlayBusy(true);          // 8-cube ring while the modpack downloads
 
         new Thread(() -> {
             try {
@@ -1096,12 +1120,14 @@ public class MainView extends BorderPane {
                     status.setText("Prêt à jouer");
                     progress.setProgress(0);
                     play.setDisable(false);
+                    setPlayBusy(false);
                     refreshPlayButton();
                 });
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     status.setText("Erreur: " + ex.getMessage());
                     play.setDisable(false);
+                    setPlayBusy(false);
                     refreshPlayButton();
                 });
             }
@@ -1116,8 +1142,7 @@ public class MainView extends BorderPane {
         // user has a continuous "something is happening" signal — covers
         // every phase from modpack sync through Fabric install to the MC
         // process being alive. Reset on MC exit + on error below.
-        if (playSpinner != null) playSpinner.start();
-        if (playIcon != null) { playIcon.setVisible(false); playIcon.setManaged(false); }
+        setPlayBusy(true);
 
         new Thread(() -> {
             try {
@@ -1176,9 +1201,7 @@ public class MainView extends BorderPane {
                             status.setText("Prêt à jouer");
                             progress.setProgress(0);
                             play.setDisable(false);
-                            if (playSpinner != null) playSpinner.stop();
-                            playIcon.setVisible(true);
-                            playIcon.setManaged(true);
+                            setPlayBusy(false);
                             refreshPlayButton();
                         });
                     }, "MC-Watch").start();
@@ -1187,9 +1210,7 @@ public class MainView extends BorderPane {
                 Platform.runLater(() -> {
                     status.setText("Erreur: " + ex.getMessage());
                     play.setDisable(false);
-                    if (playSpinner != null) playSpinner.stop();
-                    playIcon.setVisible(true);
-                    playIcon.setManaged(true);
+                    setPlayBusy(false);
                     refreshPlayButton();
                 });
             }
