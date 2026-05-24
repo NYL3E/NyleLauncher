@@ -445,10 +445,18 @@ public class MainView extends BorderPane {
         logo.setCache(true);
         Circle dot = new Circle(6, Color.web("#22C55E"));
         pulse(dot);
-        Label online = new Label("42 JOUEURS EN LIGNE");
+        Label online = new Label("— JOUEURS EN LIGNE");
         online.setFont(Fonts.medium(14));
         online.setTextFill(Color.web("#F4F4F7"));
         online.setStyle("-fx-letter-spacing: 0.16em;");
+        // Live player count fetched from the Pterodactyl-backed status
+        // endpoint (cf. site-mc /api/server). 30s polling keeps the UI
+        // honest without hammering the server. Replaces the hard-coded
+        // 42 placeholder.
+        fr.nylerp.launcher.net.ServerStatus.start(count -> javafx.application.Platform.runLater(() -> {
+            if (count >= 0) online.setText(count + " JOUEURS EN LIGNE");
+            else            online.setText("HORS LIGNE");
+        }));
         HBox onlineRow = new HBox(10, dot, online);
         onlineRow.setAlignment(Pos.CENTER_LEFT);
 
