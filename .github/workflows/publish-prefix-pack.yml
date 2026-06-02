@@ -1,0 +1,65 @@
+name: Publish prefix pack
+
+# Regenerates + deploys the live server resource pack with the latest uploaded
+# grade-prefix glyphs baked in. Triggered automatically by the /admin grade-style
+# Save flow (via /api/publish-pack → repository_dispatch), and runnable manually.
+#
+# The generator (tools/build-prefix-pack.py) runs in HEADLESS mode: it reads
+# prefixes.json + server.properties from the live server over the Pterodactyl
+# CLIENT API, bakes the glyphs into the served pack, uploads the new pack as the
+# 'server-pack-live' release asset (stable URL, clobbered each run), writes the
+# new server.properties via the API, and restarts ONLY if 0 players are online.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   PANEL_URL       Pterodactyl panel base URL   (source: ~/.config/nyle-mc-server/sftp.env PANEL_URL)
+#   SERVER_ID       Pterodactyl server id        (source: ~/.config/nyle-mc-server/sftp.env SERVER_ID)
+#   PTERO_API_KEY   Pterodactyl client API key   (source: ~/.config/nyle-mc-server/sftp.env PTERO_API_KEY)
+#   GH_TOKEN        token with repo write (release asset upload)
+#                   (source: ~/.config/nyle-launcher/gh-token; or omit + uncomment GITHUB_TOKEN below)
+
+"on":
+  repository_dispatch:
+    types: [publish-prefix-pack]
+  workflow_dispatch:
+    inputs:
+      no_restart:
+        description: "Never restart, even if 0 players online"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Never run two pack publishes at once (they clobber the same release asset).
+concurrency:
+  group: publish-prefix-pack
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Pillow
+        run: python3 -m pip install --upgrade pillow
+
+      - name: Build + deploy the prefix pack
+        env:
+          PANEL_URL: ${{ secrets.PANEL_URL }}
+          SERVER_ID: ${{ secrets.SERVER_ID }}
+          PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
+          # GH_TOKEN uploads the release asset. Prefer the dedicated secret; if you
+          # did not set it, delete the next line and uncomment the GITHUB_TOKEN one
+          # (the built-in token can write releases on this repo thanks to permissions).
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/build-prefix-pack.py \
+            --tag server-pack-live \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.no_restart) && '--no-restart' || '' }}
