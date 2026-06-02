@@ -231,6 +231,18 @@ def io_players_online():
     return None
 
 
+def io_command(cmd):
+    """Send a console command to the server (HEADLESS mode). Best-effort."""
+    body = json.dumps({"command": cmd}).encode()
+    status, resp = _ptero_request("POST", "/command", data=body, ctype="application/json")
+    if status >= 400:
+        log("WARN: console command %r failed: HTTP %s %s"
+            % (cmd, status, resp.decode("utf-8", "replace")[:200]))
+        return False
+    log("sent console command %r (HTTP %s)" % (cmd, status))
+    return True
+
+
 def io_restart():
     """Send a restart power signal (HEADLESS mode only)."""
     body = json.dumps({"signal": "restart"}).encode()
@@ -676,27 +688,16 @@ def validate(prefixes, merge_info):
 
 # ── Step 9 : apply (HEADLESS/CI only) — write props + (conditionally) restart ─
 def apply_headless(no_restart):
-    step(9, "apply server.properties + restart decision (HEADLESS)")
-    # a. Write the new server.properties (resource-pack URL + sha1 swapped).
+    step(9, "apply server.properties + LIVE pack push (HEADLESS)")
+    # a. Write the new server.properties (resource-pack URL + sha1 swapped) so new
+    #    joiners + future restarts use the new pack.
     io_write_serverprops(LOCAL_SERVERPROPS_NEW)
 
-    # b. Restart only when it is SAFE. The new pack hash only takes effect on
-    #    (re)connect anyway; a restart kicks everyone, so default to NOT
-    #    restarting whenever the player count is unknown or > 0.
-    if no_restart:
-        log("--no-restart given → not restarting. New pack applies to new joiners + on next restart.")
-        return False
-    players = io_players_online()
-    if players is None:
-        log("player count unknown via API → NOT restarting (never kick connected players). "
-            "New pack applies to new joiners + on next restart.")
-        return False
-    if players > 0:
-        log("%d player(s) online → NOT restarting. New pack applies to new joiners + on next restart."
-            % players)
-        return False
-    log("0 players online → safe to restart so the new pack hash takes effect now.")
-    io_restart()
+    # b. Push the new pack to all ONLINE players LIVE — no restart, no kick. The
+    #    mod's `/nyle pack push` re-reads the fresh server.properties and re-sends
+    #    the pack; clients only re-download because the sha1 changed (hash-cached),
+    #    so this is safe to fire every publish. This makes a restart unnecessary.
+    io_command("nyle pack push")
     return True
 
 
@@ -750,16 +751,12 @@ def main():
     print("New sha1:        %s" % new_sha1)
     print("New pack URL:    %s" % new_url)
     print("New props file:  %s" % LOCAL_SERVERPROPS_NEW)
-    print("\nHUMAN — run these IN ORDER:")
+    print("\nHUMAN — run these IN ORDER (no restart needed):")
     print("  1) Push the new server.properties:")
     print("       ~/bin/mc-sftp put %s %s" % (LOCAL_SERVERPROPS_NEW, REMOTE_SERVERPROPS))
-    print("  2) Warn players with a RED countdown 10 -> 1 in chat, e.g.:")
-    print('       for n in 10 9 8 7 6 5 4 3 2 1; do \\')
-    print('         ~/bin/mc-api console "tellraw @a {\\"text\\":\\"Redemarrage dans $n...\\",\\"color\\":\\"red\\",\\"bold\\":true}"; \\')
-    print('         sleep 1; done')
-    print("  3) ONLY THEN restart so the new pack hash takes effect:")
-    print("       ~/bin/mc-api power restart")
-    print("\nReminder: players will be re-prompted to accept the new resource pack on rejoin.")
+    print("  2) Push the new pack to all online players LIVE (no kick):")
+    print('       ~/bin/mc-api console "nyle pack push"')
+    print("\nThe mod re-sends the pack; clients re-download only because the sha1 changed.")
 
 
 if __name__ == "__main__":
