@@ -54,11 +54,9 @@ jobs:
           PANEL_URL: ${{ secrets.PANEL_URL }}
           SERVER_ID: ${{ secrets.SERVER_ID }}
           PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
-          # GH_TOKEN uploads the release asset. Prefer the dedicated secret; if you
-          # did not set it, delete the next line and uncomment the GITHUB_TOKEN one
-          # (the built-in token can write releases on this repo thanks to permissions).
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          # GH_TOKEN: ${{ github.token }}
+          # The built-in token uploads the release asset (permissions: contents: write
+          # is declared above), so no dedicated GH_TOKEN secret is needed in Actions.
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 tools/build-prefix-pack.py \
             --tag server-pack-live \
