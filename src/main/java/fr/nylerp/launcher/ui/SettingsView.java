@@ -251,13 +251,7 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalDistantHorizons,
                 v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); });
 
-        HBox slRow = optionalModRow(
-                "Skin Layer 3D",
-                "Rend la couche externe du skin (cheveux, veste, manches) en relief 3D au lieu du plat vanilla.",
-                Settings.get().optionalSkinLayer3D,
-                v -> { Settings.get().optionalSkinLayer3D = v; Settings.get().save(); });
-
-        return new VBox(14, h, p, litematicaRow, irisRow, dhRow, slRow);
+        return new VBox(14, h, p, litematicaRow, irisRow, dhRow);
     }
 
     /** A single optional-mod row: title + description on the left, pill switch
