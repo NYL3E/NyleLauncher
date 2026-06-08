@@ -69,12 +69,7 @@ public final class OptionalMods {
                 "iris-fabric-1.8.8+mc1.21.1.jar",
                 "https://cdn.modrinth.com/data/YL57xq9U/versions/zsoi0dso/iris-fabric-1.8.8%2Bmc1.21.1.jar",
                 "2e6ba2ffa1e1a6799288245a7e0ac68ee8df1d41b98362189df58f535cae34fa9277801e4136633467341b7dae5be0e5c698011b480b3d91b66d3dd4f7567aa6",
-                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons),
-            new Entry(
-                "skinlayers3d-fabric-1.11.1-mc1.21.1.jar",
-                "https://cdn.modrinth.com/data/zV5r3pPn/versions/U0nPT3LQ/skinlayers3d-fabric-1.11.1-mc1.21.1.jar",
-                "c9c0e11d8874d815ab067e72a27804ff2149b0162afe36cf239b0a6df2faf2699fed25ba433f0a6ca5148d47444a3982fbce56aaba8d43bfffd3593ecda55661",
-                () -> Settings.get().optionalSkinLayer3D)
+                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons)
     );
 
     /** Filenames the launcher itself shipped as optional but that have been
@@ -90,7 +85,11 @@ public final class OptionalMods {
             // Any client that previously toggled DH on under the 3.0.3 entry
             // is auto-purged here; OptionalMods.applyAll() then installs the
             // 2.4.5 filename listed in ENTRIES.
-            "DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar"
+            "DistantHorizons-3.0.3-b-1.21.1-fabric-neoforge.jar",
+            // 3D Skin Layers — retiré définitivement le 2026-06-08. Tout client qui
+            // l'avait activé via l'ancien toggle voit le jar auto-purgé au prochain
+            // lancement (applyAll() supprime ces filenames inconditionnellement).
+            "skinlayers3d-fabric-1.11.1-mc1.21.1.jar"
     );
 
     /** Filenames declared as optional mods — used by {@link ModpackUpdater}

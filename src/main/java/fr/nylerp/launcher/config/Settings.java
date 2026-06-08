@@ -36,7 +36,6 @@ public final class Settings {
      *  too — see {@code OptionalMods.ENTRIES} — because DH's render pipeline
      *  produces 1+ second hitches on the no-Iris fallback path. */
     public boolean optionalIris             = false;
-    public boolean optionalSkinLayer3D      = false;
     /** Persists the launcher's mute toggle (ambient + music) across sessions
      *  so players who silenced the launcher once don't have to do it on
      *  every start. */
