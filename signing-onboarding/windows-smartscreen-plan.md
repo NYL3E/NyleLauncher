@@ -12,7 +12,40 @@
   quelques semaines de téléchargements, puis ne revient plus (la réputation est
   attachée à ton identité, pas au fichier).
 
-## ✅ Le plan recommandé : certificat Certum « Open Source Code Signing »
+## 🥇 LA méthode garantie : le Microsoft Store (recommandée)
+
+C'est la seule option qui supprime l'avertissement **à 100 %, immédiatement, sans
+certificat et sans attente de réputation** : les apps installées depuis le Store ne
+passent JAMAIS par SmartScreen, car **Microsoft re-signe lui-même le paquet** avec
+son propre certificat après certification. Coût : **~19 $ une seule fois** (compte
+développeur individuel), pas d'abonnement.
+
+Pourquoi ça nous va parfaitement :
+- Notre architecture bootstrap + payload est idéale : le Store distribue le
+  bootstrap (qui ne change presque jamais), et les vraies mises à jour (payload)
+  continuent d'arriver automatiquement comme aujourd'hui, sans repasser par le Store.
+- Pas de pièce d'identité ni de validation d'entreprise : un compte Microsoft + CB.
+
+### Tuto
+1. **Toi (15 min)** : crée un compte développeur sur partner.microsoft.com/dashboard
+   → « Compte individuel » (~19 $ une fois). Réserve le nom d'app **NyleLauncher**.
+   Récupère dans Partner Center → Product identity : `Identity/Name`,
+   `Identity/Publisher` (CN=…) et `PublisherDisplayName`.
+2. **Moi (dès que tu me donnes ces 3 valeurs)** : je prépare le paquet **MSIX** en CI
+   (app-image jpackage + AppxManifest `runFullTrust`, non signé — c'est le Store qui
+   signe) avec le self-updater MSI désactivé dans cette variante (politique Store :
+   les mises à jour de l'app passent par le Store ; nos payloads, eux, restent
+   automatiques).
+3. **Toi (10 min)** : upload du .msix dans Partner Center → soumission. Certification
+   Microsoft : 24-72 h. À l'approbation, l'app est en ligne.
+4. **Site** : on remplace/complète le bouton Windows par « Installer depuis le
+   Microsoft Store » (lien `https://apps.microsoft.com/...` + deep link
+   `ms-windows-store://`). Zéro avertissement, zéro clic « Exécuter quand même ».
+
+On garde le MSI en téléchargement direct pour ceux qui préfèrent (avec, à terme,
+la signature Certum ci-dessous pour ce canal-là).
+
+## 🥈 Le canal direct : certificat Certum « Open Source Code Signing »
 
 C'est LE certificat des devs indés européens : ~**89-129 €/an**, ouvert aux
 particuliers, validation d'identité simple.
@@ -67,8 +100,8 @@ prépare le package MSIX.
 
 | Option | Prix | Particulier FR | Avertissement supprimé |
 |---|---|---|---|
-| SignPath | gratuit | ~~refusé~~ | — |
-| Azure Trusted Signing | 10 $/mois | ❌ USA/Canada only | — |
-| **Certum Open Source** | **~99 €/an** | ✅ | ✅ après quelques jours/semaines de téléchargements |
+| **Microsoft Store** | **~19 $ une fois** | ✅ | ✅ **garanti, immédiat** (Microsoft signe le paquet) |
+| Certum Open Source (canal direct) | ~99 €/an | ✅ | ✅ après quelques jours/semaines de téléchargements |
 | Certificat EV classique | 350-500 €/an | ✅ (lourd) | rapide mais plus garanti « instantané » depuis 2024 |
-| Microsoft Store | 19 $ une fois | ✅ | ✅ immédiat (installs via Store) |
+| Azure Trusted Signing | 10 $/mois | ❌ USA/Canada only | — |
+| SignPath | gratuit | ~~refusé~~ | — |
