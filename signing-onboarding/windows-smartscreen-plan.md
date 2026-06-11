@@ -87,15 +87,6 @@ et le payload (les vraies mises à jour) n'a pas besoin de signature. Procédure
    « Exécuter quand même » nourrit la réputation).
 3. En général : avertissement disparu en **quelques jours à 2-3 semaines**, définitivement.
 
-## 🏪 Option « zéro avertissement immédiat » : Microsoft Store
-
-Si tu veux une garantie absolue sans attendre la réputation : publier le launcher
-sur le **Microsoft Store** (compte développeur individuel = **19 $ une seule fois**).
-Les apps installées depuis le Store ne passent JAMAIS par SmartScreen. Ça demande
-d'empaqueter le launcher en MSIX (faisable depuis notre app-image jpackage) — à
-considérer en complément du site, pas en remplacement. Dis-le si tu veux que je
-prépare le package MSIX.
-
 ## Récap
 
 | Option | Prix | Particulier FR | Avertissement supprimé |
