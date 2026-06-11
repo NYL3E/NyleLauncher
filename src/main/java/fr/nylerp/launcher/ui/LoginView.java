@@ -23,6 +23,14 @@ import java.util.function.Consumer;
 public class LoginView extends StackPane {
 
     public LoginView(Consumer<Account> onAuthenticated) {
+        this(onAuthenticated, null);
+    }
+
+    /**
+     * @param onBack when non-null, the view is in "add an account" mode :
+     *               title changes and a back button returns to the main view.
+     */
+    public LoginView(Consumer<Account> onAuthenticated, Runnable onBack) {
         getStyleClass().add("login-root");
 
         // Glass card centered — every dimension is the previous value × 0.85
@@ -35,12 +43,17 @@ public class LoginView extends StackPane {
 
         NyleLogo logo = new NyleLogo(48, Color.WHITE);
 
-        Text t1 = new Text("Bienvenue sur\n"); t1.getStyleClass().add("hd-title");
-        Text t2 = new Text("NyleRP.");         t2.getStyleClass().add("hd-title-em");
+        boolean adding = onBack != null;
+        Text t1 = new Text(adding ? "Ajouter un\n" : "Bienvenue sur\n");
+        t1.getStyleClass().add("hd-title");
+        Text t2 = new Text(adding ? "compte." : "NyleRP.");
+        t2.getStyleClass().add("hd-title-em");
         TextFlow title = new TextFlow(t1, t2);
         title.setTextAlignment(TextAlignment.CENTER);
 
-        Label sub = new Label("Serveur Minecraft roleplay · saison 0");
+        Label sub = new Label(adding
+                ? "3 comptes max \u00b7 Microsoft ou crack"
+                : "Serveur Minecraft roleplay \u00b7 saison 0");
         sub.getStyleClass().add("hd-sub");
 
         Button ms = new Button("Continuer avec Microsoft");
@@ -72,6 +85,15 @@ public class LoginView extends StackPane {
         VBox offlineBox = new VBox(5, pseudoLbl, pseudo);
         VBox authBox = new VBox(15, ms, divider, offlineBox, offline);
         authBox.setFillWidth(true);
+
+        if (adding) {
+            Button back = new Button("\u2190 Retour");
+            back.getStyleClass().add("btn-ghost");
+            back.setPrefHeight(36);
+            back.setMaxWidth(Double.MAX_VALUE);
+            back.setOnAction(e -> onBack.run());
+            authBox.getChildren().add(back);
+        }
 
         card.getChildren().addAll(
                 logo,

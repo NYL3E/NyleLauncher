@@ -121,7 +121,19 @@ public class MainView extends BorderPane {
     private boolean audioMuted = Settings.get().launcherAudioMuted;
     private SVGPath muteIcon;
 
+    private final java.util.function.Consumer<Account> onSwitchAccount;
+    private final Runnable onAddAccount;
+
+    /** Legacy 3-arg constructor kept for any external caller — no switcher. */
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
+        this(account, onLogout, onSettings, null, null);
+    }
+
+    public MainView(Account account, Runnable onLogout, Runnable onSettings,
+                    java.util.function.Consumer<Account> onSwitchAccount,
+                    Runnable onAddAccount) {
+        this.onSwitchAccount = onSwitchAccount;
+        this.onAddAccount = onAddAccount;
         getStyleClass().add("main-root");
         instanceForLiveUpdate = this;       // expose to static volume hooks
         // BorderPane layout: bottom = 64 px play-bar (hard-clamped), center
@@ -294,7 +306,24 @@ public class MainView extends BorderPane {
         type.setStyle("-fx-letter-spacing: 0.14em; -fx-opacity: 0.75;");
         VBox userCol = new VBox(1, name, type);
         userCol.setAlignment(Pos.CENTER_LEFT);
-        userCol.setPadding(new Insets(0, 10, 0, 8));
+        userCol.setPadding(new Insets(0, 6, 0, 8));
+
+        // ── Account chip : skin + name + chevron, opens the roster menu ──
+        SVGPath chevron = new SVGPath();
+        chevron.setContent("M 0 0 L 4 4 L 8 0");
+        chevron.setStroke(Color.web("#FFFFFF", 0.75));
+        chevron.setStrokeWidth(1.6);
+        chevron.setFill(Color.TRANSPARENT);
+        HBox accountChip = new HBox(2, skin, userCol, chevron);
+        accountChip.setAlignment(Pos.CENTER_LEFT);
+        accountChip.setPadding(new Insets(2, 8, 2, 2));
+        accountChip.setStyle("-fx-background-radius: 10; -fx-cursor: hand;");
+        accountChip.setOnMouseEntered(e ->
+                accountChip.setStyle("-fx-background-radius: 10; -fx-cursor: hand;"
+                        + "-fx-background-color: rgba(255,255,255,0.07);"));
+        accountChip.setOnMouseExited(e ->
+                accountChip.setStyle("-fx-background-radius: 10; -fx-cursor: hand;"));
+        accountChip.setOnMouseClicked(e -> showAccountMenu(accountChip, account));
 
         Color iconColor = Color.WHITE;
 
@@ -307,11 +336,11 @@ public class MainView extends BorderPane {
         Button settingsBtn = capsuleIcon(Icons.gear(15, iconColor), "Paramètres");
         settingsBtn.setOnAction(e -> { if (onSettings != null) onSettings.run(); });
 
-        Button logoutBtn = capsuleIcon(Icons.arrowLeft(14, iconColor), "Déconnexion");
+        Button logoutBtn = capsuleIcon(Icons.arrowLeft(14, iconColor), "Se déconnecter (retire ce compte)");
         logoutBtn.setOnAction(e -> onLogout.run());
 
         capsule.getChildren().addAll(
-                skin, userCol,
+                accountChip,
                 capsuleSep(),
                 discordBtn, webBtn,
                 capsuleSep(),
@@ -324,6 +353,90 @@ public class MainView extends BorderPane {
         updateBanner.setMaxWidth(Region.USE_PREF_SIZE);
         updateBanner.setMaxHeight(Region.USE_PREF_SIZE);
         return capsule;
+    }
+
+    /** Glass popup listing the saved accounts (max 3) : click to switch,
+     *  plus an "Ajouter un compte" row (disabled at 3/3). */
+    private void showAccountMenu(javafx.scene.Node anchor, Account current) {
+        java.util.List<Account> roster = fr.nylerp.launcher.auth.AccountStore.list();
+
+        VBox box = new VBox(2);
+        box.setPadding(new Insets(8));
+        box.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, rgba(32,26,52,0.97), rgba(20,16,36,0.97));"
+                + "-fx-background-radius: 14;"
+                + "-fx-border-color: rgba(255,255,255,0.12);"
+                + "-fx-border-radius: 14; -fx-border-width: 1;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 24, 0.2, 0, 6);");
+
+        javafx.stage.Popup popup = new javafx.stage.Popup();
+        popup.setAutoHide(true);
+
+        for (Account acc : roster) {
+            boolean isCurrent = acc.type() == current.type()
+                    && (acc.isOffline()
+                        ? acc.username().equalsIgnoreCase(current.username())
+                        : acc.uuid() != null && acc.uuid().equalsIgnoreCase(current.uuid()));
+
+            Label n = new Label(acc.username());
+            n.setFont(Fonts.semi(12));
+            n.setTextFill(Color.WHITE);
+            Label t = new Label(acc.isOffline() ? "OFFLINE" : "MICROSOFT");
+            t.setFont(Fonts.black(8));
+            t.setTextFill(Color.web("#A2A2AC"));
+            t.setStyle("-fx-letter-spacing: 0.14em;");
+            VBox col = new VBox(0, n, t);
+            col.setAlignment(Pos.CENTER_LEFT);
+
+            javafx.scene.shape.Circle activeDot = new javafx.scene.shape.Circle(3,
+                    isCurrent ? Color.web("#FF8128") : Color.TRANSPARENT);
+            Region grow = new Region();
+            HBox.setHgrow(grow, Priority.ALWAYS);
+
+            HBox row = new HBox(10, new SkinHead(acc, 22), col, grow, activeDot);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.setPadding(new Insets(7, 12, 7, 8));
+            row.setMinWidth(210);
+            String base = "-fx-background-radius: 10;" + (isCurrent ? "" : "-fx-cursor: hand;");
+            row.setStyle(base);
+            if (!isCurrent && onSwitchAccount != null) {
+                row.setOnMouseEntered(e -> row.setStyle(base
+                        + "-fx-background-color: rgba(255,255,255,0.07);"));
+                row.setOnMouseExited(e -> row.setStyle(base));
+                row.setOnMouseClicked(e -> { popup.hide(); onSwitchAccount.accept(acc); });
+            }
+            box.getChildren().add(row);
+        }
+
+        Region sep = new Region();
+        sep.setMinHeight(1); sep.setPrefHeight(1); sep.setMaxHeight(1);
+        sep.setStyle("-fx-background-color: rgba(255,255,255,0.10);");
+        VBox.setMargin(sep, new Insets(4, 4, 4, 4));
+        box.getChildren().add(sep);
+
+        boolean full = roster.size() >= fr.nylerp.launcher.auth.AccountStore.MAX_ACCOUNTS;
+        Label plus = new Label(full
+                ? "Comptes au maximum (3/3)"
+                : "+  Ajouter un compte (" + roster.size() + "/3)");
+        plus.setFont(Fonts.semi(11));
+        plus.setTextFill(full ? Color.web("#6F6F78") : Color.web("#FF8128"));
+        HBox addRow = new HBox(plus);
+        addRow.setAlignment(Pos.CENTER_LEFT);
+        addRow.setPadding(new Insets(7, 12, 7, 10));
+        if (!full && onAddAccount != null) {
+            addRow.setStyle("-fx-background-radius: 10; -fx-cursor: hand;");
+            addRow.setOnMouseEntered(e -> addRow.setStyle(
+                    "-fx-background-radius: 10; -fx-cursor: hand;"
+                    + "-fx-background-color: rgba(255,129,40,0.12);"));
+            addRow.setOnMouseExited(e -> addRow.setStyle(
+                    "-fx-background-radius: 10; -fx-cursor: hand;"));
+            addRow.setOnMouseClicked(e -> { popup.hide(); onAddAccount.run(); });
+        }
+        box.getChildren().add(addRow);
+
+        popup.getContent().add(box);
+        javafx.geometry.Bounds b = anchor.localToScreen(anchor.getBoundsInLocal());
+        popup.show(anchor.getScene().getWindow(), b.getMinX() - 6, b.getMaxY() + 8);
     }
 
     private HBox buildUpdateBanner() {
@@ -1176,7 +1289,7 @@ public class MainView extends BorderPane {
                 Platform.runLater(() -> status.setText("Mods optionnels…"));
                 OptionalMods.applyAll();
 
-                Account account = fr.nylerp.launcher.auth.AuthManager.loadSaved();
+                Account account = fr.nylerp.launcher.auth.AccountStore.active();
                 int ramMb = Settings.get().ramMb;
                 // Read Fabric version from the cached manifest so the launcher
                 // always installs the loader specified by the modpack publisher,

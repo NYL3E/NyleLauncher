@@ -60,6 +60,11 @@ public final class JavaRuntime {
     private static Path javaBinary(Path root) {
         String os = osSlug();
         if ("windows".equals(os)) {
+            // javaw.exe = GUI-subsystem java : launching the game from the
+            // (GUI) launcher no longer pops a black console window. Game
+            // output still lands in mc.log via ProcessBuilder.redirectOutput.
+            Path javaw = root.resolve("bin").resolve("javaw.exe");
+            if (Files.exists(javaw)) return javaw;
             return root.resolve("bin").resolve("java.exe");
         } else if ("mac".equals(os)) {
             return root.resolve("Contents").resolve("Home").resolve("bin").resolve("java");
@@ -83,21 +88,45 @@ public final class JavaRuntime {
     }
 
     private static void extract(Path archive, Path dest, String ext) throws IOException {
-        ProcessBuilder pb;
         if ("zip".equals(ext)) {
-            // Use the JVM's own zip capabilities via a command — Windows has 'powershell Expand-Archive'
-            pb = new ProcessBuilder("powershell", "-Command",
-                    "Expand-Archive -Path \"" + archive + "\" -DestinationPath \"" + dest + "\" -Force");
-        } else {
-            pb = new ProcessBuilder("tar", "-xzf", archive.toString(), "-C", dest.toString());
+            // Pure-Java unzip. The previous 'powershell Expand-Archive' child
+            // process flashed a console window on Windows (powershell.exe is a
+            // console-subsystem binary spawned from our GUI app) — scary for
+            // non-technical players. java.util.zip needs no external process.
+            try (java.util.zip.ZipInputStream zin =
+                         new java.util.zip.ZipInputStream(Files.newInputStream(archive))) {
+                java.util.zip.ZipEntry entry;
+                Path destReal = dest.toAbsolutePath().normalize();
+                while ((entry = zin.getNextEntry()) != null) {
+                    Path out = destReal.resolve(entry.getName()).normalize();
+                    if (!out.startsWith(destReal)) {
+                        throw new IOException("Zip entry escapes destination: " + entry.getName());
+                    }
+                    if (entry.isDirectory()) {
+                        Files.createDirectories(out);
+                    } else {
+                        Files.createDirectories(out.getParent());
+                        Files.copy(zin, out, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    zin.closeEntry();
+                }
+            }
+            return;
         }
-        pb.inheritIO();
+        // .tar.gz (mac/linux) — keep the system tar (symlinks + exec bits are
+        // preserved natively), but route its output to a log file instead of
+        // inheritIO so nothing ever surfaces visually.
+        ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", archive.toString(), "-C", dest.toString());
+        pb.redirectErrorStream(true);
+        pb.redirectOutput(ProcessBuilder.Redirect.to(dest.resolve("extract.log").toFile()));
         try {
             int rc = pb.start().waitFor();
             if (rc != 0) throw new IOException("Extract failed rc=" + rc);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new IOException("Extract interrupted", ie);
+        } finally {
+            Files.deleteIfExists(dest.resolve("extract.log"));
         }
     }
 
