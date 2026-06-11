@@ -2,12 +2,12 @@ package fr.nylerp.launcher.config;
 
 public final class Constants {
     public static final String APP_NAME     = "NyleLauncher";
-    public static final String APP_VERSION  = "0.3.4";
+    public static final String APP_VERSION  = "0.3.19";
     /** Payload version baked at compile time. Bump together with the
      *  {@code payload-X.Y.Z} git tag. Displayed in the launcher footer so a
      *  player can visually confirm which payload they're running after a
      *  silent bootstrap refresh. */
-    public static final String PAYLOAD_VERSION = "1.0.58";
+    public static final String PAYLOAD_VERSION = "1.0.61";
     public static final String MC_VERSION   = "1.21.1";
     public static final String LOADER       = "fabric";
     public static final String SERVER_HOST  = "83.143.117.51";

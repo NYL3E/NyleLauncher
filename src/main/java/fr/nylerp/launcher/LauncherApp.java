@@ -1,7 +1,7 @@
 package fr.nylerp.launcher;
 
 import fr.nylerp.launcher.auth.Account;
-import fr.nylerp.launcher.auth.AuthManager;
+import fr.nylerp.launcher.auth.AccountStore;
 import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.ui.LoginView;
 import fr.nylerp.launcher.ui.MainView;
@@ -71,53 +71,90 @@ public class LauncherApp extends Application {
             LOG.warn("Could not load app icon: {}", e.toString());
         }
 
-        Account saved = AuthManager.loadSaved();
+        Account saved = AccountStore.active();
         if (saved != null) {
             LOG.info("Resuming saved session for {} ({})", saved.username(), saved.type());
             // Show the main view immediately with the saved Account, then
             // silently refresh the MS access token in the background so the
             // user never has to re-login unless the refresh token is revoked.
             onAuthenticated(saved);
-            if (saved.type() == Account.Type.MICROSOFT && saved.refreshToken() != null) {
-                fr.nylerp.launcher.auth.MicrosoftSystemAuth.refresh(saved.refreshToken())
-                        .whenComplete((refreshed, err) -> javafx.application.Platform.runLater(() -> {
-                            if (err != null) {
-                                String msg = err.toString();
-                                // Token revoked / expired — kick the user back to the login
-                                // screen so they reconnect once. Everything else (network
-                                // hiccups, MS being down) keeps the cached token.
-                                if (msg.contains("invalid_grant") || msg.contains("expired")
-                                        || msg.contains("revoked")) {
-                                    LOG.warn("MS refresh token rejected — logging out: {}", msg);
-                                    onLogout();
-                                } else {
-                                    LOG.warn("Silent MS refresh failed (keeping cached token): {}", msg);
-                                }
-                            } else {
-                                LOG.info("MS token refreshed silently for {}", refreshed.username());
-                                AuthManager.save(refreshed);
-                                this.account = refreshed;
-                            }
-                        }));
-            }
+            silentRefresh(saved);
         } else {
             showLogin();
         }
         stage.show();
     }
 
+    /** Background MS token refresh for the given account (no-op for offline).
+     *  On hard rejection (revoked/expired) the account is dropped from the
+     *  roster ; transient failures keep the cached token. */
+    private void silentRefresh(Account acc) {
+        if (acc.type() != Account.Type.MICROSOFT || acc.refreshToken() == null) return;
+        fr.nylerp.launcher.auth.MicrosoftSystemAuth.refresh(acc.refreshToken())
+                .whenComplete((refreshed, err) -> javafx.application.Platform.runLater(() -> {
+                    if (err != null) {
+                        String msg = err.toString();
+                        if (msg.contains("invalid_grant") || msg.contains("expired")
+                                || msg.contains("revoked")) {
+                            LOG.warn("MS refresh token rejected — removing account: {}", msg);
+                            // Only drop it if it's still the active account.
+                            if (account != null && !account.isOffline()
+                                    && acc.uuid() != null && acc.uuid().equals(account.uuid())) {
+                                onLogout();
+                            }
+                        } else {
+                            LOG.warn("Silent MS refresh failed (keeping cached token): {}", msg);
+                        }
+                    } else {
+                        LOG.info("MS token refreshed silently for {}", refreshed.username());
+                        AccountStore.updateActive(refreshed);
+                        this.account = refreshed;
+                    }
+                }));
+    }
+
     public void showLogin() {
         show(new LoginView(this::onAuthenticated));
     }
 
+    /** "Ajouter un compte" — login screen with a back arrow to the main view. */
+    public void showAddAccount() {
+        show(new LoginView(this::onAuthenticated, () -> {
+            if (account != null && mainView != null) show(mainView);
+            else showLogin();
+        }));
+    }
+
     public void onAuthenticated(Account account) {
+        if (!AccountStore.addAndActivate(account)) {
+            // Roster full of OTHER accounts — the UI normally prevents this
+            // (the "add" entry is disabled at 3/3), this is just a backstop.
+            javafx.scene.control.Alert a = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.WARNING,
+                    "Tu as déjà 3 comptes enregistrés. Retire un compte (bouton "
+                    + "Déconnexion) avant d'en ajouter un nouveau.");
+            a.setTitle("Comptes");
+            a.setHeaderText(null);
+            a.showAndWait();
+            return;
+        }
         this.account = account;
-        AuthManager.save(account);
         // Fresh login → fresh MainView (drops any previously cached instance
         // so a different account doesn't see the previous user's media
         // players or auth-derived state).
-        mainView = new MainView(account, this::onLogout, this::showSettings);
+        mainView = new MainView(account, this::onLogout, this::showSettings,
+                                this::switchAccount, this::showAddAccount);
         show(mainView);
+    }
+
+    /** Switches to another roster account from the header capsule menu. */
+    public void switchAccount(Account target) {
+        AccountStore.setActive(target);
+        this.account = AccountStore.active();
+        mainView = new MainView(this.account, this::onLogout, this::showSettings,
+                                this::switchAccount, this::showAddAccount);
+        show(mainView);
+        silentRefresh(this.account);
     }
 
     public void showSettings() {
@@ -128,7 +165,8 @@ public class LauncherApp extends Application {
                 // already on the MediaView when the scene attaches, so the
                 // user sees video1 immediately with no decode flash.
                 if (mainView == null) {
-                    mainView = new MainView(account, this::onLogout, this::showSettings);
+                    mainView = new MainView(account, this::onLogout, this::showSettings,
+                                            this::switchAccount, this::showAddAccount);
                 }
                 show(mainView);
             } else {
@@ -137,11 +175,21 @@ public class LauncherApp extends Application {
         }));
     }
 
+    /** "Déconnexion" = remove the ACTIVE account from the roster. If other
+     *  accounts remain, the first one takes over ; otherwise back to login. */
     public void onLogout() {
-        AuthManager.clear();
-        this.account = null;
+        AccountStore.removeActive();
+        Account next = AccountStore.active();
         mainView = null;       // drop the cached players too
-        showLogin();
+        if (next != null) {
+            this.account = next;
+            mainView = new MainView(next, this::onLogout, this::showSettings,
+                                    this::switchAccount, this::showAddAccount);
+            show(mainView);
+        } else {
+            this.account = null;
+            showLogin();
+        }
     }
 
     /** Single Scene reused for the whole app lifetime. Earlier versions
