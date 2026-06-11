@@ -40,47 +40,64 @@ micro-entreprise française suffit, création gratuite en ligne) + un certificat
 « company » (~250-350 €/an au lieu de ~99 €). À toi de choisir ce que tu préfères
 montrer.
 
-## Le tuto Certum, étape par étape
+## Le plan RÉEL, étape par étape (vérifié sur retours d'expérience 2025-2026)
 
-C'est LE certificat des devs indés européens : ~**89-129 €/an**, ouvert aux
-particuliers, validation d'identité simple.
+### Point préalable — ta micro-entreprise ne sert à rien ici (et c'est tant mieux)
+- NYLE CORP est une **entreprise individuelle** : le registre SIRENE ne connaît que
+  « LENNY TRIDAT » comme dénomination — et ton SIREN est **non-diffusible**, donc
+  invérifiable publiquement par une CA. Un certificat « company » afficherait de
+  toute façon ton nom légal, pas « NYLE CORP », après avoir levé la
+  non-diffusibilité et payé ~3× plus cher. À oublier.
+- Le bon produit : **Certum Open Source Code Signing « in the Cloud »** —
+  certificat INDIVIDUEL (pas besoin de l'entreprise), éligible car NyleLauncher
+  est un projet open source public sous MIT.
+- L'éditeur affiché par Windows sera : **« Open Source Developer, Lenny Tridat »**.
 
-### Étape 1 — Acheter (1 jour)
-1. Va sur shop.certum.eu → « Open Source Code Signing » → option **« in the Cloud »**
-   (SimplySign, pas de carte physique à recevoir).
-2. Crée le compte au nom « NYLE » / ton nom légal (c'est ce nom qui s'affichera
-   dans la fenêtre « Éditeur vérifié » de Windows).
+### Étape 1 — Achat (aujourd'hui, ~15 min, ~60 € TTC)
+shop.certum.eu → « Open Source Code Signing in the Cloud » : **49 € HT/an**
+(≈ 59-60 € TTC). PAS la version carte physique (69 € + port + galères de
+drivers/lecteur documentées) : la version cloud SimplySign se pilote depuis
+l'app, sans matériel.
 
-### Étape 2 — Validation d'identité (2-7 jours)
-Certum demande une pièce d'identité (CNI/passeport) + une preuve du projet
-open-source : donne simplement https://github.com/NYL3E/NyleLauncher (licence MIT,
-repo public — on coche toutes les cases).
+### Étape 2 — Validation d'identité (2 à 5 jours ouvrés)
+Documents demandés (constatés en conditions réelles) :
+1. Pièce d'identité recto/verso (CNI ou permis) + **vérification vidéo IDNow**
+   (mouvements de tête, 5 min depuis le téléphone).
+2. Un justificatif type **facture (eau/élec/téléphone)** à ton nom.
+3. **L'URL du projet open source** : https://github.com/NYL3E/NyleLauncher
+   (public, licence MIT — coche toutes les cases).
+Délai constaté après envoi : **~2 jours ouvrés** (compter 5 max).
 
-### Étape 3 — Signer (à chaque release `v*` du bootstrap, ~2 min)
-Depuis 2023, les clés privées de code signing vivent obligatoirement sur HSM/cloud —
-pas de fichier .pfx exportable, donc pas de signature 100 % automatique en CI avec
-ce certificat. Mais le bootstrap ne sort qu'une fois toutes les quelques semaines,
-et le payload (les vraies mises à jour) n'a pas besoin de signature. Procédure :
-
-1. Sur un PC Windows : installe **SimplySign Desktop** (Certum) + le **Windows SDK**
-   (pour signtool).
-2. Télécharge le MSI fraîchement buildé par la CI depuis la release GitHub.
-3. Connecte SimplySign (code de l'app mobile), puis :
+### Étape 3 — Activation + première signature (1 h la première fois, 2 min ensuite)
+1. Sur un **PC ou une VM Windows** : installe SimplySign Desktop + Windows SDK.
+2. Active le certificat depuis ton compte Certum (paire de clés générée côté cloud).
+3. Signe le MSI de la release courante :
    ```bat
-   signtool sign /n "NYLE" /fd SHA256 /tr http://time.certum.pl /td SHA256 NyleLauncher-windows-vX.Y.Z.msi
+   signtool sign /n "Open Source Developer, Lenny Tridat" /fd SHA256 /td SHA256 /tr http://time.certum.pl NyleLauncher-windows-vX.Y.Z.msi
    signtool verify /pa NyleLauncher-windows-vX.Y.Z.msi
    ```
-4. Remplace l'asset MSI de la release GitHub par le fichier signé
-   (`gh release upload vX.Y.Z NyleLauncher-windows-vX.Y.Z.msi --clobber`).
-5. Fais pareil pour le zip portable si tu veux (dézippe, signe `NyleLauncher.exe`,
-   rezippe) — optionnel, le MSI est le canal principal.
+4. Ré-upload sur la release GitHub :
+   `gh release upload vX.Y.Z NyleLauncher-windows-vX.Y.Z.msi --clobber`
+À refaire à chaque release `v*` du bootstrap (rare) — jamais pour les payloads.
 
-### Étape 4 — Accélérer la réputation (le jour même de la 1re release signée)
-1. Soumets le MSI signé sur https://www.microsoft.com/wdsi/filesubmission
-   (texte prêt dans `msdefender-submission.md`).
-2. Fais télécharger + installer la release par la commu Discord (chaque install
-   « Exécuter quand même » nourrit la réputation).
-3. En général : avertissement disparu en **quelques jours à 2-3 semaines**, définitivement.
+### Étape 4 — Réputation SmartScreen : les critères RÉELS
+Microsoft ne publie **aucun seuil chiffré** — voici ce qui est observé en pratique :
+- La réputation est attachée au **couple identité signataire + fichier** ; une fois
+  l'identité réputée, les versions suivantes signées héritent de la confiance.
+- Ordres de grandeur constatés chez les éditeurs signés OV : l'avertissement
+  disparaît après **quelques dizaines à quelques centaines d'installations**,
+  généralement en **quelques jours à 3 semaines**.
+- Accélérateurs concrets, le jour de la 1re release signée :
+  1. Soumission du MSI signé sur microsoft.com/wdsi/filesubmission
+     (texte prêt dans `msdefender-submission.md`).
+  2. Vague d'installs via le Discord (3 700+ membres → 50-100 installs en
+     quelques jours suffisent largement).
+  3. Toujours signer TOUTES les futures releases avec le même certificat.
+- Garantie : aucune méthode n'est « instantanée » pour nous (cf. plus haut) ;
+  celle-ci est la seule qui converge à coup sûr vers zéro avertissement permanent.
+
+### Budget total réel
+- ~60 € TTC/an, c'est tout. Renouvellement annuel au même prix (re-validation allégée).
 
 ## Récap
 
