@@ -7,10 +7,10 @@ public final class Constants {
      *  {@code payload-X.Y.Z} git tag. Displayed in the launcher footer so a
      *  player can visually confirm which payload they're running after a
      *  silent bootstrap refresh. */
-    public static final String PAYLOAD_VERSION = "1.0.62";
+    public static final String PAYLOAD_VERSION = "1.0.63";
     public static final String MC_VERSION   = "1.21.1";
     public static final String LOADER       = "fabric";
-    public static final String SERVER_HOST  = "83.143.117.29";   // proxy Velocity (réseau NyleRP)
+    public static final String SERVER_HOST  = "play.nylerp.fr";  // domaine → proxy Velocity (robuste si l'IP change)
     public static final int    SERVER_PORT  = 20161;
     public static final String DISCORD_URL  = "https://discord.gg/nylerp"; // TODO: real invite
     public static final String WEBSITE      = "https://nylerp.fr";

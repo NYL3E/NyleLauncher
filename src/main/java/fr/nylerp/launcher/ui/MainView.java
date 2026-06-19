@@ -7,6 +7,7 @@ import fr.nylerp.launcher.launch.MinecraftLauncher;
 import fr.nylerp.launcher.update.ModpackUpdater;
 import fr.nylerp.launcher.update.OptionalMods;
 import fr.nylerp.launcher.update.SelfUpdater;
+import fr.nylerp.launcher.update.ServerListSanitizer;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
@@ -1228,6 +1229,9 @@ public class MainView extends BorderPane {
 
         new Thread(() -> {
             try {
+                // Self-heal stale servers.dat before the sync so the absent file
+                // gets re-pulled clean (firstInstallOnly only re-pulls if absent).
+                ServerListSanitizer.sweep();
                 new ModpackUpdater(new ModpackUpdater.Listener() {
                     @Override public void onStatus(String line) {
                         Platform.runLater(() -> status.setText(line));
@@ -1267,6 +1271,13 @@ public class MainView extends BorderPane {
 
         new Thread(() -> {
             try {
+                // Self-heal stale servers.dat BEFORE the modpack sync. The clean
+                // server list is shipped firstInstallOnly, so it's only re-pulled
+                // if the local copy is ABSENT — the sanitizer deletes it when it
+                // still carries a deprecated direct-backend entry, letting the
+                // sync below restore the proxy-only list.
+                ServerListSanitizer.sweep();
+
                 try {
                     ModpackUpdater updater = new ModpackUpdater(new ModpackUpdater.Listener() {
                         @Override public void onStatus(String line) {
