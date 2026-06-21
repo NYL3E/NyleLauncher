@@ -58,7 +58,12 @@ public final class OptionalMods {
                 "DistantHorizons-2.4.5-b-1.21.1-fabric-neoforge.jar",
                 "https://cdn.modrinth.com/data/uCdwusMi/versions/bLPLghy9/DistantHorizons-2.4.5-b-1.21.1-fabric-neoforge.jar",
                 "6ee8b04af858450eac2e0fe6c3a6cb09dfc0f9c1691fb0f76f79bbc73e08e5dca6f18257294ba647b1520d4fb2110bbbb085830e536c8f4638995c75f66fe1eb",
-                () -> Settings.get().optionalDistantHorizons),
+                // JAMAIS sur macOS : DH rend ses LOD via un GLProxy sur le chemin OpenGL-4.1-sur-Metal
+                // d'Apple (pas de Buffer Storage, upload "DATA" lent) → le render thread gèle 1,5-2 s/frame
+                // puis freeze dur (cf crash Apple M5). Même la config safe (instanced/generic off, dist 96)
+                // gèle. On force DH OFF sur Mac : non installé, et le jar existant est supprimé au sync
+                // (applyOne supprime quand wanted=false). Iris n'est PAS touché (son entry reste OR'd).
+                () -> Settings.get().optionalDistantHorizons && !isMac()),
             // Iris 1.8.8 — back as an optional after the 2026-05-11 removal.
             // Re-introduced 2026-05-12 because Distant Horizons depends on it
             // for a stutter-free render path. Iris alone (no DH) is fine too,
@@ -173,6 +178,11 @@ public final class OptionalMods {
         } catch (java.security.NoSuchAlgorithmException nse) {
             throw new IOException(nse);
         }
+    }
+
+    /** macOS = pas de Distant Horizons (rendu OpenGL/Metal trop lent sur GPU Apple → freeze). */
+    public static boolean isMac() {
+        return System.getProperty("os.name", "").toLowerCase().contains("mac");
     }
 
     private OptionalMods() {}
