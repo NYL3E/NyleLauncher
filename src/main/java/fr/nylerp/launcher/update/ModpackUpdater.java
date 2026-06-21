@@ -159,11 +159,17 @@ public final class ModpackUpdater {
         //      effectively their settings (which still lived in config/iris/
         //      but were useless without the pack file). Shaderpacks now live
         //      under the user's exclusive control.
+        //   4. resourcepacks/ — REMOVED from the cleanup loop on 2026-06-21.
+        //      The modpack's own NYLERP-PACK.zip is still synced via the
+        //      manifest (so it's installed/updated), but any OTHER .zip in
+        //      resourcepacks/ is user-installed; the previous sweep wiped
+        //      user-added texture packs on every sync. Resource packs now
+        //      live under the user's exclusive control, like shaderpacks.
         Set<Path> expected = new HashSet<>();
         for (ManifestEntry e : remote.files) expected.add(gameDir.resolve(e.path).normalize());
         Set<String> optionalModNames = new HashSet<>(OptionalMods.filenames());
 
-        for (String sub : new String[]{"mods", "resourcepacks"}) {
+        for (String sub : new String[]{"mods"}) {
             Path dir = gameDir.resolve(sub);
             if (!Files.isDirectory(dir)) continue;
             try (Stream<Path> walk = Files.walk(dir)) {

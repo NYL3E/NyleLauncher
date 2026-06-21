@@ -1338,6 +1338,16 @@ public class MainView extends BorderPane {
                         });
                     }, "MC-Watch").start();
                 }
+
+                // Fermer le launcher au lancement (réglage « closeOnLaunch », activé par défaut).
+                // ~4 s de délai pour laisser la fenêtre Minecraft apparaître avant de quitter,
+                // sinon l'utilisateur voit un court instant sans aucune fenêtre.
+                if (proc != null && Settings.get().closeOnLaunch) {
+                    new Thread(() -> {
+                        try { Thread.sleep(4000); } catch (InterruptedException ignored) {}
+                        Platform.runLater(() -> { Platform.exit(); System.exit(0); });
+                    }, "CloseOnLaunch").start();
+                }
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     status.setText("Erreur: " + ex.getMessage());

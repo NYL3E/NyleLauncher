@@ -49,6 +49,7 @@ public class SettingsView extends BorderPane {
         col.getChildren().addAll(
                 memorySection(),
                 audioSection(),
+                launchSection(),
                 modsSection(),
                 aboutSection()
         );
@@ -219,6 +220,60 @@ public class SettingsView extends BorderPane {
         body.setPadding(new Insets(16, 20, 16, 20));
         body.getStyleClass().add("mod-row");
         return body;
+    }
+
+    // ── Lancement ───────────────────────────────────────────────────────────
+
+    private VBox launchSection() {
+        Label h = new Label("Lancement");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+
+        Label p = new Label("Comportement au démarrage du jeu et accès rapide à tes fichiers.");
+        p.setFont(Fonts.medium(13));
+        p.setTextFill(Color.web("#A2A2AC"));
+        p.setWrapText(true);
+
+        // Toggle « fermer le launcher au lancement » — même style pilule que les mods optionnels.
+        HBox closeRow = optionalModRow(
+                "Fermer le launcher au lancement du jeu",
+                "Le launcher se ferme automatiquement une fois Minecraft démarré.",
+                Settings.get().closeOnLaunch,
+                v -> { Settings.get().closeOnLaunch = v; Settings.get().save(); });
+
+        Button openFiles = new Button("Ouvrir le dossier du jeu");
+        openFiles.getStyleClass().add("btn-ghost");
+        openFiles.setFont(Fonts.semi(14));
+        openFiles.setOnAction(e -> openGameFolder());
+        HBox openRow = new HBox(openFiles);
+        openRow.setAlignment(Pos.CENTER_LEFT);
+        openRow.setPadding(new Insets(2, 0, 0, 0));
+
+        return new VBox(14, h, p, closeRow, openRow);
+    }
+
+    /** Ouvre le dossier du jeu (.../game) dans l'explorateur de l'OS. Sur un thread à part et
+     *  totalement try/catch : ouvrir un dossier ne doit JAMAIS faire planter le launcher. */
+    private void openGameFolder() {
+        new Thread(() -> {
+            java.io.File dir = fr.nylerp.launcher.config.AppPaths.gameDir().toFile();
+            try {
+                if (java.awt.Desktop.isDesktopSupported()
+                        && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
+                    java.awt.Desktop.getDesktop().open(dir);
+                    return;
+                }
+            } catch (Throwable ignored) { /* on tente le fallback ProcessBuilder ci-dessous */ }
+            try {
+                String os = System.getProperty("os.name", "").toLowerCase();
+                String[] cmd = os.contains("win")
+                        ? new String[]{"explorer", dir.getAbsolutePath()}
+                        : os.contains("mac")
+                            ? new String[]{"open", dir.getAbsolutePath()}
+                            : new String[]{"xdg-open", dir.getAbsolutePath()};
+                new ProcessBuilder(cmd).start();
+            } catch (Throwable ignored) { /* jamais throw */ }
+        }, "open-game-folder").start();
     }
 
     // ── Mods optionnels ─────────────────────────────────────────────────────
