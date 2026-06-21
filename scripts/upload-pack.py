@@ -82,10 +82,17 @@ def flatten_and_sanitize(pack_root: pathlib.Path, out: pathlib.Path):
 
 
 def delete_release_if_exists(tk):
+    # Enumerate ALL releases — the by-tag endpoint (/releases/tags/<tag>) does
+    # NOT return DRAFTS, so an orphaned draft (GitHub auto-converts a release to
+    # a draft when its tag ref is deleted) would be invisible here, never get
+    # cleaned up, and keep the public download URL 404ing while the real assets
+    # sit in an unpublished draft. List every release and delete each one on TAG.
     try:
-        r = api("GET", f"https://api.github.com/repos/{REPO}/releases/tags/{TAG}", tk)
-        api("DELETE", f"https://api.github.com/repos/{REPO}/releases/{r['id']}", tk)
-        print(f"  Deleted release id={r['id']}")
+        releases = api("GET", f"https://api.github.com/repos/{REPO}/releases?per_page=100", tk)
+        for r in releases:
+            if r.get("tag_name") == TAG:
+                api("DELETE", f"https://api.github.com/repos/{REPO}/releases/{r['id']}", tk)
+                print(f"  Deleted release id={r['id']} (draft={r.get('draft')})")
     except urllib.error.HTTPError as e:
         if e.code != 404:
             raise
@@ -166,13 +173,44 @@ def main():
             if done[0] % 25 == 0 or done[0] == total:
                 print(f"   {done[0]}/{total}")
 
-    if errors:
-        print(f"\n{len(errors)} uploads FAILED:", file=sys.stderr)
-        for n, err in errors[:10]:
-            print(f"  {n}: {err}", file=sys.stderr)
+    # 5) VERIFY + RETRY — GitHub renvoie parfois un succès apparent mais ne persiste
+    #    PAS l'asset (échec silencieux sous charge) => upload_asset ne lève rien et le
+    #    fichier manque dans la release. On liste les assets RÉELLEMENT présents
+    #    (pagination, >100 assets) et on re-tente les manquants jusqu'à ce que tout soit là.
+    def present_names():
+        names, page = set(), 1
+        while True:
+            batch = api("GET", f"https://api.github.com/repos/{REPO}/releases/{rid}/assets?per_page=100&page={page}", tk)
+            if not batch:
+                break
+            names |= {a["name"] for a in batch}
+            if len(batch) < 100:
+                break
+            page += 1
+        return names
+
+    print("5) Verifying all assets landed (+ retry missing)")
+    for attempt in range(5):
+        have = present_names()
+        missing = [f for f in assets if f.name not in have]
+        if not missing:
+            break
+        print(f"   {len(missing)} manquants -> re-upload (tentative {attempt + 1}/5)")
+        for f in missing:
+            try:
+                upload_asset(tk, rid, f)
+            except Exception as e:
+                errors.append((f.name, str(e)))
+        time.sleep(3)
+
+    missing = [f.name for f in assets if f.name not in present_names()]
+    if missing:
+        print(f"\n{len(missing)} assets TOUJOURS absents après 5 tentatives:", file=sys.stderr)
+        for n in missing[:25]:
+            print(f"  {n}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\nDone. Release: https://github.com/{REPO}/releases/tag/{TAG}")
+    print(f"\nDone — {total} assets vérifiés présents. Release: https://github.com/{REPO}/releases/tag/{TAG}")
 
 
 if __name__ == "__main__":

@@ -56,6 +56,26 @@ public final class ServerListSanitizer {
      */
     public static void sweep() {
         Path serversDat = AppPaths.gameDir().resolve("servers.dat");
+
+        // RESET UNIQUE (v2) — purge l'ancienne liste multi-serveurs et ne garde QUE play.nylerp.fr.
+        // On supprime servers.dat une seule fois (gardé par un marqueur d'état) : la liste propre à
+        // entrée unique est alors re-pull via l'entrée firstInstallOnly du manifest. Le marqueur
+        // évite de réinitialiser à chaque lancement → on ne combat pas les serveurs que le joueur
+        // ajouterait ensuite. Sur une install neuve servers.dat est absent : deleteIfExists est un
+        // no-op sûr et le marqueur est quand même posé (pas de reset répété).
+        try {
+            Path marker = AppPaths.launcherState().resolve("serverlist_reset_v2");
+            if (!Files.exists(marker)) {
+                Files.deleteIfExists(serversDat);
+                Files.writeString(marker, "done");
+                LOG.info("Reset unique de la liste serveurs : servers.dat purgé → re-pull "
+                        + "de la liste propre (play.nylerp.fr uniquement)");
+                return;
+            }
+        } catch (Exception ex) {
+            LOG.warn("server list one-time reset failed (left untouched): {}", ex.toString());
+        }
+
         if (!Files.exists(serversDat)) {
             return; // nothing to heal — ModpackUpdater will pull a fresh copy
         }
