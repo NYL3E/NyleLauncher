@@ -300,11 +300,14 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalIris,
                 v -> { Settings.get().optionalIris = v; Settings.get().save(); });
 
+        boolean dhMac = fr.nylerp.launcher.update.OptionalMods.isMac();
         HBox dhRow = optionalModRow(
                 "Distant Horizons",
-                "Affiche les chunks éloignés en LOD. Active Iris automatiquement (requis pour le rendu fluide). ~1 GB de RAM en plus.",
-                Settings.get().optionalDistantHorizons,
-                v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); });
+                dhMac ? "Indisponible sur Mac : le rendu OpenGL/Metal d'Apple fige le jeu (PC uniquement)."
+                      : "Affiche les chunks éloignés en LOD. Active Iris automatiquement (requis pour le rendu fluide). ~1 GB de RAM en plus.",
+                Settings.get().optionalDistantHorizons && !dhMac,
+                v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); },
+                dhMac);
 
         return new VBox(14, h, p, litematicaRow, irisRow, dhRow);
     }
@@ -314,6 +317,11 @@ public class SettingsView extends BorderPane {
      *  instead of 18 lines of repeated layout. */
     private HBox optionalModRow(String title, String desc, boolean initial,
                                 java.util.function.Consumer<Boolean> onChange) {
+        return optionalModRow(title, desc, initial, onChange, false);
+    }
+
+    private HBox optionalModRow(String title, String desc, boolean initial,
+                                java.util.function.Consumer<Boolean> onChange, boolean disabled) {
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
         row.getStyleClass().add("mod-row");
@@ -321,7 +329,7 @@ public class SettingsView extends BorderPane {
 
         Label modTitle = new Label(title);
         modTitle.setFont(Fonts.semi(14));
-        modTitle.setTextFill(Color.web("#F4F4F7"));
+        modTitle.setTextFill(Color.web(disabled ? "#6A6A72" : "#F4F4F7"));
         Label modDesc = new Label(desc);
         modDesc.setFont(Fonts.medium(12));
         modDesc.setTextFill(Color.web("#A2A2AC"));
@@ -331,8 +339,13 @@ public class SettingsView extends BorderPane {
 
         CheckBox toggle = new CheckBox();
         toggle.getStyleClass().add("pill-switch");
-        toggle.setSelected(initial);
-        toggle.selectedProperty().addListener((obs, a, b) -> onChange.accept(b));
+        toggle.setSelected(initial && !disabled);
+        if (disabled) {
+            toggle.setDisable(true);
+            toggle.setOpacity(0.4);
+        } else {
+            toggle.selectedProperty().addListener((obs, a, b) -> onChange.accept(b));
+        }
 
         row.getChildren().addAll(info, toggle);
         return row;
