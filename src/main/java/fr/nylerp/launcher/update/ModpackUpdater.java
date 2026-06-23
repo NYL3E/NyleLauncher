@@ -169,23 +169,44 @@ public final class ModpackUpdater {
         for (ManifestEntry e : remote.files) expected.add(gameDir.resolve(e.path).normalize());
         Set<String> optionalModNames = new HashSet<>(OptionalMods.filenames());
 
+        // ── Les mods AJOUTÉS PAR LE JOUEUR sont SACRÉS (jamais supprimés) ───
+        //   5. mods/ — on ne supprime QUE les mods que CE LAUNCHER a installés :
+        //      un jar présent dans un manifeste PRÉCÉDENT (enregistré dans
+        //      .nyle_managed_mods). Un jar que le joueur a déposé lui-même dans
+        //      mods/ n'est jamais dans ce record → il survit à chaque sync. Un
+        //      mod managé n'est supprimé que quand il quitte le manifeste
+        //      (ex. un bump de pack qui retire l'ancien fichier).
+        Path managedRecord = gameDir.resolve(".nyle_managed_mods");
+        Set<String> newManaged = new HashSet<>();
+        for (ManifestEntry e : remote.files) {
+            String pth = e.path.replace('\\', '/');
+            if (pth.startsWith("mods/")) newManaged.add(pth.substring(pth.lastIndexOf('/') + 1));
+        }
+        Set<String> prevTmp = readManaged(managedRecord);
+        // Premier lancement sur ce build (pas de record) : on adopte le manifeste
+        // courant comme set managé, pour ne JAMAIS effacer un jar perso préexistant
+        // lors de la mise à jour vers cette version du launcher.
+        final Set<String> prevManaged = prevTmp.isEmpty() ? new HashSet<>(newManaged) : prevTmp;
+
         for (String sub : new String[]{"mods"}) {
             Path dir = gameDir.resolve(sub);
             if (!Files.isDirectory(dir)) continue;
             try (Stream<Path> walk = Files.walk(dir)) {
                 walk.filter(Files::isRegularFile)
+                    .filter(p -> prevManaged.contains(p.getFileName().toString())) // launcher-managé uniquement — jars perso intouchés
                     .filter(p -> !expected.contains(p.normalize()))
                     .filter(p -> !optionalModNames.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
                             Files.deleteIfExists(p);
-                            LOG.info("Removed stale file: {}", gameDir.relativize(p));
+                            LOG.info("Removed stale managed mod: {}", gameDir.relativize(p));
                         } catch (Exception ex) {
                             LOG.warn("Could not delete {}: {}", p, ex.toString());
                         }
                     });
             }
         }
+        writeManaged(managedRecord, newManaged);
 
         status("Modpack à jour (" + total + " fichiers)");
     }
@@ -193,5 +214,28 @@ public final class ModpackUpdater {
     private void status(String line) {
         LOG.info(line);
         if (listener != null) listener.onStatus(line);
+    }
+
+    /** Lit le set des mods managés par le launcher ({@code .nyle_managed_mods}). Vide si absent. */
+    private static Set<String> readManaged(Path record) {
+        Set<String> s = new HashSet<>();
+        try {
+            if (Files.exists(record)) {
+                for (String line : Files.readAllLines(record)) {
+                    String t = line.trim();
+                    if (!t.isEmpty()) s.add(t);
+                }
+            }
+        } catch (Exception ignored) {}
+        return s;
+    }
+
+    /** Persiste le set des mods managés (filenames de {@code mods/} du manifeste courant). */
+    private static void writeManaged(Path record, Set<String> names) {
+        try {
+            Files.write(record, new java.util.ArrayList<>(names));
+        } catch (Exception e) {
+            LOG.warn("Could not write managed-mods record {}: {}", record, e.toString());
+        }
     }
 }
