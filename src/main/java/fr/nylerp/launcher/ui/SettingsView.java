@@ -17,10 +17,13 @@ import javafx.scene.text.FontWeight;
 
 public class SettingsView extends BorderPane {
 
+    private static final String[] NAV = {"Mémoire", "Audio", "Lancement", "Mods optionnels", "À propos"};
+    private StackPane contentHost;
+
     public SettingsView(Runnable onBack) {
         getStyleClass().add("main-root");
         setTop(buildTopBar(onBack));
-        setCenter(buildScroll());
+        setCenter(buildBody());
     }
 
     private Region buildTopBar(Runnable onBack) {
@@ -42,25 +45,74 @@ public class SettingsView extends BorderPane {
         return bar;
     }
 
-    private Region buildScroll() {
-        VBox col = new VBox(36);
-        col.setPadding(new Insets(32, 56, 48, 56));
-        col.setMaxWidth(720);
-        col.getChildren().addAll(
-                memorySection(),
-                audioSection(),
-                launchSection(),
-                modsSection(),
-                aboutSection()
-        );
+    /** Left nav rail + ONE focused section at a time (instead of one long scroll) — clearer,
+     *  calmer navigation. Each rail item swaps the content host with a soft fade; the active
+     *  item is highlighted with an accent bar. All the original sections/options are preserved. */
+    private Region buildBody() {
+        Region[] secs = { memorySection(), audioSection(), launchSection(), modsSection(), aboutSection() };
+        java.util.List<Region> wraps = new java.util.ArrayList<>();
+        for (Region s : secs) {
+            VBox w = new VBox(s);
+            w.setPadding(new Insets(34, 56, 48, 46));
+            w.setMaxWidth(780);
+            wraps.add(w);
+        }
 
-        ScrollPane sp = new ScrollPane(col);
+        contentHost = new StackPane();
+        contentHost.setAlignment(Pos.TOP_LEFT);
+
+        VBox nav = new VBox(4);
+        nav.getStyleClass().add("settings-nav");
+        nav.setPadding(new Insets(30, 14, 30, 22));
+        nav.setMinWidth(214);
+        nav.setPrefWidth(214);
+
+        java.util.List<Button> items = new java.util.ArrayList<>();
+        for (int i = 0; i < NAV.length; i++) {
+            final int idx = i;
+            Button it = new Button(NAV[i]);
+            it.getStyleClass().add("settings-nav-item");
+            it.setMaxWidth(Double.MAX_VALUE);
+            it.setAlignment(Pos.CENTER_LEFT);
+            it.setFont(Fonts.semi(14));
+            it.setOnAction(e -> selectSection(idx, items, wraps));
+            items.add(it);
+            nav.getChildren().add(it);
+        }
+
+        ScrollPane sp = new ScrollPane(contentHost);
         sp.setFitToWidth(true);
         sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         sp.getStyleClass().add("settings-scroll");
         sp.setPannable(true);
-        return sp;
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Region divider = new Region();
+        divider.getStyleClass().add("settings-nav-divider");
+        divider.setMinWidth(1);
+        divider.setMaxWidth(1);
+
+        HBox body = new HBox(nav, divider, sp);
+        body.getStyleClass().add("settings-body");
+
+        selectSection(0, items, wraps);
+        return body;
+    }
+
+    private void selectSection(int idx, java.util.List<Button> items, java.util.List<Region> wraps) {
+        for (int i = 0; i < items.size(); i++) {
+            items.get(i).getStyleClass().remove("active");
+            if (i == idx) items.get(i).getStyleClass().add("active");
+        }
+        Region w = wraps.get(idx);
+        contentHost.getChildren().setAll(w);
+        w.setOpacity(0);
+        javafx.animation.FadeTransition ft =
+                new javafx.animation.FadeTransition(javafx.util.Duration.millis(170), w);
+        ft.setFromValue(0);
+        ft.setToValue(1);
+        ft.play();
     }
 
     // ── Mémoire ─────────────────────────────────────────────────────────────
