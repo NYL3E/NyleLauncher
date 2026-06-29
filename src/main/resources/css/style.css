@@ -423,11 +423,20 @@
     -fx-border-color: rgba(255,131,64,0.85);
 }
 
-/* Slider */
+/* Slider — rail natif masqué : la barre grise + le remplissage orange sont peints par-dessous
+ * (ram-track-bg / ram-track-fill), le pouce natif reste visible au-dessus. */
 .ram-slider-big .track {
-    -fx-background-color: rgba(255,255,255,0.06);
+    -fx-background-color: transparent;
+    -fx-pref-height: 6;
+}
+.ram-track-bg {
+    -fx-background-color: rgba(255,255,255,0.09);
     -fx-background-radius: 999;
-    -fx-pref-height: 4;
+}
+.ram-track-fill {
+    -fx-background-color: linear-gradient(to right, -c-accent 0%, -c-accent-hi 100%);
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(255,106,26,0.45), 9, 0.12, 0, 0);
 }
 .ram-slider-big .thumb {
     -fx-background-color: -c-text;
@@ -546,8 +555,37 @@
     -fx-background-color:
         linear-gradient(to right, -c-accent 0px, -c-accent 3px, transparent 3px),
         rgba(255,106,26,0.12);
-    -fx-background-radius: 0, 10;
+    /* Léger arrondi sur la sélection orange — identique au survol (radius 10), y compris la
+     * barre d'accent gauche dont les coins suivent désormais l'arrondi de la ligne. */
+    -fx-background-radius: 10, 10;
     -fx-text-fill: #FFFFFF;
+}
+
+/* Galerie « Captures d'écran » */
+.shot-grid { -fx-padding: 4 0 0 0; }
+.shot-card {
+    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255,255,255,0.10);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+.shot-card:hover {
+    -fx-border-color: -c-accent;
+    -fx-scale-x: 1.03;
+    -fx-scale-y: 1.03;
+}
+.shot-empty {
+    -fx-background-color: rgba(255,255,255,0.03);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255,255,255,0.07);
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+}
+.shot-preview-overlay {
+    -fx-background-color: rgba(8,8,10,0.93);
+    -fx-padding: 40;
 }
 
 /* Clearer secondary button (e.g. "Ouvrir le dossier du jeu") */

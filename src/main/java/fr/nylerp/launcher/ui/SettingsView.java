@@ -10,15 +10,25 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 public class SettingsView extends BorderPane {
 
-    private static final String[] NAV = {"Mémoire", "Audio", "Lancement", "Mods optionnels", "À propos"};
+    private static final String[] NAV = {"Mémoire", "Audio", "Lancement", "Mods optionnels", "Captures d'écran", "À propos"};
+    private static final int SCREENSHOTS_IDX = 4;          // position de « Captures d'écran » dans NAV
+    private static final int THUMB_W = 212, THUMB_H = 119; // vignette 16:9 (3 colonnes dans le contenu 678 px)
+
     private StackPane contentHost;
+    private StackPane bodyStack;                            // hôte plein-écran pour la lightbox d'aperçu
+    private FlowPane shotGrid;                              // grille de vignettes (re-scannée à l'ouverture)
+    private Button shotSortBtn;
+    private boolean shotsNewestFirst = true;
 
     public SettingsView(Runnable onBack) {
         getStyleClass().add("main-root");
@@ -49,7 +59,7 @@ public class SettingsView extends BorderPane {
      *  calmer navigation. Each rail item swaps the content host with a soft fade; the active
      *  item is highlighted with an accent bar. All the original sections/options are preserved. */
     private Region buildBody() {
-        Region[] secs = { memorySection(), audioSection(), launchSection(), modsSection(), aboutSection() };
+        Region[] secs = { memorySection(), audioSection(), launchSection(), modsSection(), screenshotsSection(), aboutSection() };
         java.util.List<Region> wraps = new java.util.ArrayList<>();
         for (Region s : secs) {
             VBox w = new VBox(s);
@@ -97,7 +107,9 @@ public class SettingsView extends BorderPane {
         body.getStyleClass().add("settings-body");
 
         selectSection(0, items, wraps);
-        return body;
+        // Hôte qui empile le corps + une éventuelle lightbox d'aperçu de capture par-dessus.
+        bodyStack = new StackPane(body);
+        return bodyStack;
     }
 
     private void selectSection(int idx, java.util.List<Button> items, java.util.List<Region> wraps) {
@@ -105,6 +117,7 @@ public class SettingsView extends BorderPane {
             items.get(i).getStyleClass().remove("active");
             if (i == idx) items.get(i).getStyleClass().add("active");
         }
+        if (idx == SCREENSHOTS_IDX) reloadScreenshots();   // re-scanne le dossier à chaque ouverture
         Region w = wraps.get(idx);
         contentHost.getChildren().setAll(w);
         w.setOpacity(0);
@@ -160,6 +173,20 @@ public class SettingsView extends BorderPane {
 
         final double THUMB_R = 11; // thumb is 22px
 
+        // Le Slider JavaFX n'a pas de portion « remplie ». On peint nous-mêmes une barre de
+        // progression orange : un rail gris pleine largeur + un rail accent dont la largeur suit
+        // le pouce. Bien plus lisible qu'une simple ligne grise. Le pouce natif reste par-dessus.
+        Region trackBg = new Region();
+        trackBg.getStyleClass().add("ram-track-bg");
+        trackBg.setMinHeight(6); trackBg.setPrefHeight(6); trackBg.setMaxHeight(6);
+        Region trackFill = new Region();
+        trackFill.getStyleClass().add("ram-track-fill");
+        trackFill.setMinHeight(6); trackFill.setPrefHeight(6); trackFill.setMaxHeight(6);
+        StackPane.setAlignment(trackBg, Pos.CENTER);
+        StackPane.setAlignment(trackFill, Pos.CENTER_LEFT);
+        StackPane sliderStack = new StackPane(trackBg, trackFill, slider);
+        sliderStack.setMaxWidth(Double.MAX_VALUE);
+
         Runnable reposition = () -> {
             double sliderW = slider.getWidth();
             if (sliderW <= 0) return;
@@ -167,6 +194,8 @@ public class SettingsView extends BorderPane {
             double ratio = (slider.getValue() - 2) / 14.0;
             // Thumb center travels from THUMB_R to sliderW - THUMB_R
             double thumbX = THUMB_R + ratio * (sliderW - 2 * THUMB_R);
+            // La barre orange court du bord gauche jusqu'au centre du pouce.
+            trackFill.setMinWidth(thumbX); trackFill.setPrefWidth(thumbX); trackFill.setMaxWidth(thumbX);
             double x = thumbX - numW / 2;
             double laneW = numLane.getWidth();
             if (laneW > 0) x = Math.max(0, Math.min(laneW - numW, x));
@@ -196,7 +225,145 @@ public class SettingsView extends BorderPane {
             scale.getChildren().add(t);
         }
 
-        return new VBox(10, h, p, maxRow, numLane, slider, scale);
+        return new VBox(10, h, p, maxRow, numLane, sliderStack, scale);
+    }
+
+    // ── Captures d'écran ─────────────────────────────────────────────────────
+
+    private java.nio.file.Path screenshotsDir() {
+        return fr.nylerp.launcher.config.AppPaths.gameDir().resolve("screenshots");
+    }
+
+    private VBox screenshotsSection() {
+        Label h = new Label("Captures d'écran");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+
+        Label p = new Label("Toutes les images prises en jeu (touche F2). Clique sur une vignette pour l'agrandir.");
+        p.setFont(Fonts.medium(13));
+        p.setTextFill(Color.web("#A2A2AC"));
+        p.setWrapText(true);
+
+        shotSortBtn = new Button();
+        shotSortBtn.getStyleClass().add("btn-ghost");
+        shotSortBtn.setFont(Fonts.semi(13));
+        shotSortBtn.setOnAction(e -> { shotsNewestFirst = !shotsNewestFirst; reloadScreenshots(); });
+
+        Button openShots = new Button("Ouvrir le dossier");
+        openShots.getStyleClass().add("btn-ghost");
+        openShots.setFont(Fonts.semi(13));
+        openShots.setGraphic(Icons.folder(14, Color.web("#F4F4F7")));
+        openShots.setGraphicTextGap(8);
+        openShots.setOnAction(e -> openInExplorer(screenshotsDir().toFile()));
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox actions = new HBox(10, shotSortBtn, spacer, openShots);
+        actions.setAlignment(Pos.CENTER_LEFT);
+
+        shotGrid = new FlowPane(14, 14);
+        shotGrid.getStyleClass().add("shot-grid");
+
+        VBox box = new VBox(14, h, p, actions, shotGrid);
+        reloadScreenshots();
+        return box;
+    }
+
+    /** Re-scanne le dossier screenshots et reconstruit la grille. Les images sont chargées en
+     *  arrière-plan (backgroundLoading) et sous-échantillonnées : aucun gel de l'UI même avec
+     *  des centaines de captures. */
+    private void reloadScreenshots() {
+        if (shotGrid == null) return;
+        shotSortBtn.setText(shotsNewestFirst ? "Trier · plus récentes" : "Trier · plus anciennes");
+        shotGrid.getChildren().clear();
+
+        java.io.File dir = screenshotsDir().toFile();
+        java.io.File[] arr = dir.listFiles((d, name) -> {
+            String n = name.toLowerCase();
+            return n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg");
+        });
+        if (arr == null || arr.length == 0) { shotGrid.getChildren().add(emptyShots()); return; }
+
+        java.util.List<java.io.File> files = new java.util.ArrayList<>(java.util.Arrays.asList(arr));
+        files.sort(java.util.Comparator.comparingLong(java.io.File::lastModified));
+        if (shotsNewestFirst) java.util.Collections.reverse(files);
+        for (java.io.File f : files) shotGrid.getChildren().add(shotTile(f));
+    }
+
+    private Region emptyShots() {
+        Label l = new Label("Aucune capture pour l'instant.\nAppuie sur F2 en jeu pour en prendre une — elles apparaîtront ici.");
+        l.setFont(Fonts.medium(13));
+        l.setTextFill(Color.web("#8A8A94"));
+        l.setWrapText(true);
+        VBox v = new VBox(l);
+        v.getStyleClass().add("shot-empty");
+        v.setPadding(new Insets(26, 22, 26, 22));
+        v.setMaxWidth(Double.MAX_VALUE);
+        return v;
+    }
+
+    private Region shotTile(java.io.File f) {
+        Image img = new Image(f.toURI().toString(), 0, 240, true, true, true); // sous-échantillonné, async
+        ImageView iv = new ImageView(img);
+        iv.setFitWidth(THUMB_W);
+        iv.setFitHeight(THUMB_H);
+        iv.setPreserveRatio(true);
+        iv.setSmooth(true);
+
+        StackPane card = new StackPane(iv);
+        card.getStyleClass().add("shot-card");
+        card.setMinSize(THUMB_W, THUMB_H);
+        card.setPrefSize(THUMB_W, THUMB_H);
+        card.setMaxSize(THUMB_W, THUMB_H);
+        Rectangle clip = new Rectangle(THUMB_W, THUMB_H);
+        clip.setArcWidth(20); clip.setArcHeight(20);
+        card.setClip(clip);
+        card.setOnMouseClicked(e -> openShotPreview(f));
+
+        Label date = new Label(shotDate(f));
+        date.setFont(Fonts.medium(11));
+        date.setTextFill(Color.web("#8A8A94"));
+
+        return new VBox(6, card, date);
+    }
+
+    private String shotDate(java.io.File f) {
+        try {
+            return new java.text.SimpleDateFormat("dd/MM/yyyy · HH:mm")
+                    .format(new java.util.Date(f.lastModified()));
+        } catch (Throwable t) { return ""; }
+    }
+
+    /** Lightbox plein-corps : agrandit la capture par-dessus toute la page paramètres.
+     *  Clic n'importe où = fermeture. */
+    private void openShotPreview(java.io.File f) {
+        if (bodyStack == null) return;
+        Image full = new Image(f.toURI().toString(), 0, 1600, true, true, true);
+        ImageView iv = new ImageView(full);
+        iv.setPreserveRatio(true);
+        iv.setSmooth(true);
+        iv.fitWidthProperty().bind(bodyStack.widthProperty().subtract(140));
+        iv.fitHeightProperty().bind(bodyStack.heightProperty().subtract(150));
+
+        Label caption = new Label(f.getName() + "   —   " + shotDate(f));
+        caption.setFont(Fonts.medium(12));
+        caption.setTextFill(Color.web("#C9C9D2"));
+        Label hint = new Label("Clique n'importe où pour fermer");
+        hint.setFont(Fonts.medium(11));
+        hint.setTextFill(Color.web("#7A7A84"));
+
+        VBox content = new VBox(14, iv, caption, hint);
+        content.setAlignment(Pos.CENTER);
+
+        StackPane overlay = new StackPane(content);
+        overlay.getStyleClass().add("shot-preview-overlay");
+        overlay.setOnMouseClicked(e -> bodyStack.getChildren().remove(overlay));
+        overlay.setOpacity(0);
+        bodyStack.getChildren().add(overlay);
+
+        javafx.animation.FadeTransition ft =
+                new javafx.animation.FadeTransition(javafx.util.Duration.millis(140), overlay);
+        ft.setFromValue(0); ft.setToValue(1); ft.play();
     }
 
     // ── Audio ───────────────────────────────────────────────────────────────
