@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import fr.nylerp.launcher.util.SystemRam;
 
 /**
  * End-to-end Minecraft launcher:
@@ -87,12 +88,17 @@ public final class MinecraftLauncher {
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
             cmd.add("-XstartOnFirstThread");
         }
-        // Heap: -Xmx == -Xms so the JVM never has to resize the heap
-        // mid-session (a resize triggers a full GC stall + perceived
-        // freeze). Worth the +RAM up front because the player picked
-        // their RAM budget knowing the cost.
-        cmd.add("-Xmx" + ramMb + "M");
-        cmd.add("-Xms" + ramMb + "M");
+        // Heap — CLAMPED to physical RAM. A default/oversized -Xmx (default 4 GB, slider up to
+        // 16 GB) committed up front (the old -Xms==-Xmx, made worse by +AlwaysPreTouch below) is
+        // exactly what makes the spawned JVM fail to reserve/commit its heap at launch on common
+        // 4–8 GB machines. We cap -Xmx at physicalRam-2GB (floor 2 GB) and start with a SMALL -Xms
+        // so the JVM commits lazily and can never fail at init. (physMb < 0 = detection failed →
+        // keep the user's value, still lazy + no pre-touch so init is safe.)
+        long physMb = SystemRam.totalMb();
+        int maxMb = (physMb > 0) ? Math.max(2048, (int) Math.min(ramMb, physMb - 2048)) : ramMb;
+        int initMb = Math.min(maxMb, 1024);
+        cmd.add("-Xmx" + maxMb + "M");
+        cmd.add("-Xms" + initMb + "M");
 
         // ── G1 GC (back to v1 baseline after ZGC regression) ────────────
         // Tested progression on MrCedriic (RTX 3060, 8 GB heap, 193 mods):
@@ -125,7 +131,9 @@ public final class MinecraftLauncher {
         cmd.add("-XX:InitiatingHeapOccupancyPercent=15");
         cmd.add("-XX:G1MixedGCCountTarget=4");
         cmd.add("-XX:SurvivorRatio=32");
-        cmd.add("-XX:+AlwaysPreTouch");
+        // NOTE: -XX:+AlwaysPreTouch removed — it physically commits the ENTIRE -Xmx at JVM init,
+        // which is the main cause of "Failed to launch JVM" on low-RAM machines. With the clamped
+        // -Xmx + small -Xms above, the heap commits lazily and start-up never fails on memory.
         cmd.add("-XX:+DisableExplicitGC");
         cmd.add("-XX:+UseStringDeduplication");
         cmd.add("-XX:+PerfDisableSharedMem");
