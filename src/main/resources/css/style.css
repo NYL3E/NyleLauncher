@@ -398,26 +398,29 @@
     -fx-background-color: rgba(255,255,255,0.07);
 }
 .pill-switch > .box > .mark {
-    -fx-background-color: #9CA0AB;
-    -fx-background-radius: 999;
+    -fx-background-color: #C2C6D0;
+    -fx-background-insets: 0;
     -fx-min-width: 18; -fx-max-width: 18;
     -fx-min-height: 18; -fx-max-height: 18;
+    -fx-pref-width: 18; -fx-pref-height: 18;
     -fx-padding: 0;
-    -fx-shape: "M4,0 a4,4 0 1,1 -0.001,0 z";
-    -fx-translate-x: -12;
+    -fx-shape: "M9,0 A9,9 0 1,1 8.999,0 Z";
+    -fx-scale-shape: false;
+    -fx-translate-x: -11;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 3, 0, 0, 1);
 }
 .pill-switch:selected > .box {
-    -fx-background-color: linear-gradient(to right, #6E44FF 0%, #8C5BFF 100%);
-    -fx-border-color: rgba(140,91,255,0.55);
-    -fx-effect: dropshadow(gaussian, rgba(110,68,255,0.45), 14, 0.18, 0, 0);
+    -fx-background-color: linear-gradient(to right, -c-accent 0%, -c-accent-hi 100%);
+    -fx-border-color: rgba(255,131,64,0.60);
+    -fx-effect: dropshadow(gaussian, rgba(255,106,26,0.42), 13, 0.16, 0, 0);
 }
 .pill-switch:selected > .box > .mark {
     -fx-background-color: #FFFFFF;
-    -fx-translate-x: 12;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 4, 0, 0, 1);
+    -fx-translate-x: 11;
 }
 .pill-switch:selected:hover > .box {
-    -fx-background-color: linear-gradient(to right, #8C5BFF 0%, #A879FF 100%);
+    -fx-background-color: linear-gradient(to right, -c-accent-hi 0%, #FFA063 100%);
+    -fx-border-color: rgba(255,131,64,0.85);
 }
 
 /* Slider */
@@ -544,7 +547,7 @@
         linear-gradient(to right, -c-accent 0px, -c-accent 3px, transparent 3px),
         rgba(255,106,26,0.12);
     -fx-background-radius: 0, 10;
-    -fx-text-fill: #FF8340;
+    -fx-text-fill: #FFFFFF;
 }
 
 /* Clearer secondary button (e.g. "Ouvrir le dossier du jeu") */

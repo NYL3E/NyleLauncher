@@ -293,10 +293,8 @@ public class SettingsView extends BorderPane {
                 Settings.get().closeOnLaunch,
                 v -> { Settings.get().closeOnLaunch = v; Settings.get().save(); });
 
-        Button openFiles = new Button("Ouvrir le dossier du jeu");
-        openFiles.getStyleClass().add("btn-ghost");
-        openFiles.setFont(Fonts.semi(14));
-        openFiles.setOnAction(e -> openGameFolder());
+        Button openFiles = folderButton("Ouvrir le dossier du jeu",
+                () -> openInExplorer(fr.nylerp.launcher.config.AppPaths.gameDir().toFile()));
         HBox openRow = new HBox(openFiles);
         openRow.setAlignment(Pos.CENTER_LEFT);
         openRow.setPadding(new Insets(2, 0, 0, 0));
@@ -304,11 +302,22 @@ public class SettingsView extends BorderPane {
         return new VBox(14, h, p, closeRow, openRow);
     }
 
-    /** Ouvre le dossier du jeu (.../game) dans l'explorateur de l'OS. Sur un thread à part et
-     *  totalement try/catch : ouvrir un dossier ne doit JAMAIS faire planter le launcher. */
-    private void openGameFolder() {
+    /** A ghost button with a folder icon + label that opens a folder. Reused for the game + mods folders. */
+    private Button folderButton(String label, Runnable action) {
+        Button b = new Button(label);
+        b.getStyleClass().add("btn-ghost");
+        b.setFont(Fonts.semi(14));
+        b.setGraphic(Icons.folder(15, Color.web("#F4F4F7")));
+        b.setGraphicTextGap(9);
+        b.setOnAction(e -> action.run());
+        return b;
+    }
+
+    /** Ouvre un dossier dans l'explorateur de l'OS. Sur un thread à part et totalement try/catch :
+     *  ouvrir un dossier ne doit JAMAIS faire planter le launcher. Le dossier est créé s'il manque. */
+    private void openInExplorer(java.io.File dir) {
         new Thread(() -> {
-            java.io.File dir = fr.nylerp.launcher.config.AppPaths.gameDir().toFile();
+            try { if (!dir.exists()) dir.mkdirs(); } catch (Throwable ignored) {}
             try {
                 if (java.awt.Desktop.isDesktopSupported()
                         && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
@@ -361,7 +370,13 @@ public class SettingsView extends BorderPane {
                 v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); },
                 dhMac);
 
-        return new VBox(14, h, p, litematicaRow, irisRow, dhRow);
+        Button openMods = folderButton("Ouvrir le dossier des mods",
+                () -> openInExplorer(fr.nylerp.launcher.config.AppPaths.gameDir().resolve("mods").toFile()));
+        HBox openModsRow = new HBox(openMods);
+        openModsRow.setAlignment(Pos.CENTER_LEFT);
+        openModsRow.setPadding(new Insets(6, 0, 0, 0));
+
+        return new VBox(14, h, p, litematicaRow, irisRow, dhRow, openModsRow);
     }
 
     /** A single optional-mod row: title + description on the left, pill switch
