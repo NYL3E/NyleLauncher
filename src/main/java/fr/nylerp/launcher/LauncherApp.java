@@ -197,6 +197,10 @@ public class LauncherApp extends Application {
     private void show(javafx.scene.Parent root) {
         if (scene == null) {
             scene = new Scene(root, 1000, fr.nylerp.launcher.ui.MainView.BODY_HEIGHT + 64.0);
+            // Paint the Scene background the app dark (= bottom-bar #08080B). Without this, sizeToScene's
+            // sub-pixel rounding can leave a ~1px sliver of the Scene's DEFAULT WHITE showing under the
+            // bottom bar on macOS (the thin white line). Dark fill = no white can ever show; no layout impact.
+            scene.setFill(javafx.scene.paint.Color.web("#08080B"));
             scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
             stage.setScene(scene);
         } else {

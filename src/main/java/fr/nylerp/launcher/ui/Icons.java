@@ -48,6 +48,15 @@ public final class Icons {
         return solid(CART_PATH, size, CART_VB, color);
     }
 
+    // Heroicons 24-solid folder
+    private static final String FOLDER_PATH =
+            "M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 9h-15a4.483 4.483 0 0 0-3 1.146Z";
+    private static final double FOLDER_VB = 24.0;
+
+    public static Group folder(double size, Color color) {
+        return solid(FOLDER_PATH, size, FOLDER_VB, color);
+    }
+
     public static Group microsoftLogo(double size) {
         Group g = new Group();
         double half = size / 2;
