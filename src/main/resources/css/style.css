@@ -522,3 +522,42 @@
 .settings-scroll > .scroll-bar:vertical > .decrement-arrow {
     -fx-shape: null; -fx-padding: 0;
 }
+
+/* ── Settings — left nav rail + focused section (clearer navigation) ───────── */
+.settings-body  { -fx-background-color: transparent; }
+.settings-nav   { -fx-background-color: rgba(255,255,255,0.015); }
+.settings-nav-divider { -fx-background-color: rgba(255,255,255,0.07); }
+
+.settings-nav-item {
+    -fx-background-color: transparent;
+    -fx-text-fill: #A2A2AC;
+    -fx-padding: 11 14 11 16;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+}
+.settings-nav-item:hover {
+    -fx-background-color: rgba(255,255,255,0.055);
+    -fx-text-fill: #F4F4F7;
+}
+.settings-nav-item.active {
+    -fx-background-color:
+        linear-gradient(to right, -c-accent 0px, -c-accent 3px, transparent 3px),
+        rgba(255,106,26,0.12);
+    -fx-background-radius: 0, 10;
+    -fx-text-fill: #FF8340;
+}
+
+/* Clearer secondary button (e.g. "Ouvrir le dossier du jeu") */
+.btn-ghost {
+    -fx-padding: 11 22 11 22;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-width: 1.4;
+    -fx-border-color: rgba(255,255,255,0.16);
+    -fx-cursor: hand;
+}
+.btn-ghost:hover {
+    -fx-background-color: rgba(255,106,26,0.12);
+    -fx-border-color: -c-accent;
+    -fx-text-fill: #FF8340;
+}

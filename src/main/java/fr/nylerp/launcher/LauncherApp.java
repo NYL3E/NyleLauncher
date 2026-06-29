@@ -48,22 +48,13 @@ public class LauncherApp extends Application {
         this.stage = stage;
         stage.setTitle(Constants.APP_NAME);
         stage.setResizable(false);
-        stage.setWidth(1000);
-        // Stage outer height = body (matches video display rect at width
-        // 1000) + bottom bar 64 px + macOS chrome 28 px ≈ 648 px.
-        // {@code MainView.BODY_HEIGHT} (= 1000 × 1080/1942 = 556.13) is
-        // the source of truth — see comment there. Updating the videos to
-        // a different aspect requires bumping both constants together.
-        //
-        // 2026-05-16 — was 680 px (assumed up to 50-px chrome) but that
-        // left ~30 px of slack above the video, exposing the fallback
-        // background image. 648 fits the inner content edge-to-edge with
-        // no slack at the top.
-        stage.setHeight(
-                fr.nylerp.launcher.ui.MainView.BODY_HEIGHT
-                + 64.0    // bottom bar
-                + 28.0    // macOS standard non-resizable titlebar
-        );
+        // The window CONTENT (scene) is pinned to exactly 1000 × (BODY_HEIGHT + 64-px bottom bar) in show().
+        // We must NOT hardcode the titlebar height here: the old "+ 28" was the macOS chrome, but the Windows
+        // chrome (titlebar + borders, DPI-scaled at 125 %/150 %) is taller, so the client area came out too
+        // short and the 64-px bottom bar (the black rectangle behind the loading bar + Play button) overflowed
+        // the bottom and wrapped back to the top. Instead, stage.sizeToScene() (just before show(), below) sizes
+        // the window to the scene + the OS's OWN chrome → correct on Windows AND macOS, no crop, no top slack.
+        // MainView.BODY_HEIGHT (= 1000 × 1080/1942 = 556.13 px) is the source of truth for the body height.
         try {
             stage.getIcons().add(new javafx.scene.image.Image(
                     getClass().getResourceAsStream("/images/app_icon.png")));
@@ -82,6 +73,7 @@ public class LauncherApp extends Application {
         } else {
             showLogin();
         }
+        stage.sizeToScene();   // window = scene content (1000 × BODY_HEIGHT+64) + the platform's OWN chrome
         stage.show();
     }
 
@@ -204,7 +196,7 @@ public class LauncherApp extends Application {
 
     private void show(javafx.scene.Parent root) {
         if (scene == null) {
-            scene = new Scene(root);
+            scene = new Scene(root, 1000, fr.nylerp.launcher.ui.MainView.BODY_HEIGHT + 64.0);
             scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
             stage.setScene(scene);
         } else {
