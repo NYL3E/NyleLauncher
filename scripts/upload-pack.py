@@ -177,10 +177,18 @@ def main():
     #    PAS l'asset (échec silencieux sous charge) => upload_asset ne lève rien et le
     #    fichier manque dans la release. On liste les assets RÉELLEMENT présents
     #    (pagination, >100 assets) et on re-tente les manquants jusqu'à ce que tout soit là.
-    def present_names():
+    #
+    #    NOTE: GitHub may assign a different release ID in the tag lookup than what
+    #    create_release() returned (race/reuse). Always re-resolve by tag before
+    #    verifying so we query the correct release.
+    def resolve_rid():
+        r = api("GET", f"https://api.github.com/repos/{REPO}/releases/tags/{TAG}", tk)
+        return r["id"]
+
+    def present_names(verify_rid):
         names, page = set(), 1
         while True:
-            batch = api("GET", f"https://api.github.com/repos/{REPO}/releases/{rid}/assets?per_page=100&page={page}", tk)
+            batch = api("GET", f"https://api.github.com/repos/{REPO}/releases/{verify_rid}/assets?per_page=100&page={page}", tk)
             if not batch:
                 break
             names |= {a["name"] for a in batch}
@@ -190,20 +198,26 @@ def main():
         return names
 
     print("5) Verifying all assets landed (+ retry missing)")
+    # Wait briefly for GitHub to settle after parallel uploads
+    time.sleep(2)
+    verify_rid = resolve_rid()
+    if verify_rid != rid:
+        print(f"   NOTE: tag resolves to release id={verify_rid} (created as {rid}) — using tag-resolved id")
     for attempt in range(5):
-        have = present_names()
+        have = present_names(verify_rid)
         missing = [f for f in assets if f.name not in have]
         if not missing:
             break
         print(f"   {len(missing)} manquants -> re-upload (tentative {attempt + 1}/5)")
         for f in missing:
             try:
-                upload_asset(tk, rid, f)
+                upload_asset(tk, verify_rid, f)
             except Exception as e:
                 errors.append((f.name, str(e)))
         time.sleep(3)
+        verify_rid = resolve_rid()
 
-    missing = [f.name for f in assets if f.name not in present_names()]
+    missing = [f.name for f in assets if f.name not in present_names(verify_rid)]
     if missing:
         print(f"\n{len(missing)} assets TOUJOURS absents après 5 tentatives:", file=sys.stderr)
         for n in missing[:25]:
