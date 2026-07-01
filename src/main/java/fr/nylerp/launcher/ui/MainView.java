@@ -124,6 +124,7 @@ public class MainView extends BorderPane {
 
     private final java.util.function.Consumer<Account> onSwitchAccount;
     private final Runnable onAddAccount;
+    private final Runnable onLogout;
 
     /** Legacy 3-arg constructor kept for any external caller — no switcher. */
     public MainView(Account account, Runnable onLogout, Runnable onSettings) {
@@ -135,6 +136,7 @@ public class MainView extends BorderPane {
                     Runnable onAddAccount) {
         this.onSwitchAccount = onSwitchAccount;
         this.onAddAccount = onAddAccount;
+        this.onLogout = onLogout;
         getStyleClass().add("main-root");
         instanceForLiveUpdate = this;       // expose to static volume hooks
         // BorderPane layout: bottom = 64 px play-bar (hard-clamped), center
@@ -394,7 +396,44 @@ public class MainView extends BorderPane {
             Region grow = new Region();
             HBox.setHgrow(grow, Priority.ALWAYS);
 
-            HBox row = new HBox(10, new SkinHead(acc, 22), col, grow, activeDot);
+            // ── Bouton « Retirer » → « Confirmer » (2 étapes) ─────────────────────
+            Label removeBtn = new Label("Retirer");
+            removeBtn.setFont(Fonts.semi(10));
+            removeBtn.setTextFill(Color.web("#8A8A93"));
+            removeBtn.setPadding(new Insets(3, 8, 3, 8));
+            String removeBase = "-fx-background-radius: 8; -fx-cursor: hand;"
+                    + "-fx-border-color: rgba(255,255,255,0.14); -fx-border-radius: 8; -fx-border-width: 1;";
+            removeBtn.setStyle(removeBase);
+            final boolean[] confirming = { false };
+            removeBtn.setOnMouseEntered(e -> { if (!confirming[0]) removeBtn.setStyle(removeBase
+                    + "-fx-background-color: rgba(255,255,255,0.06);"); });
+            removeBtn.setOnMouseExited(e -> { if (!confirming[0]) removeBtn.setStyle(removeBase); });
+            removeBtn.setOnMouseClicked(e -> {
+                e.consume();   // ne PAS déclencher le switch de compte de la ligne
+                if (!confirming[0]) {
+                    // 1er clic → bascule en confirmation (rouge)
+                    confirming[0] = true;
+                    removeBtn.setText("Confirmer");
+                    removeBtn.setTextFill(Color.web("#FF5C5C"));
+                    removeBtn.setStyle("-fx-background-radius: 8; -fx-cursor: hand;"
+                            + "-fx-background-color: rgba(255,60,60,0.16);"
+                            + "-fx-border-color: rgba(255,92,92,0.55); -fx-border-radius: 8; -fx-border-width: 1;");
+                } else {
+                    // 2e clic → retrait effectif du compte
+                    boolean wasActive = fr.nylerp.launcher.auth.AccountStore.remove(acc);
+                    popup.hide();
+                    if (wasActive) {
+                        // le compte actif a été retiré → bascule vers le suivant, ou logout si plus aucun
+                        Account na = fr.nylerp.launcher.auth.AccountStore.active();
+                        if (na != null && onSwitchAccount != null) onSwitchAccount.accept(na);
+                        else if (onLogout != null) onLogout.run();
+                    } else {
+                        showAccountMenu(anchor, current);   // rouvre le menu avec la liste à jour
+                    }
+                }
+            });
+
+            HBox row = new HBox(10, new SkinHead(acc, 22), col, grow, activeDot, removeBtn);
             row.setAlignment(Pos.CENTER_LEFT);
             row.setPadding(new Insets(7, 12, 7, 8));
             row.setMinWidth(210);

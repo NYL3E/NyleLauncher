@@ -163,6 +163,26 @@ public final class AccountStore {
         persist();
     }
 
+    /**
+     * Removes a SPECIFIC account (by identity) from the roster. Keeps the active index pointing at the
+     * same account where possible. Returns {@code true} if the removed account WAS the active one — the
+     * caller then switches to {@link #active()} (now the first remaining) or logs out if the roster is
+     * empty.
+     */
+    public static synchronized boolean remove(Account a) {
+        load();
+        int i = indexOf(a);
+        if (i < 0) return false;
+        boolean wasActive = (i == activeIndex);
+        accounts.remove(i);
+        if (accounts.isEmpty()) activeIndex = -1;
+        else if (i < activeIndex) activeIndex--;        // active shifted left by the removal
+        else if (wasActive) activeIndex = 0;            // active removed → first remaining becomes active
+        LOG.info("Removed account '{}' from roster (wasActive={})", a.username(), wasActive);
+        persist();
+        return wasActive;
+    }
+
     /** Replaces the active entry after a silent token refresh. */
     public static synchronized void updateActive(Account refreshed) {
         load();
