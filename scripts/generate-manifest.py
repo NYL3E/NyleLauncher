@@ -89,9 +89,14 @@ def main():
         # Sophisticated Storage user-side toggles (visuals, sort modes, etc.).
         "config/sophisticatedcore-client.toml",
         "config/sophisticatedstorage-client.toml",
-        # Watut player-tracker UI prefs (font sizes, where the panel sits).
-        "config/watut-client.toml",
+        # Watut item-arm render adjustments (user-tweakable per-item arm fit).
         "config/watut-item-arm-adjustments.json",
+        # NOTE: config/watut-client.toml is DELIBERATELY NOT protected — 2026-06-29
+        # we force showGuisForYourOwnPlayerIn3rdPerson=false so Watut stops animating
+        # the player's OWN model in 3rd person (head-look + right-arm point). That
+        # animation flung the head + right arm off-view (extreme/NaN pivot) when the
+        # window lost focus with no menu open. Must reach every existing player, so it
+        # stays under publisher control (same rationale as DistantHorizons/ModMenu below).
         # Exposure camera mod client prefs.
         "config/exposure-client.toml",
         "config/exposure_polaroid-client.toml",
