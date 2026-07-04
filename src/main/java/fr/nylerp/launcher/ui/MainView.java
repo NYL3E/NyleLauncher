@@ -1317,20 +1317,49 @@ public class MainView extends BorderPane {
                 // sync below restore the proxy-only list.
                 ServerListSanitizer.sweep();
 
-                try {
-                    ModpackUpdater updater = new ModpackUpdater(new ModpackUpdater.Listener() {
-                        @Override public void onStatus(String line) {
-                            Platform.runLater(() -> status.setText(line));
+                // Sync du modpack. En cas d'échec on ne lance PLUS silencieusement les
+                // vieux mods (ce qui laissait le joueur bloqué sur une version périmée sans
+                // le savoir) : on affiche un dialog clair et on laisse le joueur choisir —
+                // Réessayer / Lancer quand même (cas hors-ligne assumé) / Annuler.
+                ModpackUpdater updater = new ModpackUpdater(new ModpackUpdater.Listener() {
+                    @Override public void onStatus(String line) {
+                        Platform.runLater(() -> status.setText(line));
+                    }
+                    @Override public void onProgress(int d, int t, long bd, long bt) {
+                        Platform.runLater(() -> progress.setProgress(t == 0 ? 0 : (double) d / t));
+                    }
+                });
+                boolean syncCancelled = false;
+                while (true) {
+                    try {
+                        updater.sync();
+                        break;                       // sync réussi → on continue le lancement
+                    } catch (Exception syncErr) {
+                        org.slf4j.LoggerFactory.getLogger("ModpackSync")
+                                .warn("Modpack sync failed: {}", syncErr.toString(), syncErr);
+                        SyncFailedDialog.Choice choice = SyncFailedDialog.ask(syncErr.getMessage());
+                        if (choice == SyncFailedDialog.Choice.RETRY) {
+                            Platform.runLater(() -> status.setText("Nouvelle tentative de mise à jour…"));
+                            continue;                // reboucle → relance sync()
                         }
-                        @Override public void onProgress(int d, int t, long bd, long bt) {
-                            Platform.runLater(() -> progress.setProgress(t == 0 ? 0 : (double) d / t));
+                        if (choice == SyncFailedDialog.Choice.LAUNCH_ANYWAY) {
+                            Platform.runLater(() ->
+                                    status.setText("Lancement local (version possiblement périmée)…"));
+                            break;                   // le joueur assume la version locale (hors-ligne/GitHub down)
                         }
+                        syncCancelled = true;        // CANCEL → abandon propre du lancement
+                        break;
+                    }
+                }
+                if (syncCancelled) {
+                    Platform.runLater(() -> {
+                        status.setText("Lancement annulé");
+                        progress.setProgress(0);
+                        play.setDisable(false);
+                        setPlayBusy(false);
+                        refreshPlayButton();
                     });
-                    updater.sync();
-                } catch (Exception syncErr) {
-                    org.slf4j.LoggerFactory.getLogger("ModpackSync")
-                            .warn("Modpack sync failed, continuing local: {}", syncErr.toString(), syncErr);
-                    Platform.runLater(() -> status.setText("Sync KO, lancement local…"));
+                    return;
                 }
 
                 // Reconcile optional mods (Bobby, Litematica) AFTER the
