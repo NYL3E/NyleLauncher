@@ -82,7 +82,7 @@ public class LauncherApp extends Application {
      *  roster ; transient failures keep the cached token. */
     private void silentRefresh(Account acc) {
         if (acc.type() != Account.Type.MICROSOFT || acc.refreshToken() == null) return;
-        fr.nylerp.launcher.auth.MicrosoftSystemAuth.refresh(acc.refreshToken())
+        fr.nylerp.launcher.auth.MicrosoftAuth.refresh(acc.refreshToken())
                 .whenComplete((refreshed, err) -> javafx.application.Platform.runLater(() -> {
                     if (err != null) {
                         String msg = err.toString();

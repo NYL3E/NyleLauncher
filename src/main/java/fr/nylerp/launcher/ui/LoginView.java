@@ -1,7 +1,7 @@
 package fr.nylerp.launcher.ui;
 
 import fr.nylerp.launcher.auth.Account;
-import fr.nylerp.launcher.auth.MicrosoftSystemAuth;
+import fr.nylerp.launcher.auth.MicrosoftAuth;
 import fr.nylerp.launcher.auth.OfflineAuth;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -141,26 +141,26 @@ public class LoginView extends StackPane {
 
     private void doMicrosoftLogin(Button btn, Consumer<Account> onAuthenticated) {
         btn.setDisable(true);
-        btn.setText("Demande du code…");
+        btn.setText("Connexion Microsoft…");
 
-        // Dialog shown when Microsoft hands us the user_code. It copies the
-        // code to clipboard, opens microsoft.com/link in the browser, and
-        // waits for the background poll to finish.
-        final javafx.stage.Stage[] dialog = { null };
-
-        MicrosoftSystemAuth.login(dc -> Platform.runLater(() -> {
-            btn.setText("En attente du navigateur…");
-            javafx.scene.input.ClipboardContent cb = new javafx.scene.input.ClipboardContent();
-            cb.putString(dc.userCode());
-            javafx.scene.input.Clipboard.getSystemClipboard().setContent(cb);
-            dialog[0] = showDeviceCodeDialog(dc.userCode(), dc.verificationUri());
-        })).whenComplete((acc, err) -> Platform.runLater(() -> {
-            if (dialog[0] != null) dialog[0].close();
+        // Fenêtre de connexion Microsoft EMBARQUÉE (WebView OpenAuth) : l'utilisateur se
+        // connecte entièrement dans la fenêtre (login + 2FA + compte famille gérés nativement
+        // par la page Microsoft), et le launcher récupère le token via le redirect desktop
+        // legacy — pas d'Azure, pas de device-code (qui échouait en invalid_grant pour les
+        // comptes 2FA/famille). C'est le flux standard de MultiMC / Prism / HMCL.
+        MicrosoftAuth.loginWithWebview().whenComplete((acc, err) -> Platform.runLater(() -> {
             btn.setDisable(false);
             btn.setText("Continuer avec Microsoft");
             if (err != null) {
-                showError("Microsoft",
-                        err.getCause() != null ? err.getCause().getMessage() : err.getMessage());
+                Throwable c = err.getCause() != null ? err.getCause() : err;
+                String m = c.getMessage() != null ? c.getMessage() : c.toString();
+                // L'utilisateur a simplement fermé la fenêtre = annulation, pas une erreur.
+                String low = m == null ? "" : m.toLowerCase();
+                if (low.contains("closed") || low.contains("cancel") || low.contains("annul")
+                        || low.contains("user closed") || low.contains("aborted")) {
+                    return;
+                }
+                showError("Microsoft", m);
             } else {
                 onAuthenticated.accept(acc);
             }
