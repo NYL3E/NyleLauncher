@@ -20,6 +20,13 @@ public final class MicrosoftAuth {
      */
     public static CompletableFuture<Account> loginWithWebview() {
         LOG.info("Microsoft login starting (OpenAuth async webview)…");
+        // Session Microsoft PROPRE à chaque tentative : on remplace le gestionnaire de cookies
+        // par un neuf (vide) avant d'ouvrir le WebView. Le WebView JavaFX lit
+        // CookieHandler.getDefault() dynamiquement, donc ceci force Microsoft à TOUJOURS
+        // réafficher la page de connexion. Sans ça, la session du compte précédent persiste
+        // dans la même session du launcher → au 2e essai Microsoft auto-login le compte
+        // précédent SANS réafficher la page → refus immédiat (il fallait quitter/relancer).
+        clearMicrosoftSession();
         return CompletableFuture.supplyAsync(() -> {
             MicrosoftAuthenticator authenticator = new MicrosoftAuthenticator();
             try {
@@ -62,6 +69,19 @@ public final class MicrosoftAuth {
                 throw new RuntimeException("Refresh MS échoué: " + e.getMessage(), e);
             }
         });
+    }
+
+    /** Remplace le gestionnaire de cookies par un neuf (vide) → session Microsoft repartie de zéro
+     *  pour le prochain WebView, ce qui garantit que la page de connexion se réaffiche et qu'on peut
+     *  changer de compte / réessayer après un échec sans redémarrer le launcher. */
+    private static void clearMicrosoftSession() {
+        try {
+            java.net.CookieManager fresh = new java.net.CookieManager();
+            fresh.setCookiePolicy(java.net.CookiePolicy.ACCEPT_ALL);
+            java.net.CookieHandler.setDefault(fresh);
+        } catch (Exception e) {
+            LOG.warn("clearMicrosoftSession failed (non-fatal): {}", e.toString());
+        }
     }
 
     private static String formatUuid(String raw) {
