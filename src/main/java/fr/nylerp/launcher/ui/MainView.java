@@ -1066,14 +1066,7 @@ public class MainView extends BorderPane {
 
         VBox body = new VBox(12);
         body.setPadding(new Insets(16, 20, 20, 20));
-        body.getChildren().addAll(
-                newsItem("NOUVEAU", "Lootbox animées",
-                        "Trois nouvelles lootbox — classique, légendaire, ultime."),
-                newsItem("MAJ", "Mods optionnels",
-                        "Litematica désormais disponible dans les paramètres."),
-                newsItem("ÉVÉNEMENT", "Weekend XP double",
-                        "Vendredi soir au dimanche — profitez-en pour monter.")
-        );
+        body.getChildren().add(buildOpeningNews());
 
         // Scrollable news list so more items can be added later without resizing the panel
         ScrollPane scroll = new ScrollPane(body);
@@ -1116,8 +1109,8 @@ public class MainView extends BorderPane {
         glassPanel.getStyleClass().add("glass-news-panel");
         glassPanel.setPrefWidth(320);
         glassPanel.setMaxWidth(320);
-        glassPanel.setPrefHeight(260);
-        glassPanel.setMaxHeight(260);
+        glassPanel.setPrefHeight(335);
+        glassPanel.setMaxHeight(335);
         // Allow the VBox to shrink below its content's minHeight during the
         // collapse animation. Without this, the scroll's minHeight would
         // floor the panel and the chevron toggle would do nothing visible.
@@ -1125,7 +1118,7 @@ public class MainView extends BorderPane {
 
         // Clip so the scroll content disappears cleanly inside the rounded
         // corners as the panel animates from full height down to just-header.
-        Rectangle panelClip = new Rectangle(320, 260);
+        Rectangle panelClip = new Rectangle(320, 335);
         panelClip.setArcWidth(44);
         panelClip.setArcHeight(44);
         glassPanel.setClip(panelClip);
@@ -1134,7 +1127,7 @@ public class MainView extends BorderPane {
         // Collapse / expand — clicking anywhere on the header animates the
         // panel between full (260) and just-the-header (~54). Arrow flips
         // 180° so the chevron always points in the direction content will go.
-        final double EXPANDED_H = 260;
+        final double EXPANDED_H = 335;
         final double COLLAPSED_H = 50;
         boolean[] expanded = { true };
         header.setOnMouseClicked(e -> {
@@ -1151,25 +1144,58 @@ public class MainView extends BorderPane {
         return glassPanel;
     }
 
-    private Region newsItem(String tag, String title, String desc) {
-        Label tagLbl = new Label(tag);
+    /** The single, headline announcement — the server opening — shown as a hero
+     *  card: full-width image on top (rounded corners, ratio preserved) with the
+     *  tag / title / text stacked underneath, keeping the existing glass DA. */
+    private Region buildOpeningNews() {
+        // Body content width: panel (320) minus the body's left/right padding (20+20).
+        final double CARD_W = 280;
+
+        // Hero image — loaded straight from the bundled resource. fitWidth pins it
+        // to the card width, preserveRatio keeps the 1200×551 proportions, smooth
+        // gives clean downscaling.
+        ImageView cover = new ImageView(new Image(
+                getClass().getResourceAsStream("/assets/news/ouverture.jpg")));
+        cover.setFitWidth(CARD_W);
+        cover.setPreserveRatio(true);
+        cover.setSmooth(true);
+
+        Label tagLbl = new Label("OUVERTURE");
         tagLbl.setFont(Fonts.black(9));
         tagLbl.getStyleClass().add("news-tag");
+        // Wrap so the pill hugs its text instead of stretching across the card.
+        HBox tagRow = new HBox(tagLbl);
+        tagRow.setAlignment(Pos.CENTER_LEFT);
 
-        Label t = new Label(title);
-        t.setFont(Fonts.bold(13));
+        Label t = new Label("Ouverture du serveur");
+        t.setFont(Fonts.bold(15));
         t.setTextFill(Color.web("#F4F4F7"));
 
-        Label d = new Label(desc);
+        Label d = new Label("Rendez-vous le 8 juillet à 14h00 pour l'ouverture du serveur !");
         d.setFont(Fonts.medium(11));
         d.setTextFill(Color.web("#A2A2AC"));
         d.setWrapText(true);
 
-        VBox v = new VBox(6, tagLbl, t, d);
-        v.getStyleClass().add("news-item-glass");
-        v.setPadding(new Insets(12, 14, 12, 14));
-        Animations.hoverLift(v, 2);
-        return v;
+        VBox textBlock = new VBox(7, tagRow, t, d);
+        textBlock.setPadding(new Insets(13, 14, 14, 14));
+
+        VBox card = new VBox(cover, textBlock);
+        card.getStyleClass().add("news-item-glass");
+        card.setPrefWidth(CARD_W);
+        card.setMaxWidth(CARD_W);
+
+        // Round the card (and, with it, the image's top corners) so the cover sits
+        // flush edge-to-edge yet follows the card's rounded outline. Clip tracks the
+        // card's live size so the text below is never cut off, whatever it wraps to.
+        Rectangle cardClip = new Rectangle();
+        cardClip.setArcWidth(24);
+        cardClip.setArcHeight(24);
+        cardClip.widthProperty().bind(card.widthProperty());
+        cardClip.heightProperty().bind(card.heightProperty());
+        card.setClip(cardClip);
+
+        Animations.hoverLift(card, 2);
+        return card;
     }
 
     private void pulse(Circle dot) {
