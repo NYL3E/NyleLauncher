@@ -5,7 +5,7 @@ Launcher Minecraft cross-platform pour **NyleRP** — `play.nylerp.fr`.
 ## Features
 
 - Connexion **Microsoft** (compte officiel Minecraft Java Edition)
-- Connexion **offline/crack** (mode non-premium)
+- Mode **hors-ligne** (session locale, sans compte Microsoft)
 - **Mise à jour automatique** du modpack à chaque démarrage via `manifest.json`
 - Lancement direct dans le serveur `play.nylerp.fr`
 - UI orange/gris foncé, police Montserrat
@@ -13,7 +13,7 @@ Launcher Minecraft cross-platform pour **NyleRP** — `play.nylerp.fr`.
 ## Stack
 
 - Java 21, JavaFX 21
-- OpenLauncherLib + FlowUpdater (framework lancement MC type Paladium)
+- OpenLauncherLib + FlowUpdater (frameworks open source de lancement Minecraft)
 - OpenAuth pour Microsoft OAuth
 - Build : Gradle, Shadow Plugin
 
