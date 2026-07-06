@@ -160,7 +160,10 @@ public class LoginView extends StackPane {
                         || low.contains("user closed") || low.contains("aborted")) {
                     return;
                 }
-                showError("Microsoft", m);
+                // Explication CLAIRE (cause probable + étapes concrètes) au lieu du message HTTP brut.
+                var explained = fr.nylerp.launcher.auth.AuthErrorExplainer.explain(m);
+                NyleErrorDialog.show(explained.title(), explained.message(),
+                        explained.steps(), explained.technical());
             } else {
                 onAuthenticated.accept(acc);
             }
@@ -276,9 +279,7 @@ public class LoginView extends StackPane {
     }
 
     private static void showError(String title, String msg) {
-        Alert a = new Alert(Alert.AlertType.ERROR, msg);
-        a.setTitle(title);
-        a.setHeaderText(null);
-        a.showAndWait();
+        // Plus jamais l'Alert système gris : toutes les erreurs passent par le dialog NyleRP.
+        NyleErrorDialog.show(title, msg);
     }
 }
