@@ -49,38 +49,80 @@ public final class WindowsUpdater {
 
         String launcherExe = locateInstalledLauncherExe();
 
+        long pid = ProcessHandle.current().pid();
+
         StringBuilder bat = new StringBuilder();
         bat.append("@echo off\r\n");
-        bat.append("setlocal\r\n");
+        bat.append("setlocal EnableDelayedExpansion\r\n");
         // Tee everything to scriptLog
         bat.append("echo [").append(stamp).append("] update script started > \"")
            .append(scriptLog).append("\"\r\n");
         bat.append("echo MSI = ").append(msi).append(" >> \"").append(scriptLog).append("\"\r\n");
         bat.append("echo MSI log = ").append(msiLog).append(" >> \"").append(scriptLog).append("\"\r\n");
+        bat.append("echo Parent PID = ").append(pid).append(" >> \"").append(scriptLog).append("\"\r\n");
         bat.append("echo Launcher target = ").append(launcherExe == null ? "(unknown — will skip relaunch)" : launcherExe)
            .append(" >> \"").append(scriptLog).append("\"\r\n");
-        // Wait 4 seconds for parent process to fully exit (file locks)
-        bat.append("echo Waiting 4 s for parent to exit... >> \"").append(scriptLog).append("\"\r\n");
-        bat.append("ping -n 5 127.0.0.1 > nul\r\n");
-        // Run msiexec with verbose logging (/L*v) and passive UI (progress bar but no buttons)
-        bat.append("echo Running msiexec /i ... /passive /norestart /L*v ... >> \"").append(scriptLog).append("\"\r\n");
+        // ── Attendre la MORT RÉELLE du launcher (PID), pas un délai fixe ─────────────────────────
+        // Le « ping 4 s » historique était une course : sur machine lente, l'exe était encore
+        // vivant quand msiexec démarrait → fichiers verrouillés → upgrade PARTIEL (fichiers libres
+        // remplacés, fichiers en usage laissés en pending-rename) → runtime mixte → « Failed to
+        // launch JVM » à chaque démarrage jusqu'au reboot/réinstall. On attend donc le VRAI PID
+        // (jusqu'à 60 s), puis taskkill de secours, puis 2 s de marge pour les handles.
+        bat.append("echo Waiting for PID ").append(pid).append(" to exit... >> \"").append(scriptLog).append("\"\r\n");
+        bat.append("set WAITED=0\r\n");
+        bat.append(":waitloop\r\n");
+        bat.append("tasklist /FI \"PID eq ").append(pid).append("\" /NH 2>nul | findstr /I \"")
+           .append(Constants.APP_NAME).append(" java\" >nul\r\n");
+        bat.append("if %ERRORLEVEL%==0 (\r\n");
+        bat.append("  set /a WAITED+=1\r\n");
+        bat.append("  if !WAITED! GEQ 60 (\r\n");
+        bat.append("    echo Parent still alive after 60 s - taskkill fallback >> \"").append(scriptLog).append("\"\r\n");
+        bat.append("    taskkill /PID ").append(pid).append(" /F >nul 2>nul\r\n");
+        bat.append("    goto waited\r\n");
+        bat.append("  )\r\n");
+        bat.append("  ping -n 2 127.0.0.1 > nul\r\n");
+        bat.append("  goto waitloop\r\n");
+        bat.append(")\r\n");
+        bat.append(":waited\r\n");
+        bat.append("echo Parent gone after ~!WAITED! s - grace 2 s for handle release >> \"").append(scriptLog).append("\"\r\n");
+        bat.append("ping -n 3 127.0.0.1 > nul\r\n");
+        // ── msiexec avec retries : 0 = OK, 3010 = OK (reboot requis), 1618 = autre install en
+        //    cours → retry (3 × 20 s), tout autre code = échec loggé + relance de l'ancien exe. ──
+        bat.append("set ATTEMPT=0\r\n");
+        bat.append(":msitry\r\n");
+        bat.append("set /a ATTEMPT+=1\r\n");
+        bat.append("echo Running msiexec (attempt !ATTEMPT!) /i ... /passive /norestart /L*v ... >> \"").append(scriptLog).append("\"\r\n");
         bat.append("msiexec /i \"").append(msi).append("\" /passive /norestart /L*v \"")
            .append(msiLog).append("\"\r\n");
         bat.append("set MSIRC=%ERRORLEVEL%\r\n");
-        bat.append("echo msiexec exit code: %MSIRC% >> \"").append(scriptLog).append("\"\r\n");
-        // If msiexec succeeded AND we found the new launcher, relaunch it
-        bat.append("if %MSIRC%==0 (\r\n");
+        bat.append("echo msiexec exit code: !MSIRC! >> \"").append(scriptLog).append("\"\r\n");
+        bat.append("if !MSIRC!==1618 (\r\n");
+        bat.append("  if !ATTEMPT! LSS 3 (\r\n");
+        bat.append("    echo Another install in progress - retry in 20 s >> \"").append(scriptLog).append("\"\r\n");
+        bat.append("    ping -n 21 127.0.0.1 > nul\r\n");
+        bat.append("    goto msitry\r\n");
+        bat.append("  )\r\n");
+        bat.append(")\r\n");
+        // Succès (0) ou succès-avec-reboot-planifié (3010) → relancer le launcher
+        bat.append("if !MSIRC!==0 goto relaunch\r\n");
+        bat.append("if !MSIRC!==3010 goto relaunch\r\n");
+        bat.append("echo Update FAILED with code !MSIRC! - see msi log >> \"").append(scriptLog).append("\"\r\n");
         if (launcherExe != null) {
-            bat.append("  echo Launching new exe... >> \"").append(scriptLog).append("\"\r\n");
-            bat.append("  start \"\" \"").append(launcherExe).append("\"\r\n");
+            // Échec AVANT modification des fichiers (cas typique 1603 costing) → l'ancien install
+            // est intact : on relance l'ancien exe pour ne jamais laisser l'utilisateur sans launcher.
+            bat.append("echo Relaunching existing exe after failure >> \"").append(scriptLog).append("\"\r\n");
+            bat.append("start \"\" \"").append(launcherExe).append("\"\r\n");
+        }
+        bat.append("goto done\r\n");
+        bat.append(":relaunch\r\n");
+        if (launcherExe != null) {
+            bat.append("echo Launching new exe... >> \"").append(scriptLog).append("\"\r\n");
+            bat.append("start \"\" \"").append(launcherExe).append("\"\r\n");
         } else {
-            bat.append("  echo (no launcher path resolved — user must launch manually) >> \"")
+            bat.append("echo (no launcher path resolved - user must launch manually) >> \"")
                .append(scriptLog).append("\"\r\n");
         }
-        bat.append(") else (\r\n");
-        bat.append("  echo Update FAILED with code %MSIRC% — see msi log >> \"")
-           .append(scriptLog).append("\"\r\n");
-        bat.append(")\r\n");
+        bat.append(":done\r\n");
         bat.append("endlocal\r\n");
 
         Files.writeString(script, bat.toString(),
