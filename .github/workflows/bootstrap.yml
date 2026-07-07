@@ -210,7 +210,7 @@ jobs:
             --main-jar "$(basename "$JAR")" \
             --main-class fr.nylerp.bootstrap.Bootstrap \
             --dest dist \
-            --java-options "-Xmx256m" \
+            --java-options "-Xmx1024m" \
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
@@ -296,7 +296,7 @@ jobs:
             --main-jar "$(basename "$JAR")" \
             --main-class fr.nylerp.bootstrap.Bootstrap \
             --dest portable \
-            --java-options "-Xmx256m" \
+            --java-options "-Xmx1024m" \
             --vendor "NyleRP" \
             --description "NyleRP Minecraft Launcher" \
             --copyright "NyleRP" \
