@@ -66,6 +66,9 @@ public final class MinecraftLauncher {
         // (firstInstallOnly path) sees the pack downloaded into resourcepacks/
         // but inactive in their pack stack.
         OptionsTxtMigration.ensureResourcePackEnabled(gameDir, "NYLERP-PACK.zip");
+        // One-shot keybind defaults for existing players (Tom's terminal + PointBlank
+        // unbound, perspective Y→F5). New players get these from the shipped options.txt.
+        OptionsTxtMigration.applyKeybindDefaultsOnce(gameDir);
 
         Path mcRoot  = AppPaths.rootDir().resolve("minecraft");
         Path clientJar = mcRoot.resolve("versions").resolve(Constants.MC_VERSION)
@@ -182,6 +185,10 @@ public final class MinecraftLauncher {
         l.onStatus("Lancement de Minecraft…");
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(gameDir.toFile());
+        // If this launcher process was heap-relaunched (HeapRelaunch), its environment
+        // carries _JAVA_OPTIONS=-Xmx1024m … which HotSpot parses LAST — it would silently
+        // cap the game's heap at 1 GB. Strip our injected tokens from the game's env.
+        fr.nylerp.launcher.util.HeapRelaunch.scrubInjectedEnv(pb.environment());
         pb.redirectErrorStream(true);
         pb.redirectOutput(ProcessBuilder.Redirect.to(mcLog.toFile()));
         try {
