@@ -1395,6 +1395,46 @@ public class MainView extends BorderPane {
                 OptionalMods.applyAll();
 
                 Account account = fr.nylerp.launcher.auth.AccountStore.active();
+                // ── Session TOUJOURS fraîche au lancement (fix « session invalide ») ─────────────
+                // Le refresh silencieux du démarrage ne suffit pas : un launcher laissé ouvert (ou un
+                // PC sorti de veille) lance le jeu avec un token Minecraft périmé (validité ~24 h) →
+                // « session invalide » à l'entrée du serveur. Ici on régénère la chaîne complète
+                // (refresh token MS → XBL → XSTS → token MC neuf) juste avant CHAQUE lancement :
+                // le jeu part systématiquement avec un token vieux de quelques secondes.
+                //  • échec réseau transitoire → on lance avec le token en cache (aucune régression) ;
+                //  • refresh token révoqué/expiré (~90 j) → on N'ENVOIE PAS le joueur dans un échec
+                //    de session garanti : message clair + retour à l'écran de connexion.
+                if (account != null && account.type() == Account.Type.MICROSOFT
+                        && account.refreshToken() != null) {
+                    Platform.runLater(() -> status.setText("Vérification de ta session Microsoft…"));
+                    try {
+                        Account fresh = fr.nylerp.launcher.auth.MicrosoftAuth
+                                .refresh(account.refreshToken())
+                                .get(20, java.util.concurrent.TimeUnit.SECONDS);
+                        fr.nylerp.launcher.auth.AccountStore.updateActive(fresh);
+                        account = fresh;
+                        org.slf4j.LoggerFactory.getLogger("Auth")
+                                .info("Session MC rafraîchie avant lancement pour {}", fresh.username());
+                    } catch (Exception refreshErr) {
+                        String m = String.valueOf(refreshErr);
+                        boolean hardReject = m.contains("invalid_grant") || m.contains("revoked")
+                                || m.contains("expired_token");
+                        if (hardReject) {
+                            org.slf4j.LoggerFactory.getLogger("Auth")
+                                    .warn("Refresh token rejeté au lancement: {}", m);
+                            Platform.runLater(() -> {
+                                status.setText("Ta session Microsoft a expiré — reconnecte ton compte.");
+                                progress.setProgress(0);
+                                play.setDisable(false);
+                                setPlayBusy(false);
+                                refreshPlayButton();
+                            });
+                            return;   // pas de lancement voué à la session invalide
+                        }
+                        org.slf4j.LoggerFactory.getLogger("Auth")
+                                .warn("Refresh avant lancement échoué (token en cache conservé): {}", m);
+                    }
+                }
                 int ramMb = Settings.get().ramMb;
                 // Read Fabric version from the cached manifest so the launcher
                 // always installs the loader specified by the modpack publisher,
