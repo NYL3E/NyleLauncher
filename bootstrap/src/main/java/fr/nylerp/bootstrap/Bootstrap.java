@@ -109,12 +109,41 @@ public final class Bootstrap {
                 || !sha256(target).equalsIgnoreCase(manifest.sha256);
         if (needDownload) {
             log("downloading payload " + manifest.version + " ← " + manifest.jarUrl);
-            downloadTo(manifest.jarUrl, target);
-            String got = sha256(target);
-            if (!got.equalsIgnoreCase(manifest.sha256)) {
-                Files.deleteIfExists(target);
-                throw new RuntimeException("SHA-256 mismatch on payload — expected "
-                        + manifest.sha256 + " got " + got);
+            // ── Téléchargement RÉSILIENT (2026-07-07) ────────────────────────────────────────────
+            // Un joueur a crash-loopé sur « SHA-256 mismatch » : le jar publié était sain (vérifié),
+            // c'est SON téléchargement qui arrivait corrompu (tronquage réseau, antivirus/proxy qui
+            // modifie le flux). L'ancien code : une seule tentative → delete → throw → launcher mort.
+            // Désormais : 3 tentatives (cache-buster pour contourner un cache intermédiaire vérolé),
+            // et si tout échoue on démarre sur le DERNIER payload en cache (une version d'avant qui
+            // marche vaut infiniment mieux qu'un crash) — le prochain démarrage retentera la MAJ.
+            boolean ok = false;
+            for (int attempt = 1; attempt <= 3 && !ok; attempt++) {
+                try {
+                    String url = manifest.jarUrl
+                            + (manifest.jarUrl.contains("?") ? "&" : "?") + "r=" + attempt + "." + System.nanoTime();
+                    downloadTo(url, target);
+                    String got = sha256(target);
+                    if (got.equalsIgnoreCase(manifest.sha256)) { ok = true; break; }
+                    log("WARN attempt " + attempt + "/3: SHA-256 mismatch (expected "
+                            + shortSha(manifest.sha256) + " got " + shortSha(got) + ") — retrying");
+                    Files.deleteIfExists(target);
+                } catch (Exception dlErr) {
+                    log("WARN attempt " + attempt + "/3 failed: " + dlErr.getMessage());
+                    try { Files.deleteIfExists(target); } catch (Exception ignored) { }
+                }
+                if (!ok && attempt < 3) Thread.sleep(1500L * attempt);
+            }
+            if (!ok) {
+                Path cached = mostRecentCached(cache);
+                if (cached != null) {
+                    log("WARN download corrupted 3x — starting on cached payload " + cached.getFileName()
+                            + " (will retry the update next start)");
+                    launch(cached, args, "fr.nylerp.launcher.Main");
+                    return;
+                }
+                throw new RuntimeException("Payload download corrupted 3 times AND no cached payload — "
+                        + "un antivirus/proxy modifie probablement les téléchargements ; réessaie ou "
+                        + "désactive l'inspection HTTPS de l'antivirus");
             }
             log("downloaded + verified");
         } else {
@@ -172,9 +201,28 @@ public final class Bootstrap {
         if (resp.statusCode() != 200) {
             throw new IOException("HTTP " + resp.statusCode() + " downloading " + url);
         }
+        long expected = resp.headers().firstValueAsLong("Content-Length").orElse(-1L);
         Path tmp = dest.resolveSibling(dest.getFileName() + ".part");
-        try (InputStream in = resp.body()) {
-            Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+        long copied = 0;
+        try (InputStream in = resp.body();
+             var out = Files.newOutputStream(tmp, java.nio.file.StandardOpenOption.CREATE,
+                     java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); copied += n; }
+        }
+        // Un flux coupé en route passe silencieusement dans Files.copy — on compare au Content-Length
+        // déclaré pour échouer TÔT (et déclencher le retry) plutôt que sur le hash final.
+        if (expected >= 0 && copied != expected) {
+            Files.deleteIfExists(tmp);
+            throw new IOException("Truncated download: " + copied + "/" + expected + " bytes");
+        }
+        // Détection « page d'erreur HTML » (proxy captif, rate-limit) : un jar commence par PK.
+        try (InputStream check = Files.newInputStream(tmp)) {
+            if (!(check.read() == 'P' && check.read() == 'K')) {
+                Files.deleteIfExists(tmp);
+                throw new IOException("Downloaded content is not a jar (proxy/AV interference?)");
+            }
         }
         Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
