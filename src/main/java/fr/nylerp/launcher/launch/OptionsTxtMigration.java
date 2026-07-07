@@ -92,5 +92,88 @@ public final class OptionsTxtMigration {
         }
     }
 
+    /**
+     * One-shot keybind defaults migration for EXISTING players (new players get
+     * these from the shipped {@code options.txt}). Runs exactly once — tracked by
+     * a marker file — so a player who later deliberately rebinds one of these keys
+     * is never overridden on subsequent launches.
+     *
+     * <p>Changes applied once:
+     * <ul>
+     *   <li>{@code key.toms_storage.open_terminal} → unbound (annoying default on B)</li>
+     *   <li>the six {@code key.pointblack.*} PointBlank keys → unbound</li>
+     *   <li>{@code key.togglePerspective}: if currently Y → F5 (vanilla default)</li>
+     * </ul>
+     */
+    private static final String[] UNBIND_KEYS = {
+            "key_key.toms_storage.open_terminal",
+            "key_key.pointblack.attachments",
+            "key_key.pointblack.firemode",
+            "key_key.pointblack.inspect",
+            "key_key.pointblack.reload",
+            "key_key.pointblack.scope_switch",
+            "key_key.pointblack.settings",
+            "key_key.disable_voice_chat",   // pas de touche pour désactiver le chat vocal
+    };
+
+    public static void applyKeybindDefaultsOnce(Path gameDir) {
+        Path opts = gameDir.resolve("options.txt");
+        Path marker = gameDir.resolve(".nyle_keybinds_v2");
+        if (Files.exists(marker) || !Files.exists(opts)) {
+            return; // already applied, or clean install (shipped options.txt already correct)
+        }
+        try {
+            List<String> lines = new ArrayList<>(Files.readAllLines(opts));
+            boolean changed = false;
+            java.util.Set<String> unbind = new java.util.HashSet<>(java.util.Arrays.asList(UNBIND_KEYS));
+            java.util.Set<String> present = new java.util.HashSet<>();
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                int colon = line.indexOf(':');
+                if (colon <= 0) continue;
+                String key = line.substring(0, colon);
+                if (unbind.contains(key)) {
+                    present.add(key);
+                    if (!line.endsWith(":key.keyboard.unknown")) {
+                        lines.set(i, key + ":key.keyboard.unknown");
+                        changed = true;
+                    }
+                } else if (key.equals("key_key.togglePerspective")) {
+                    // Y → F5 only (respect any other deliberate binding).
+                    if (line.endsWith(":key.keyboard.y")) {
+                        lines.set(i, "key_key.togglePerspective:key.keyboard.f5");
+                        changed = true;
+                    }
+                } else if (key.equals("key_key.nylecontent.open_tool_menu")) {
+                    // Menu Nyle : nouveau défaut = N.
+                    present.add(key);
+                    if (!line.endsWith(":key.keyboard.n")) {
+                        lines.set(i, "key_key.nylecontent.open_tool_menu:key.keyboard.n");
+                        changed = true;
+                    }
+                }
+            }
+            // Add lines for keys the player's options.txt doesn't list yet
+            // (Minecraft would otherwise re-seed the mod default on next close).
+            for (String key : UNBIND_KEYS) {
+                if (!present.contains(key)) {
+                    lines.add(key + ":key.keyboard.unknown");
+                    changed = true;
+                }
+            }
+            if (!present.contains("key_key.nylecontent.open_tool_menu")) {
+                lines.add("key_key.nylecontent.open_tool_menu:key.keyboard.n");
+                changed = true;
+            }
+            if (changed) {
+                Files.write(opts, lines);
+                LOG.info("options.txt: applied keybind defaults (Tom's/PointBlank unbound, perspective Y→F5)");
+            }
+            Files.writeString(marker, "1"); // run-once, even if nothing changed
+        } catch (IOException e) {
+            LOG.warn("options.txt keybind migration failed: {}", e.toString());
+        }
+    }
+
     private OptionsTxtMigration() {}
 }
