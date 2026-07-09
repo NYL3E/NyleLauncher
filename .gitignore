@@ -16,3 +16,4 @@ pack/*
 !pack/README.md
 manifest.json
 dist/
+tools/
