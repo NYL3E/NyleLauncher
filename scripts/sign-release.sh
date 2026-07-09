@@ -91,8 +91,23 @@ fi
 
 TAG="${1:?usage: sign-release.sh <tag vX.Y.Z> | --list}"
 TK="$(cat "$TOKEN_FILE")"
+# PIN : env SIGN_PIN > trousseau macOS (service nyle-simplysign) > prompt interactif (TTY requis).
+# Pour le stocker UNE FOIS dans le trousseau (saisie sécurisée, hors de tout historique) :
+#   security add-generic-password -s nyle-simplysign -a "$USER" -w
 PIN="${SIGN_PIN:-}"
-[ -z "$PIN" ] && { read -r -s -p "PIN SimplySign : " PIN; echo; }
+if [ -z "$PIN" ]; then
+  PIN="$(security find-generic-password -s nyle-simplysign -w 2>/dev/null || true)"
+fi
+if [ -z "$PIN" ]; then
+  if [ -t 0 ]; then
+    read -r -s -p "PIN SimplySign : " PIN; echo
+  else
+    echo "ERREUR: pas de PIN. Stocke-le une fois dans le trousseau :" >&2
+    echo "  security add-generic-password -s nyle-simplysign -a \"\$USER\" -w" >&2
+    echo "(saisie masquée), puis relance ce script." >&2
+    exit 1
+  fi
+fi
 ALIAS="${SIGN_ALIAS:-}"   # vide = jsign prend le premier alias code-signing
 
 WORK="$(mktemp -d /tmp/sign-release.XXXXXX)"
@@ -151,6 +166,7 @@ ZIP="NyleLauncher-windows-portable-$TAG.zip"
 echo "→ $ZIP"
 download_asset "$ZIP"
 ( cd "$WORK" && unzip -q "$ZIP" )
+chmod -R u+w "$WORK/NyleLauncher"   # l'unzip préserve le read-only ; jsign signe EN PLACE (écriture requise)
 EXE="$(find "$WORK/NyleLauncher" -maxdepth 1 -name "*.exe" | head -1)"
 [ -n "$EXE" ] || { echo "ERREUR: exe introuvable dans le zip portable" >&2; exit 1; }
 sign_file "$EXE"
