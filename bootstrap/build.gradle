@@ -4,9 +4,12 @@ plugins {
 }
 
 group = 'fr.nylerp.bootstrap'
-// Bootstrap version is independent of the payload version.
-// Bumped only when the bootstrap *itself* changes (rare: download/verify/launch logic).
-version = "0.3.21"
+// La version du bootstrap DOIT égaler le tag de release (vX.Y.Z), sinon SelfUpdater boucle :
+// le bootstrap installé se déclare < au dernier tag → « Mettre à jour » proposé à l'infini
+// (incident 2026-07-10 : tag v0.3.22 mais build.gradle resté à 0.3.21). Le CI passe donc
+// -PbootstrapVersion=<tag sans 'v'> ; le littéral ci-dessous n'est qu'un repli pour les builds
+// locaux/IDE (sans le -P). Ne JAMAIS publier une release dont le tag ≠ cette version.
+version = project.findProperty('bootstrapVersion') ?: "0.3.22"
 
 java {
     toolchain {

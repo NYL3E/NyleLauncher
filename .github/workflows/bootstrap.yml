@@ -28,7 +28,7 @@ jobs:
       - name: Build bootstrap shadowJar
         run: |
           chmod +x gradlew
-          ./gradlew :bootstrap:shadowJar --no-daemon
+          ./gradlew :bootstrap:shadowJar --no-daemon -PbootstrapVersion="${GITHUB_REF_NAME#v}"
       - uses: actions/upload-artifact@v4
         with:
           name: bootstrap-jar
@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew || true
-          ./gradlew :bootstrap:shadowJar --no-daemon
+          ./gradlew :bootstrap:shadowJar --no-daemon -PbootstrapVersion="${GITHUB_REF_NAME#v}"
 
       - name: Import Apple signing certificate (optional — needs APPLE_* secrets)
         if: matrix.platform == 'mac'
