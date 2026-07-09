@@ -43,7 +43,14 @@ jobs:
           - os: windows-latest
             platform: windows
             ext: msi
-          - os: ubuntu-latest
+          # ubuntu-22.04 ÉPINGLÉ (2026-07-10) : sur ubuntu-latest (=24.04), jpackage génère des
+          # Depends en libgtk-3-0t64/libasound2t64/… (noms de la transition time64) qui N'EXISTENT
+          # PAS sur Ubuntu 22.04/Debian 12/Mint 21 → « dépendances non satisfaites », le launcher
+          # est ininstallable pour la majorité des joueurs Linux. Construit sur 22.04, le deb
+          # dépend des noms classiques (libgtk-3-0…) que les paquets t64 de 24.04 Provides aussi
+          # → compatible dans les deux sens. Bonus : glibc de build plus ancienne = runtime jlink
+          # compatible avec plus de distros.
+          - os: ubuntu-22.04
             platform: linux
             ext: deb
           - os: macos-14
