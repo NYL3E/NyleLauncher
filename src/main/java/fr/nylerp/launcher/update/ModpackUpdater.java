@@ -48,7 +48,7 @@ public final class ModpackUpdater {
      */
     public static boolean hasUpdate() {
         try {
-            String remoteJson = Downloader.toString(manifestUrl());
+            String remoteJson = Downloader.toStringQuick(manifestUrl());
             Manifest remote = GSON.fromJson(remoteJson, Manifest.class);
             if (remote == null || remote.version == null) return false;
 
@@ -69,8 +69,12 @@ public final class ModpackUpdater {
      * leaving the launcher convinced there's "nothing to download". Appending
      * a unique ?t= param forces a fresh fetch each call.
      */
+    /** URL de base du manifest — package-private et non-finale UNIQUEMENT pour que les tests
+     *  puissent la pointer sur un serveur HTTP local (sain/lent/mort). Prod : jamais réassignée. */
+    static String manifestBaseUrl = Constants.MANIFEST_URL;
+
     private static String manifestUrl() {
-        return Constants.MANIFEST_URL + "?t=" + System.currentTimeMillis();
+        return manifestBaseUrl + "?t=" + System.currentTimeMillis();
     }
 
     /** Prevents concurrent sync() calls — double-clicking "Mettre à jour" or clicking
@@ -97,14 +101,33 @@ public final class ModpackUpdater {
 
     private void doSync() throws IOException {
         status("Téléchargement du manifest…");
-        String json = Downloader.toString(manifestUrl());
+        String json;
+        boolean fromCache = false;
+        try {
+            json = Downloader.toStringQuick(manifestUrl());
+        } catch (IOException fetchErr) {
+            // Le CDN GitHub Releases est régulièrement effondré/injoignable (incidents
+            // 2026-07-09 et 2026-07-10, débit ~2,8 Ko/s). Un joueur qui a DÉJÀ tous les fichiers
+            // ne doit pas être bloqué en boucle sur « Téléchargement du manifest… » pour ça :
+            // on retombe sur le dernier manifest validé en cache. Les SHA locaux sont ensuite
+            // vérifiés contre lui — s'ils correspondent tous (joueur à jour), le lancement se
+            // poursuit sans jamais retoucher GitHub. Pas de cache (toute 1re install) → on laisse
+            // remonter l'erreur : impossible de savoir quoi installer sans le manifest.
+            Path cache = AppPaths.manifestCache();
+            if (!Files.exists(cache)) throw fetchErr;
+            LOG.warn("Manifest fetch failed ({}), falling back to cached manifest (offline-resilient launch)",
+                    fetchErr.toString());
+            status("Serveur de mise à jour injoignable — vérification locale…");
+            json = Files.readString(cache);
+            fromCache = true;
+        }
         Manifest remote = GSON.fromJson(json, Manifest.class);
         if (remote == null || remote.files == null) {
             throw new IOException("Manifest invalide ou vide");
         }
 
-        // Cache it locally so we know what was installed
-        Files.writeString(AppPaths.manifestCache(), json);
+        // Cache it locally so we know what was installed (skip si on VIENT de le lire du cache).
+        if (!fromCache) Files.writeString(AppPaths.manifestCache(), json);
 
         Path gameDir = AppPaths.gameDir();
         Path modsDir = gameDir.resolve("mods");
@@ -128,6 +151,11 @@ public final class ModpackUpdater {
         long bytesTotal = remote.files.stream().mapToLong(f -> Math.max(0, f.size)).sum();
         long bytesDone = 0;
 
+        // Cache de SHA par (taille, mtime) : la passe d'intégrité des 1171 fichiers passe de ~30 s
+        // (re-hachage de ~1,2 Go à CHAQUE « Jouer ») à ~1 s quand rien n'a changé. Voir HashCache.
+        Path hashCacheFile = AppPaths.launcherState().resolve("hashcache.json");
+        HashCache hashes = HashCache.load(hashCacheFile);
+        try {
         for (ManifestEntry e : remote.files) {
             Path local = gameDir.resolve(e.path);
             // First-install-only entries (options.txt, certain configs) are
@@ -142,7 +170,7 @@ public final class ModpackUpdater {
                 listener.onProgress(done, total, bytesDone, bytesTotal);
                 continue;
             }
-            String localHash = Hashing.sha256(local);
+            String localHash = hashes.sha(local);
             if (e.sha256 != null && e.sha256.equalsIgnoreCase(localHash)) {
                 done++;
                 bytesDone += Math.max(0, e.size);
@@ -164,9 +192,13 @@ public final class ModpackUpdater {
             if (e.sha256 != null && !e.sha256.equalsIgnoreCase(after)) {
                 throw new IOException("Checksum KO pour " + e.path);
             }
+            hashes.put(local, after);
             done++;
             bytesDone += Math.max(0, e.size);
             listener.onProgress(done, total, bytesDone, bytesTotal);
+        }
+        } finally {
+            hashes.save(hashCacheFile);
         }
 
         // Cleanup — remove managed files that disappeared from manifest.

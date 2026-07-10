@@ -33,27 +33,40 @@ public final class MojangInstaller {
         Path versionsDir = root.resolve("versions").resolve(mcVersion);
         Files.createDirectories(versionsDir);
 
-        // 1. Version manifest
-        LOG.info("Fetching version manifest…");
-        String manifestJson = Downloader.toString("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
-        JsonObject manifest = GSON.fromJson(manifestJson, JsonObject.class);
-        String versionJsonUrl = null;
-        for (JsonElement el : manifest.getAsJsonArray("versions")) {
-            JsonObject v = el.getAsJsonObject();
-            if (mcVersion.equals(v.get("id").getAsString())) {
-                versionJsonUrl = v.get("url").getAsString();
-                break;
+        // 1+2. Version JSON — OFFLINE-FIRST : le JSON d'une version Mojang est immuable, et le pack
+        // épingle mcVersion. Le re-télécharger à chaque « Jouer » (manifest piston-meta PUIS version
+        // JSON, 2 allers-retours) ajoutait 5-30 s sur un réseau lent et pouvait bloquer le lancement
+        // alors que TOUT est déjà sur disque. S'il est présent et lisible → zéro réseau ; on ne va
+        // chercher piston-meta que la toute première fois (ou si le fichier local est corrompu).
+        Path versionJsonPath = versionsDir.resolve(mcVersion + ".json");
+        JsonObject version = null;
+        if (Files.exists(versionJsonPath)) {
+            try {
+                version = GSON.fromJson(Files.readString(versionJsonPath), JsonObject.class);
+                if (version == null || !version.has("downloads")) version = null;   // corrompu → re-fetch
+            } catch (Exception corrupt) {
+                version = null;
             }
         }
-        if (versionJsonUrl == null) {
-            throw new IOException("Minecraft version not found: " + mcVersion);
+        if (version == null) {
+            LOG.info("Fetching version manifest…");
+            String manifestJson = Downloader.toString("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
+            JsonObject manifest = GSON.fromJson(manifestJson, JsonObject.class);
+            String versionJsonUrl = null;
+            for (JsonElement el : manifest.getAsJsonArray("versions")) {
+                JsonObject v = el.getAsJsonObject();
+                if (mcVersion.equals(v.get("id").getAsString())) {
+                    versionJsonUrl = v.get("url").getAsString();
+                    break;
+                }
+            }
+            if (versionJsonUrl == null) {
+                throw new IOException("Minecraft version not found: " + mcVersion);
+            }
+            String versionJson = Downloader.toString(versionJsonUrl);
+            Files.writeString(versionJsonPath, versionJson);
+            version = GSON.fromJson(versionJson, JsonObject.class);
         }
-
-        // 2. Version JSON
-        Path versionJsonPath = versionsDir.resolve(mcVersion + ".json");
-        String versionJson = Downloader.toString(versionJsonUrl);
-        Files.writeString(versionJsonPath, versionJson);
-        JsonObject version = GSON.fromJson(versionJson, JsonObject.class);
 
         // 3. Client JAR
         JsonObject clientDl = version.getAsJsonObject("downloads").getAsJsonObject("client");

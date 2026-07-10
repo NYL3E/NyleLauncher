@@ -29,6 +29,16 @@ dependencies {
 
     // NOTE — OpenLauncherLib + FlowUpdater will be wired in the next step once
     // the vanilla launch path is designed; keeping the dep tree small for now.
+
+    // Tests réseau du launcher (owner 2026-07-11 : « chaque correction doit répondre à des tests
+    // précis ») — CDN sain / qui goutte / mort / 404 simulés par un HttpServer local.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging { events 'passed', 'failed', 'skipped' }
 }
 
 javafx {

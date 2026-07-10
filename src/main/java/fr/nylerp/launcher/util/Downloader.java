@@ -99,6 +99,12 @@ public final class Downloader {
         HttpResponse<InputStream> resp = getWithRetry(url, Duration.ofMinutes(5),
                 HttpResponse.BodyHandlers.ofInputStream());
         long total = resp.headers().firstValueAsLong("content-length").orElse(-1);
+        // Deadline murale sur le CORPS : HttpRequest.timeout ne borne que les en-têtes — un CDN
+        // qui « goutte » (incident GitHub 2026-07-10/11) laissait ce read() tourner sans fin, le
+        // verrou SYNCING restait pris et chaque clic « Jouer » répondait « Synchronisation déjà en
+        // cours… » à l'infini. 10 min par fichier = large pour le plus gros jar du pack, et l'échec
+        // retombe sur la boucle de retry/dialog existante au lieu de bloquer le launcher.
+        long deadline = System.currentTimeMillis() + 10 * 60_000L;
         try (InputStream in = resp.body()) {
             try (var out = Files.newOutputStream(tmp)) {
                 byte[] buf = new byte[32 * 1024];
@@ -108,6 +114,9 @@ public final class Downloader {
                     out.write(buf, 0, n);
                     done += n;
                     if (progress != null) progress.onBytes(done, total);
+                    if (System.currentTimeMillis() > deadline) {
+                        throw new IOException("Téléchargement trop lent (>10 min) : " + url);
+                    }
                 }
             }
         }
@@ -116,6 +125,41 @@ public final class Downloader {
 
     public static String toString(String url) throws IOException {
         return getWithRetry(url, Duration.ofSeconds(30), HttpResponse.BodyHandlers.ofString()).body();
+    }
+
+    /**
+     * Récupère une petite ressource texte (le manifest) avec une DEADLINE murale de 12 s qui couvre
+     * TOUT l'échange, corps compris, et SANS la boucle de retry transitoire. Pourquoi pas un simple
+     * {@code HttpRequest.timeout} : il ne borne que l'attente des en-têtes — pendant l'incident CDN
+     * GitHub Releases du 2026-07-10/11 (corps servi à ~2,8 Ko/s), les en-têtes arrivaient vite puis
+     * le corps « gouttait » pendant des minutes : aucun timeout ne partait et le launcher restait
+     * bloqué à l'infini sur « Téléchargement du manifest… ». Le futur {@code sendAsync().get(12 s)}
+     * borne l'échange complet ; l'appelant retombe alors sur le manifest en cache. Un CDN sain sert
+     * ces ~350 Ko en < 1 s ; 12 s est large.
+     */
+    public static String toStringQuick(String url) throws IOException {
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(12))
+                .header("User-Agent", "NyleLauncher/0.1.0")
+                .header("Accept", "*/*")
+                .GET()
+                .build();
+        java.util.concurrent.CompletableFuture<HttpResponse<String>> future =
+                HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString());
+        try {
+            HttpResponse<String> resp = future.get(12, java.util.concurrent.TimeUnit.SECONDS);
+            if (resp.statusCode() != 200) throw new IOException("HTTP " + resp.statusCode() + " on " + url);
+            return resp.body();
+        } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
+            throw new IOException("Serveur de mise à jour trop lent (>12 s) — CDN dégradé");
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable c = e.getCause();
+            throw c instanceof IOException io ? io : new IOException(String.valueOf(c));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Download interrupted", e);
+        }
     }
 
     private Downloader() {}

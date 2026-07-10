@@ -204,12 +204,23 @@ public final class Bootstrap {
         long expected = resp.headers().firstValueAsLong("Content-Length").orElse(-1L);
         Path tmp = dest.resolveSibling(dest.getFileName() + ".part");
         long copied = 0;
+        // Deadline murale sur le CORPS : HttpRequest.timeout ne borne que l'attente des en-têtes.
+        // Pendant l'incident CDN GitHub du 2026-07-10/11 le corps « gouttait » à ~3 Ko/s : sans
+        // cette borne, chaque tentative pouvait pendre indéfiniment au lieu d'échouer et de
+        // laisser la main au fallback « payload en cache ».
+        long deadline = System.currentTimeMillis() + 10 * 60_000L;
         try (InputStream in = resp.body();
              var out = Files.newOutputStream(tmp, java.nio.file.StandardOpenOption.CREATE,
                      java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
             byte[] buf = new byte[64 * 1024];
             int n;
-            while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); copied += n; }
+            while ((n = in.read(buf)) > 0) {
+                out.write(buf, 0, n);
+                copied += n;
+                if (System.currentTimeMillis() > deadline) {
+                    throw new IOException("Payload download exceeded 10 min (CDN trickling) — aborting to fall back");
+                }
+            }
         }
         // Un flux coupé en route passe silencieusement dans Files.copy — on compare au Content-Length
         // déclaré pour échouer TÔT (et déclencher le retry) plutôt que sur le hash final.
