@@ -53,21 +53,23 @@ public class SettingsView extends BorderPane {
         return bar;
     }
 
-    /** UNE SEULE PAGE défilable (owner 2026-07-16) : toutes les sections empilées, séparées par un
-     *  filet — navigation évidente, rien de caché derrière un rail. L'À PROPOS vit en bas de page,
-     *  précédé d'une section MAINTENANCE (Réparer le jeu / Désinstaller avec double confirmation). */
+    /** UNE PAGE défilable + CATÉGORIES À GAUCHE (owner 2026-07-16 v2) : le rail est conservé mais
+     *  devient une navigation par ANCRES — cliquer une catégorie fait défiler la page en douceur
+     *  jusqu'à sa section, et la catégorie active suit le scroll. Tout reste visible en défilant :
+     *  rien n'est caché derrière un onglet. MAINTENANCE (Réparer/Désinstaller) puis À PROPOS en bas. */
     private Region buildBody() {
+        String[] names = {"Mémoire", "Audio", "Lancement", "Mods optionnels",
+                "Captures d'écran", "Maintenance", "À propos"};
+        Region[] secs = { memorySection(), audioSection(), launchSection(), modsSection(),
+                screenshotsSection(), maintenanceSection(), aboutSection() };
+
         VBox page = new VBox(0);
         page.setPadding(new Insets(30, 56, 56, 46));
         page.setMaxWidth(820);
-        page.getChildren().addAll(
-                memorySection(),      pageBreak(),
-                audioSection(),       pageBreak(),
-                launchSection(),      pageBreak(),
-                modsSection(),        pageBreak(),
-                screenshotsSection(), pageBreak(),
-                maintenanceSection(), pageBreak(),
-                aboutSection());
+        for (int i = 0; i < secs.length; i++) {
+            if (i > 0) page.getChildren().add(pageBreak());
+            page.getChildren().add(secs[i]);
+        }
         reloadScreenshots();   // une page = re-scan des captures à chaque ouverture des paramètres
 
         contentHost = new StackPane(page);
@@ -79,10 +81,66 @@ public class SettingsView extends BorderPane {
         sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         sp.getStyleClass().add("settings-scroll");
         sp.setPannable(true);
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        // Rail gauche : ancres de défilement + surlignage qui SUIT le scroll.
+        VBox nav = new VBox(4);
+        nav.getStyleClass().add("settings-nav");
+        nav.setPadding(new Insets(30, 14, 30, 22));
+        nav.setMinWidth(214);
+        nav.setPrefWidth(214);
+        java.util.List<Button> items = new java.util.ArrayList<>();
+        for (int i = 0; i < names.length; i++) {
+            final int idx = i;
+            Button it = new Button(names[i]);
+            it.getStyleClass().add("settings-nav-item");
+            it.setMaxWidth(Double.MAX_VALUE);
+            it.setAlignment(Pos.CENTER_LEFT);
+            it.setFont(Fonts.semi(14));
+            it.setOnAction(e -> scrollToSection(sp, page, secs[idx]));
+            items.add(it);
+            nav.getChildren().add(it);
+        }
+        items.get(0).getStyleClass().add("active");
+
+        // Le rail suit la position de scroll : la section la plus haute visible est « active ».
+        sp.vvalueProperty().addListener((obs, o, v) -> {
+            double contentH = page.getBoundsInLocal().getHeight();
+            double viewH = sp.getViewportBounds().getHeight();
+            double offset = v.doubleValue() * Math.max(0, contentH - viewH) + 60;
+            int active = 0;
+            for (int i = 0; i < secs.length; i++)
+                if (secs[i].getBoundsInParent().getMinY() <= offset) active = i;
+            for (int i = 0; i < items.size(); i++) {
+                items.get(i).getStyleClass().remove("active");
+                if (i == active) items.get(i).getStyleClass().add("active");
+            }
+        });
+
+        Region divider = new Region();
+        divider.getStyleClass().add("settings-nav-divider");
+        divider.setMinWidth(1);
+        divider.setMaxWidth(1);
+
+        HBox body = new HBox(nav, divider, sp);
+        body.getStyleClass().add("settings-body");
 
         // Hôte qui empile le corps + une éventuelle lightbox/confirmation par-dessus.
-        bodyStack = new StackPane(sp);
+        bodyStack = new StackPane(body);
         return bodyStack;
+    }
+
+    /** Défilement doux (260 ms, ease-out) jusqu'au haut de la section cible. */
+    private void scrollToSection(ScrollPane sp, Region page, Region target) {
+        double contentH = page.getBoundsInLocal().getHeight();
+        double viewH = sp.getViewportBounds().getHeight();
+        double denom = Math.max(1, contentH - viewH);
+        double v = Math.max(0, Math.min(1, (target.getBoundsInParent().getMinY() - 12) / denom));
+        javafx.animation.Timeline tl = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(javafx.util.Duration.millis(260),
+                        new javafx.animation.KeyValue(sp.vvalueProperty(), v,
+                                javafx.animation.Interpolator.EASE_OUT)));
+        tl.play();
     }
 
     /** Espace + filet + espace entre deux sections de la page unique. */
