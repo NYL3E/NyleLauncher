@@ -20,8 +20,6 @@ import javafx.scene.text.FontWeight;
 
 public class SettingsView extends BorderPane {
 
-    private static final String[] NAV = {"Mémoire", "Audio", "Lancement", "Mods optionnels", "Captures d'écran", "À propos"};
-    private static final int SCREENSHOTS_IDX = 4;          // position de « Captures d'écran » dans NAV
     private static final int THUMB_W = 212, THUMB_H = 119; // vignette 16:9 (3 colonnes dans le contenu 678 px)
 
     private StackPane contentHost;
@@ -55,40 +53,25 @@ public class SettingsView extends BorderPane {
         return bar;
     }
 
-    /** Left nav rail + ONE focused section at a time (instead of one long scroll) — clearer,
-     *  calmer navigation. Each rail item swaps the content host with a soft fade; the active
-     *  item is highlighted with an accent bar. All the original sections/options are preserved. */
+    /** UNE SEULE PAGE défilable (owner 2026-07-16) : toutes les sections empilées, séparées par un
+     *  filet — navigation évidente, rien de caché derrière un rail. L'À PROPOS vit en bas de page,
+     *  précédé d'une section MAINTENANCE (Réparer le jeu / Désinstaller avec double confirmation). */
     private Region buildBody() {
-        Region[] secs = { memorySection(), audioSection(), launchSection(), modsSection(), screenshotsSection(), aboutSection() };
-        java.util.List<Region> wraps = new java.util.ArrayList<>();
-        for (Region s : secs) {
-            VBox w = new VBox(s);
-            w.setPadding(new Insets(34, 56, 48, 46));
-            w.setMaxWidth(780);
-            wraps.add(w);
-        }
+        VBox page = new VBox(0);
+        page.setPadding(new Insets(30, 56, 56, 46));
+        page.setMaxWidth(820);
+        page.getChildren().addAll(
+                memorySection(),      pageBreak(),
+                audioSection(),       pageBreak(),
+                launchSection(),      pageBreak(),
+                modsSection(),        pageBreak(),
+                screenshotsSection(), pageBreak(),
+                maintenanceSection(), pageBreak(),
+                aboutSection());
+        reloadScreenshots();   // une page = re-scan des captures à chaque ouverture des paramètres
 
-        contentHost = new StackPane();
+        contentHost = new StackPane(page);
         contentHost.setAlignment(Pos.TOP_LEFT);
-
-        VBox nav = new VBox(4);
-        nav.getStyleClass().add("settings-nav");
-        nav.setPadding(new Insets(30, 14, 30, 22));
-        nav.setMinWidth(214);
-        nav.setPrefWidth(214);
-
-        java.util.List<Button> items = new java.util.ArrayList<>();
-        for (int i = 0; i < NAV.length; i++) {
-            final int idx = i;
-            Button it = new Button(NAV[i]);
-            it.getStyleClass().add("settings-nav-item");
-            it.setMaxWidth(Double.MAX_VALUE);
-            it.setAlignment(Pos.CENTER_LEFT);
-            it.setFont(Fonts.semi(14));
-            it.setOnAction(e -> selectSection(idx, items, wraps));
-            items.add(it);
-            nav.getChildren().add(it);
-        }
 
         ScrollPane sp = new ScrollPane(contentHost);
         sp.setFitToWidth(true);
@@ -96,36 +79,21 @@ public class SettingsView extends BorderPane {
         sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         sp.getStyleClass().add("settings-scroll");
         sp.setPannable(true);
-        HBox.setHgrow(sp, Priority.ALWAYS);
 
-        Region divider = new Region();
-        divider.getStyleClass().add("settings-nav-divider");
-        divider.setMinWidth(1);
-        divider.setMaxWidth(1);
-
-        HBox body = new HBox(nav, divider, sp);
-        body.getStyleClass().add("settings-body");
-
-        selectSection(0, items, wraps);
-        // Hôte qui empile le corps + une éventuelle lightbox d'aperçu de capture par-dessus.
-        bodyStack = new StackPane(body);
+        // Hôte qui empile le corps + une éventuelle lightbox/confirmation par-dessus.
+        bodyStack = new StackPane(sp);
         return bodyStack;
     }
 
-    private void selectSection(int idx, java.util.List<Button> items, java.util.List<Region> wraps) {
-        for (int i = 0; i < items.size(); i++) {
-            items.get(i).getStyleClass().remove("active");
-            if (i == idx) items.get(i).getStyleClass().add("active");
-        }
-        if (idx == SCREENSHOTS_IDX) reloadScreenshots();   // re-scanne le dossier à chaque ouverture
-        Region w = wraps.get(idx);
-        contentHost.getChildren().setAll(w);
-        w.setOpacity(0);
-        javafx.animation.FadeTransition ft =
-                new javafx.animation.FadeTransition(javafx.util.Duration.millis(170), w);
-        ft.setFromValue(0);
-        ft.setToValue(1);
-        ft.play();
+    /** Espace + filet + espace entre deux sections de la page unique. */
+    private Region pageBreak() {
+        Region line = new Region();
+        line.setMinHeight(1);
+        line.setMaxHeight(1);
+        line.setStyle("-fx-background-color: rgba(255,255,255,0.07);");
+        VBox box = new VBox(line);
+        box.setPadding(new Insets(30, 0, 30, 0));
+        return box;
     }
 
     // ── Mémoire ─────────────────────────────────────────────────────────────
@@ -585,6 +553,182 @@ public class SettingsView extends BorderPane {
         return row;
     }
 
+    // ── Maintenance : Réparer + Désinstaller (owner 2026-07-16) ─────────────
+
+    private VBox maintenanceSection() {
+        Label h = new Label("Maintenance");
+        h.setFont(Fonts.bold(20));
+        h.setTextFill(Color.web("#F4F4F7"));
+        Label sub = new Label("Répare une installation cassée, ou supprime le launcher et tous les fichiers du jeu.");
+        sub.setFont(Fonts.regular(13));
+        sub.setTextFill(Color.web("#A2A2AC"));
+
+        // ── RÉPARER : purge les caches de vérification puis rejoue le sync complet du pack
+        //    (re-hash + re-téléchargement de tout fichier manquant/altéré) + mods optionnels +
+        //    servers.dat. Exactement le remède aux installs cassées (mods corrompus/dépareillés).
+        Button repair = new Button("Réparer le jeu et le launcher");
+        repair.getStyleClass().add("btn-ghost");
+        repair.setFont(Fonts.semi(13));
+        Label repairStatus = new Label("");
+        repairStatus.setFont(Fonts.regular(12));
+        repairStatus.setTextFill(Color.web("#A2A2AC"));
+        repair.setOnAction(e -> runRepair(repair, repairStatus));
+        Label repairHint = new Label("Re-vérifie chaque fichier du pack et retélécharge ce qui est manquant ou abîmé. Tes réglages, mondes et captures sont conservés.");
+        repairHint.setFont(Fonts.regular(12));
+        repairHint.setTextFill(Color.web("#6A6A74"));
+        repairHint.setWrapText(true);
+
+        // ── DÉSINSTALLER : DOUBLE confirmation — armement du bouton (rouge) PUIS panneau de
+        //    confirmation explicite par-dessus la page. Supprime les données du jeu + du launcher
+        //    et ouvre l'outil de désinstallation de l'OS.
+        Button uninstall = new Button("Désinstaller le launcher…");
+        uninstall.getStyleClass().add("btn-ghost");
+        uninstall.setFont(Fonts.semi(13));
+        uninstall.setStyle("-fx-text-fill: #FF5C5C; -fx-border-color: rgba(255,92,92,0.35);");
+        final boolean[] armed = {false};
+        uninstall.setOnAction(e -> {
+            if (!armed[0]) {
+                armed[0] = true;
+                uninstall.setText("Confirmer la désinstallation ?");
+                uninstall.setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #B03030; -fx-border-color: #FF5C5C;");
+                // désarmement auto après 5 s sans second clic
+                javafx.animation.PauseTransition pt = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(5));
+                pt.setOnFinished(ev -> {
+                    armed[0] = false;
+                    uninstall.setText("Désinstaller le launcher…");
+                    uninstall.setStyle("-fx-text-fill: #FF5C5C; -fx-border-color: rgba(255,92,92,0.35);");
+                });
+                pt.play();
+            } else {
+                showUninstallConfirm();   // 2ᵉ confirmation : panneau modal explicite
+            }
+        });
+        Label unHint = new Label("Supprime le launcher, le jeu, les mods, les réglages et les comptes de cet ordinateur. Irréversible.");
+        unHint.setFont(Fonts.regular(12));
+        unHint.setTextFill(Color.web("#6A6A74"));
+        unHint.setWrapText(true);
+
+        VBox box = new VBox(12, h, sub,
+                new VBox(6, repair, repairHint, repairStatus),
+                new VBox(6, uninstall, unHint));
+        box.setSpacing(16);
+        return box;
+    }
+
+    /** Réparation asynchrone : purge hashcache + manifest + record des mods managés, puis sync
+     *  complet (chaque fichier re-hashé / re-téléchargé), mods optionnels, servers.dat. */
+    private void runRepair(Button btn, Label status) {
+        btn.setDisable(true);
+        status.setText("Réparation en cours — vérification de chaque fichier…");
+        Thread t = new Thread(() -> {
+            String result;
+            try {
+                java.nio.file.Path st = fr.nylerp.launcher.config.AppPaths.launcherState();
+                java.nio.file.Files.deleteIfExists(st.resolve("hashcache.json"));
+                java.nio.file.Files.deleteIfExists(st.resolve("manifest.json"));
+                java.nio.file.Files.deleteIfExists(fr.nylerp.launcher.config.AppPaths.gameDir().resolve(".nyle_managed_mods"));
+                fr.nylerp.launcher.update.ServerListSanitizer.sweep();
+                new fr.nylerp.launcher.update.ModpackUpdater(new fr.nylerp.launcher.update.ModpackUpdater.Listener() {
+                    @Override public void onStatus(String line) {
+                        Platform.runLater(() -> status.setText(line));
+                    }
+                    @Override public void onProgress(int done, int total, long bytesDone, long bytesTotal) {
+                        Platform.runLater(() -> status.setText("Téléchargement " + done + " / " + total + "…"));
+                    }
+                }).sync();
+                fr.nylerp.launcher.update.OptionalMods.applyAll();
+                result = "Réparation terminée — le jeu est prêt.";
+            } catch (Throwable ex) {
+                result = "Réparation incomplète : " + ex.getMessage() + " — réessaie ou vérifie ta connexion.";
+            }
+            String finalResult = result;
+            Platform.runLater(() -> { status.setText(finalResult); btn.setDisable(false); });
+        }, "nyle-repair");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** 2ᵉ étape de la désinstallation : panneau modal par-dessus la page, choix explicite. */
+    private void showUninstallConfirm() {
+        VBox card = new VBox(14);
+        card.setMaxWidth(460);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        card.setPadding(new Insets(26));
+        card.setStyle("-fx-background-color: #101014; -fx-background-radius: 14;"
+                + " -fx-border-color: rgba(255,92,92,0.45); -fx-border-radius: 14; -fx-border-width: 1;");
+        Label t = new Label("Tout supprimer ?");
+        t.setFont(Fonts.bold(18));
+        t.setTextFill(Color.web("#F4F4F7"));
+        Label d = new Label("Le launcher, le jeu, les mods, les réglages et les comptes enregistrés seront "
+                + "supprimés de cet ordinateur. Cette action est irréversible.");
+        d.setFont(Fonts.regular(13));
+        d.setTextFill(Color.web("#A2A2AC"));
+        d.setWrapText(true);
+
+        Button cancel = new Button("Annuler");
+        cancel.getStyleClass().add("btn-ghost");
+        cancel.setFont(Fonts.semi(13));
+        Button confirm = new Button("Tout supprimer");
+        confirm.setFont(Fonts.semi(13));
+        confirm.setStyle("-fx-background-color: #B03030; -fx-text-fill: white; -fx-background-radius: 10;"
+                + " -fx-padding: 8 18 8 18; -fx-cursor: hand;");
+        HBox btns = new HBox(10, cancel, confirm);
+        btns.setAlignment(Pos.CENTER_RIGHT);
+        card.getChildren().addAll(t, d, btns);
+
+        StackPane veil = new StackPane(card);
+        veil.setStyle("-fx-background-color: rgba(0,0,0,0.72);");
+        veil.setAlignment(Pos.CENTER);
+        bodyStack.getChildren().add(veil);
+        cancel.setOnAction(e -> bodyStack.getChildren().remove(veil));
+        confirm.setOnAction(e -> {
+            confirm.setDisable(true);
+            cancel.setDisable(true);
+            d.setText("Suppression en cours…");
+            Thread th = new Thread(this::performUninstall, "nyle-uninstall");
+            th.setDaemon(true);
+            th.start();
+        });
+    }
+
+    /** Supprime les données (best effort) puis ouvre l'outil de désinstallation de l'OS et quitte. */
+    private void performUninstall() {
+        deleteRecursive(fr.nylerp.launcher.config.AppPaths.rootDir());   // game/ state/ minecraft/ runtime/
+        deleteRecursive(payloadCacheDir());                              // cache payload du bootstrap (NyleRP)
+        try {
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("win")) {
+                // Panneau « Applications installées » — l'utilisateur clique Désinstaller NyleLauncher.
+                Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start", "ms-settings:appsfeatures"});
+            } else if (os.contains("mac")) {
+                // Révèle l'app dans le Finder — glisser à la corbeille termine la désinstallation.
+                Runtime.getRuntime().exec(new String[]{"open", "-R", "/Applications/NyleLauncher.app"});
+            }
+        } catch (Throwable ignored) { }
+        Platform.runLater(Platform::exit);
+    }
+
+    private static java.nio.file.Path payloadCacheDir() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        String home = System.getProperty("user.home");
+        if (os.contains("win")) {
+            String l = System.getenv("LOCALAPPDATA");
+            return java.nio.file.Path.of(l != null ? l : home + "\\AppData\\Local", "NyleRP");
+        }
+        if (os.contains("mac")) return java.nio.file.Path.of(home, "Library", "Application Support", "NyleRP");
+        return java.nio.file.Path.of(home, ".nylerp");
+    }
+
+    /** Suppression récursive best-effort (les fichiers verrouillés — ex. le jar payload en cours
+     *  d'exécution sous Windows — sont simplement laissés ; quelques Ko sans conséquence). */
+    private static void deleteRecursive(java.nio.file.Path root) {
+        try (var walk = java.nio.file.Files.walk(root)) {
+            walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try { java.nio.file.Files.deleteIfExists(p); } catch (Throwable ignored) { }
+            });
+        } catch (Throwable ignored) { }
+    }
+
     // ── À propos ────────────────────────────────────────────────────────────
 
     private VBox aboutSection() {
@@ -595,9 +739,10 @@ public class SettingsView extends BorderPane {
         GridPane g = new GridPane();
         g.setHgap(40); g.setVgap(12);
         g.add(kvColumn("VERSION", fr.nylerp.launcher.update.SelfUpdater.installedVersion()), 0, 0);
-        g.add(kvColumn("SERVEUR", Constants.SERVER_HOST), 1, 0);
-        g.add(kvColumn("LOADER", "Fabric"), 2, 0);
-        g.add(kvColumn("MC", Constants.MC_VERSION), 3, 0);
+        g.add(kvColumn("PAYLOAD", Constants.PAYLOAD_VERSION), 1, 0);
+        g.add(kvColumn("SERVEUR", Constants.SERVER_HOST), 2, 0);
+        g.add(kvColumn("LOADER", "Fabric"), 3, 0);
+        g.add(kvColumn("MC", Constants.MC_VERSION), 4, 0);
         return new VBox(14, h, g);
     }
 

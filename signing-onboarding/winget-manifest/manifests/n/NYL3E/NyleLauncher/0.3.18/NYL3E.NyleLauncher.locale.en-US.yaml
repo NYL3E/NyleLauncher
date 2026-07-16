@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: NYL3E.NyleLauncher
+PackageVersion: 0.3.18
+PackageLocale: en-US
+Publisher: NyleRP
+PublisherUrl: https://nyle-mc-server.pages.dev
+PublisherSupportUrl: https://github.com/NYL3E/NyleLauncher/issues
+Author: Lenny TRIDAT
+PackageName: NyleLauncher
+PackageUrl: https://github.com/NYL3E/NyleLauncher
+License: MIT
+LicenseUrl: https://github.com/NYL3E/NyleLauncher/blob/main/LICENSE
+Copyright: Copyright (c) 2026 NyleRP
+CopyrightUrl: https://github.com/NYL3E/NyleLauncher/blob/main/LICENSE
+ShortDescription: Cross-platform launcher for the NyleRP French Minecraft roleplay server.
+Description: |-
+  NyleLauncher is the official open-source launcher for NyleRP, a French
+  Minecraft roleplay server (play.nylerp.fr). It handles Microsoft account
+  authentication via the official Xbox Live OAuth flow, auto-updates a
+  curated modpack from a signed manifest at each launch, and starts the
+  game directly into the server. Built around a small native bootstrap
+  installer that fetches an updateable payload from GitHub Releases so the
+  signed binary stays tiny and stable while features can ship without a
+  re-install.
+Moniker: nylelauncher
+Tags:
+  - minecraft
+  - launcher
+  - modpack
+  - nylerp
+  - fabric
+  - java
+ReleaseNotesUrl: https://github.com/NYL3E/NyleLauncher/releases/tag/v0.3.18
+Documentations:
+  - DocumentLabel: GitHub README
+    DocumentUrl: https://github.com/NYL3E/NyleLauncher/blob/main/README.md
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

@@ -31,6 +31,23 @@ OUT    = ROOT / "manifest.json"
 
 DEFAULT_REPO = "NYL3E/NyleLauncher"
 
+# GitHub hard-caps a release at 1000 assets (HTTP 422 "file_count limited to
+# 1000 assets per release" — verified empirically 2026-07-03). The pack
+# outgrew that cap when the 926-file emote pack landed, so large
+# self-contained subtrees are routed to their OWN release tag. The launcher
+# follows the per-file `url` in the manifest, so it needs no change — but
+# upload-pack.py must publish each tag (it shares this mapping).
+SUBTREE_RELEASES = {
+    "emotes/": "pack-emotes",
+}
+
+
+def release_tag_for(rel_str: str, default_tag: str) -> str:
+    for prefix, tag in SUBTREE_RELEASES.items():
+        if rel_str.startswith(prefix):
+            return tag
+    return default_tag
+
 
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -138,15 +155,16 @@ def main():
                 continue
             if p.stat().st_size == 0:
                 continue
+            rel_str = str(rel).replace("\\", "/")
             asset = gh_safe_asset_name(flat_asset_name(rel))
-            url = f"https://github.com/{args.repo}/releases/download/{args.release}/{asset}"
+            tag = release_tag_for(rel_str, args.release)
+            url = f"https://github.com/{args.repo}/releases/download/{tag}/{asset}"
             entry = {
-                "path":   str(rel).replace("\\", "/"),
+                "path":   rel_str,
                 "sha256": sha256(p),
                 "size":   p.stat().st_size,
                 "url":    url,
             }
-            rel_str = str(rel).replace("\\", "/")
             if (rel.name in FIRST_INSTALL_ONLY
                     or any(rel_str.startswith(p) for p in FIRST_INSTALL_PREFIXES)):
                 entry["firstInstallOnly"] = True

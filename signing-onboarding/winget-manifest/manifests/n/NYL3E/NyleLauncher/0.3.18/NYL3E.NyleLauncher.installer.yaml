@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+
+PackageIdentifier: NYL3E.NyleLauncher
+PackageVersion: 0.3.18
+InstallerType: wix
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/NYL3E/NyleLauncher/releases/download/v0.3.18/NyleLauncher-windows-v0.3.18.msi
+    InstallerSha256: C08119B8258C1EFB2C8DF9F13E18E663D8AB0541486C747323270A3A0DDAA5EC
+    InstallerType: wix
+    ProductCode: '{C80486F2-80BF-4041-8877-680AC20CB04E}'
+    UpgradeBehavior: install
+ManifestType: installer
+ManifestVersion: 1.6.0
