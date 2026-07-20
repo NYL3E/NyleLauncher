@@ -17,3 +17,4 @@ pack/*
 manifest.json
 dist/
 tools/
+signing-onboarding/

@@ -174,7 +174,7 @@ jobs:
                 --linux-shortcut
                 --linux-menu-group "NyleRP"
                 --linux-app-category "Game"
-                --linux-deb-maintainer "lennytridat@gmail.com"
+                --linux-deb-maintainer "support@nylerp.fr"
               )
               ;;
             mac)

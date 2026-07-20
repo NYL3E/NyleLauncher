@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # sign-release.sh — signe les binaires Windows d'une release GitHub avec le certificat
-# Certum « Open Source Developer Lenny TRIDAT » (clé privée dans le cloud SimplySign).
+# Certum « Open Source Developer NyleRP » (clé privée dans le cloud SimplySign).
 #
 #   bash scripts/sign-release.sh v0.3.21          # signe MSI + EXE portable de la release
 #   bash scripts/sign-release.sh --list           # liste les alias du keystore SimplySign
