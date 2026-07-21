@@ -1,0 +1,77 @@
+/*
+ * terminal.css — thème DEV « terminal / Claude Code » (owner 2026-07-20).
+ * Chargé APRÈS style.css UNIQUEMENT sur un build DEV (voir Channel/LauncherApp), donc il gagne sur
+ * les conflits. Principe : on redéfinit la PALETTE (variables -c-*) de .root → toute l'UI vire au
+ * vert-sur-noir, puis on force le MONOSPACE sur les classes de texte. Vibe : fond noir, texte vert,
+ * bordures vertes, léger glow — reconnaissable comme un terminal de dev.
+ */
+
+.root {
+    -c-bg:          #05070A;
+    -c-bg-2:        #0A0F0C;
+    -c-glass:       rgba(0,255,120,0.035);
+    -c-glass-hi:    rgba(0,255,120,0.08);
+    -c-glass-brd:   rgba(0,255,120,0.18);
+    -c-glass-brd-hi:rgba(0,255,120,0.32);
+
+    -c-text:        #C6FFD6;
+    -c-text-2:      #5FD98A;
+    -c-text-3:      #37A566;
+    -c-text-4:      #1E5E3C;
+
+    -c-accent:      #00E676;
+    -c-accent-hi:   #6BFFAD;
+    -c-accent-lo:   #00B85E;
+
+    -c-ok:          #00E676;
+}
+
+/* Fonds : on retire le halo orange de prod, on met un léger halo vert. */
+.login-root {
+    -fx-background-color:
+        radial-gradient(center 32% 18%, radius 50%, rgba(0,230,118,0.06), transparent 70%),
+        -c-bg;
+}
+.main-root { -fx-background-color: -c-bg; }
+
+/* MONOSPACE partout (les classes de style.css figent Montserrat → on les surcharge). */
+.root, .label, .text, .text-field, .button,
+.hd-title, .hd-title-em, .hd-sub, .brand, .nav-link,
+.btn-ms, .btn-ghost, .field-input, .field-label,
+.divider-label, .foot-ver {
+    -fx-font-family: "Monospaced";
+}
+
+/* Accent de titre : glow vert « écran cathodique ». */
+.hd-title-em {
+    -fx-fill: -c-accent;
+    -fx-effect: dropshadow(gaussian, rgba(0,230,118,0.45), 10, 0.25, 0, 0);
+}
+.brand { -fx-text-fill: -c-accent; }
+
+/* Bouton principal : style terminal (bordé vert, fond sombre, hover rempli). */
+.btn-ms {
+    -fx-background-color: rgba(0,230,118,0.10);
+    -fx-text-fill: -c-accent;
+    -fx-border-color: -c-accent;
+    -fx-border-width: 1.2;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+.btn-ms:hover  { -fx-background-color: rgba(0,230,118,0.20); }
+.btn-ms:pressed{ -fx-background-color: rgba(0,230,118,0.30); }
+
+/* Champs : fond noir, curseur/bordure verts. */
+.field-input {
+    -fx-background-color: rgba(0,255,120,0.04);
+    -fx-text-fill: -c-text;
+    -fx-highlight-fill: rgba(0,230,118,0.35);
+    -fx-border-color: -c-glass-brd;
+}
+.field-input:focused {
+    -fx-background-color: rgba(0,230,118,0.06);
+    -fx-border-color: -c-accent;
+}
+
+/* Pied de page : marque bien « canal DEV ». */
+.foot-ver { -fx-text-fill: -c-text-3; }

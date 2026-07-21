@@ -31,6 +31,11 @@ public final class SelfUpdater {
     public record Info(boolean hasUpdate, String latestTag, String currentTag, String releaseUrl) {}
 
     public static CompletableFuture<Info> check() {
+        // Canal DEV (owner 2026-07-21) : JAMAIS d'auto-update — sinon le launcher dev proposerait
+        // d'installer la dernière release PROD (tag v*) et s'écraserait lui-même. On renvoie « aucune
+        // mise à jour » (newer=false).
+        if (fr.nylerp.launcher.config.Channel.isDev())
+            return CompletableFuture.completedFuture(new Info(false, "", "v" + installedVersion(), ""));
         return CompletableFuture.supplyAsync(() -> {
             try {
                 String json = Downloader.toString(RELEASES_API);

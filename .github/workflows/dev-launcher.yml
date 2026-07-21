@@ -1,0 +1,115 @@
+name: Build DEV launcher
+
+# Launcher de DÉVELOPPEMENT (owner 2026-07-21). Standalone : on jpackage le PAYLOAD directement,
+# construit en canal DEV (-Pchannel=dev → serveur de dev game45-fr:20652, pack-latest, thème
+# terminal), SANS bootstrap ni auto-update (SelfUpdater est neutralisé en dev). Déclenchement
+# MANUEL (workflow_dispatch) → installeurs Win/Mac/Linux publiés sur la release `dev-launcher`,
+# que l'équipe beta télécharge. Non signé : l'avertissement Gatekeeper/SmartScreen est normal
+# pour un build interne (clic « ouvrir quand même » / « informations complémentaires → exécuter »).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Installeur DEV (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            ext: msi
+          - os: ubuntu-22.04    # comme bootstrap.yml : deb compatible 22.04/Debian 12/Mint 21
+            platform: linux
+            ext: deb
+          - os: macos-14
+            platform: mac
+            ext: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'liberica'   # Liberica Full = JavaFX embarqué (sinon le UI crash au QuantumRenderer)
+          java-version: '21'
+          java-package: 'jdk+fx'
+
+      - name: Build payload DEV (shadowJar -Pchannel=dev)
+        shell: bash
+        run: |
+          chmod +x gradlew || true
+          ./gradlew :shadowJar --no-daemon -Pchannel=dev
+
+      - name: Package with jpackage
+        shell: bash
+        run: |
+          mkdir -p dist
+          JAR=$(ls build/libs/nylelauncher-*.jar | grep -v sources | head -1)
+          echo "payload jar: $JAR"
+          case "${{ matrix.ext }}" in
+            msi) TYPE=msi ;;
+            deb) TYPE=deb ;;
+            dmg) TYPE=dmg ;;
+          esac
+          case "${{ matrix.platform }}" in
+            windows) ICON=src/main/resources/images/app_icon.ico ;;
+            mac)     ICON=src/main/resources/images/app_icon.icns ;;
+            linux)   ICON=src/main/resources/images/app_icon.png ;;
+          esac
+          # Modules JDK détectés + ceux chargés par réflexion / JavaFX (mêmes que bootstrap.yml).
+          DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
+          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported,javafx.base,javafx.graphics,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,jdk.jfr,java.scripting,java.management"
+
+          EXTRA_ARGS=()
+          case "${{ matrix.platform }}" in
+            windows)
+              # UUID d'upgrade DIFFÉRENT de la prod → le launcher DEV s'installe À CÔTÉ du prod.
+              EXTRA_ARGS+=(
+                --win-shortcut --win-menu --win-menu-group "NyleRP DEV"
+                --win-per-user-install
+                --win-upgrade-uuid "d2f7b6c1-3a4e-4f8b-9c2d-7e5a1b4c8d90"
+              ) ;;
+            linux)
+              EXTRA_ARGS+=(
+                --linux-shortcut --linux-menu-group "NyleRP DEV"
+                --linux-app-category "Game"
+                --linux-deb-maintainer "support@nylerp.fr"
+              ) ;;
+            mac)
+              # Identifiant de bundle DIFFÉRENT de la prod → coexiste avec le launcher prod.
+              EXTRA_ARGS+=(
+                --mac-package-name "NyleLauncherDev"
+                --mac-package-identifier "fr.nylerp.launcher.dev"
+              ) ;;
+          esac
+
+          jpackage \
+            --verbose --type "$TYPE" \
+            --name NyleLauncherDev \
+            --app-version "1.0.0" \
+            --input build/libs \
+            --main-jar "$(basename "$JAR")" \
+            --main-class fr.nylerp.launcher.Main \
+            --dest dist \
+            --java-options "-Xmx1024m" \
+            --vendor "NyleRP" \
+            --description "NyleRP Launcher DEV — serveur de developpement" \
+            --copyright "NyleRP" \
+            --icon "$ICON" \
+            --add-modules "$ALL_MODULES" \
+            "${EXTRA_ARGS[@]}" \
+            || { echo "jpackage failed"; exit 1; }
+          ls -la dist/
+
+      - name: Publish to dev-launcher release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-launcher
+          name: NyleLauncher DEV (beta)
+          body: "Launcher de developpement — pointe sur le serveur de dev (game45-fr:20652). Non signe : clic droit → Ouvrir (Mac) / Informations complementaires → Executer (Windows)."
+          prerelease: true
+          files: dist/*.${{ matrix.ext }}

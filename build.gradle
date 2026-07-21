@@ -51,6 +51,17 @@ application {
     mainClass = 'fr.nylerp.launcher.Main'
 }
 
+// Canal de build (owner 2026-07-20) : injecte 'prod' (défaut) ou 'dev' dans channel.txt.
+//   ./gradlew shadowJar               → build PROD
+//   ./gradlew shadowJar -Pchannel=dev → build DEV (serveur de build + pack-dev + thème terminal)
+processResources {
+    def nyleChannel = (project.findProperty('channel') ?: 'prod').toString()
+    inputs.property('nyleChannel', nyleChannel)
+    filesMatching('channel.txt') {
+        expand(channel: nyleChannel)
+    }
+}
+
 shadowJar {
     archiveBaseName = 'nylelauncher'
     archiveClassifier = ''

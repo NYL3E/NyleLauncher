@@ -89,7 +89,10 @@ def main():
     # last-played / favourites in servers.dat. Without this guard, every
     # publisher push that bumped the SHA would silently reset the player's
     # personal settings — see ModpackUpdater.firstInstallOnly handling.
-    FIRST_INSTALL_ONLY = {"options.txt", "optionsof.txt", "servers.dat"}
+    # emotecraft.json (owner 2026-07-21) : la config Emotecraft — où le joueur enregistre sa ROUE
+    # d'emote / ses réglages. Sans ce guard, chaque sync ré-écrasait le fichier par le défaut du pack
+    # → « on perd notre roue d'emote à chaque redémarrage/MAJ ». Même logique que options.txt.
+    FIRST_INSTALL_ONLY = {"options.txt", "optionsof.txt", "servers.dat", "emotecraft.json"}
 
     # Path-PREFIX based first-install protection. Use this for entire config
     # subtrees that the user reconfigures in-game (mic device, volumes,
