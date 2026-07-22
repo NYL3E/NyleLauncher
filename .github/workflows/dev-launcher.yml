@@ -65,7 +65,12 @@ jobs:
           # jlink — sinon le même paquet existe dans le jar ET dans les jmods Liberica → « split
           # package » → jlink échoue. On embarque seulement les modules java.*/jdk.* dont JavaFX a
           # besoin depuis le classpath (java.desktop pour AWT/Swing, java.xml pour FXML, web, etc.).
-          DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR")
+          # jdeps écrit ses warnings « split package » sur STDOUT avant la liste de modules :
+          # ne garder QUE la ligne finale (lettres/chiffres/points/virgules), sinon --add-modules
+          # reçoit « Warning: … » et jlink explose.
+          DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR" 2>/dev/null | grep -E '^[a-z][a-z0-9.,]*$' | tail -n 1)
+          [ -n "$DEPS" ] || DEPS=java.base
+          echo "jdeps modules: $DEPS"
           ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported,jdk.jfr,java.scripting,java.management,java.desktop,java.xml,java.sql,java.naming,java.logging,jdk.jsobject,jdk.xml.dom"
 
           EXTRA_ARGS=()
