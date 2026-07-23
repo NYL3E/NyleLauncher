@@ -1344,6 +1344,8 @@ public class MainView extends BorderPane {
                 ServerListSanitizer.sweep();
                 // Migrations one-shot de keybinds (ex: zoom monocle C&B → non assignée).
                 fr.nylerp.launcher.update.KeybindDefaults.applyOnce();
+                // Migration one-shot : retire l'ancien NYLERP-PACK.zip (désormais embarqué en mod).
+                fr.nylerp.launcher.util.LightTextures.cleanupLegacyPack();
 
                 // Sync du modpack. En cas d'échec on ne lance PLUS silencieusement les
                 // vieux mods (ce qui laissait le joueur bloqué sur une version périmée sans

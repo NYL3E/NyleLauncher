@@ -492,7 +492,16 @@ public class SettingsView extends BorderPane {
         openRow.setAlignment(Pos.CENTER_LEFT);
         openRow.setPadding(new Insets(2, 0, 0, 0));
 
-        return new VBox(14, h, p, closeRow, openRow);
+        // Textures légères (owner 23/07) : pack ÷2 Decocraft/Yuushya/PointBlank pour les GPU
+        // anciens dont l'atlas dépasse la limite matérielle (crash/chargement infini au lancement).
+        HBox lightRow = optionalModRow(
+                "Textures légères (PC modestes / GPU anciens)",
+                "Réduit la résolution des textures Decocraft, Yuushya et PointBlank. Coche cette option si le jeu "
+                        + "crash au chargement ou charge très lentement — aucun contenu n'est retiré.",
+                fr.nylerp.launcher.util.LightTextures.isEnabled(),
+                v -> fr.nylerp.launcher.util.LightTextures.setEnabled(v));
+
+        return new VBox(14, h, p, closeRow, lightRow, openRow);
     }
 
     /** A ghost button with a folder icon + label that opens a folder. Reused for the game + mods folders. */
