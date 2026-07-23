@@ -1342,6 +1342,8 @@ public class MainView extends BorderPane {
                 // still carries a deprecated direct-backend entry, letting the
                 // sync below restore the proxy-only list.
                 ServerListSanitizer.sweep();
+                // Migrations one-shot de keybinds (ex: zoom monocle C&B → non assignée).
+                fr.nylerp.launcher.update.KeybindDefaults.applyOnce();
 
                 // Sync du modpack. En cas d'échec on ne lance PLUS silencieusement les
                 // vieux mods (ce qui laissait le joueur bloqué sur une version périmée sans
