@@ -27,7 +27,7 @@ public final class Constants {
     /** Tag GitHub de la release qui héberge le pack. MVP DEV : on tire {@code pack-latest} (mêmes mods
      *  client que la prod → connexion OK au serveur de dev) ; passer à {@code pack-dev} quand on testera
      *  des mods CLIENT en dev (release séparée). */
-    private static final String PACK_TAG = "pack-latest";
+    private static final String PACK_TAG = DEV ? "pack-dev" : "pack-latest";
 
     /**
      * URL of the remote manifest describing the current modpack state.
