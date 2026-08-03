@@ -46,11 +46,45 @@ public final class ModpackUpdater {
      * where the local cache doesn't exist yet). Network failures are treated
      * as "no update" so the UI stays usable offline.
      */
+    /**
+     * Le contrôle de mise à jour a-t-il ÉCHOUÉ à joindre le serveur ? Lu par l'interface pour le
+     * DIRE au joueur. Sans ce drapeau, un échec réseau est indiscernable d'un « tu es à jour » —
+     * et c'est exactement le bug qui a laissé des clients six versions en retard sans un mot.
+     */
+    private static volatile boolean lastCheckFailed = false;
+
+    public static boolean lastCheckFailed() { return lastCheckFailed; }
+
+    /**
+     * Le manifeste distant diffère-t-il du cache ?
+     *
+     * <h2>Le bug corrigé ici (2026-08-03)</h2>
+     * Cette méthode récupérait le manifeste avec {@link Downloader#toStringQuick}, dont le délai
+     * est de <b>12 secondes</b> — puis avalait toute exception en rendant {@code false}, c'est-à-dire
+     * « tu es à jour ».
+     *
+     * <p>Le manifeste pèse aujourd'hui <b>310 Ko</b>, et le commentaire de {@link #sync} documente
+     * des incidents de CDN GitHub à <b>~2,8 Ko/s</b> : à ce débit il faut <b>110 secondes</b>. Le
+     * délai était donc franchi systématiquement. Résultat mesuré : le launcher est resté figé sur
+     * {@code prod-session2-56103} pendant six versions de pack, lançant un client périmé
+     * <b>sans jamais l'afficher</b>. Le joueur croyait son jeu à jour.
+     *
+     * <p>Deux corrections, et la seconde compte autant que la première :
+     * <ol>
+     *   <li>on récupère désormais avec un budget de <b>45 s par tentative, trois tentatives</b>, et
+     *       en demandant la compression — un JSON de 310 Ko se comprime massivement ;</li>
+     *   <li><b>un échec n'est plus silencieux</b> : {@link #lastCheckFailed()} le signale à
+     *       l'interface. Un contrôle qui échoue et un contrôle qui réussit ne doivent JAMAIS
+     *       produire le même résultat visible — c'est ce qui a rendu la panne invisible pendant
+     *       des semaines.</li>
+     * </ol>
+     */
     public static boolean hasUpdate() {
+        lastCheckFailed = false;
         try {
-            String remoteJson = Downloader.toStringQuick(manifestUrl());
+            String remoteJson = Downloader.toStringPatient(manifestUrl(), 45, 3);
             Manifest remote = GSON.fromJson(remoteJson, Manifest.class);
-            if (remote == null || remote.version == null) return false;
+            if (remote == null || remote.version == null) { lastCheckFailed = true; return false; }
 
             Path cache = AppPaths.manifestCache();
             if (!Files.exists(cache)) return true;
@@ -59,6 +93,7 @@ public final class ModpackUpdater {
             return !remote.version.equals(local.version);
         } catch (Exception e) {
             LOG.warn("Modpack update check failed: {}", e.toString());
+            lastCheckFailed = true;
             return false;
         }
     }
@@ -104,7 +139,7 @@ public final class ModpackUpdater {
         String json;
         boolean fromCache = false;
         try {
-            json = Downloader.toStringQuick(manifestUrl());
+            json = Downloader.toStringPatient(manifestUrl(), 45, 3);
         } catch (IOException fetchErr) {
             // Le CDN GitHub Releases est régulièrement effondré/injoignable (incidents
             // 2026-07-09 et 2026-07-10, débit ~2,8 Ko/s). Un joueur qui a DÉJÀ tous les fichiers

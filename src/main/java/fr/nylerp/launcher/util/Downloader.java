@@ -137,6 +137,80 @@ public final class Downloader {
      * borne l'échange complet ; l'appelant retombe alors sur le manifest en cache. Un CDN sain sert
      * ces ~350 Ko en < 1 s ; 12 s est large.
      */
+    /**
+     * Récupération PATIENTE d'un document, avec réessais et repli exponentiel.
+     *
+     * <h2>Pourquoi elle existe (bug du 2026-08-03)</h2>
+     * {@link #toStringQuick} abandonne au bout de <b>12 secondes</b>. C'était suffisant quand le
+     * manifeste du pack pesait quelques dizaines de kilo-octets ; il en fait aujourd'hui
+     * <b>310 Ko</b>. Or le commentaire de {@code ModpackUpdater} documente lui-même des incidents
+     * de CDN GitHub à <b>~2,8 Ko/s</b> : à ce débit, 310 Ko demandent <b>110 secondes</b>. Le
+     * délai était donc dépassé <i>systématiquement</i>, l'exception remontait, et l'appelant
+     * concluait « pas de mise à jour ».
+     *
+     * <p>Effet observé : le launcher est resté bloqué sur le manifeste {@code prod-session2-56103}
+     * pendant six versions de pack, en lançant un client périmé <b>sans jamais rien afficher</b>.
+     * Le joueur voyait un jeu à jour ; il ne l'était pas.
+     *
+     * <p>La leçon vaut au-delà de ce cas : <b>un délai d'attente est un budget, et un budget se
+     * calcule sur la TAILLE de ce qu'on transfère</b>, jamais sur une constante posée une fois.
+     * Un fichier qui grossit finit toujours par le dépasser, et il le dépasse en silence.
+     *
+     * @param url      l'adresse
+     * @param seconds  budget de temps pour UNE tentative
+     * @param attempts nombre de tentatives (repli 1 s, 2 s, 4 s… entre chacune)
+     */
+    public static String toStringPatient(String url, int seconds, int attempts) throws IOException {
+        IOException last = null;
+        for (int i = 0; i < Math.max(1, attempts); i++) {
+            if (i > 0) {
+                try { Thread.sleep(1000L << (i - 1)); }
+                catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+            }
+            try {
+                return toStringWithin(url, seconds);
+            } catch (IOException e) {
+                last = e;
+            }
+        }
+        throw last != null ? last : new IOException("échec de récupération : " + url);
+    }
+
+    /** Une tentative, avec un budget explicite. Cœur commun de {@code Quick} et {@code Patient}. */
+    private static String toStringWithin(String url, int seconds) throws IOException {
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(seconds))
+                .header("User-Agent", "NyleLauncher/0.1.0")
+                .header("Accept", "*/*")
+                .header("Accept-Encoding", "gzip")   // 310 Ko de JSON se compriment massivement
+                .GET()
+                .build();
+        java.util.concurrent.CompletableFuture<HttpResponse<byte[]>> future =
+                HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofByteArray());
+        try {
+            HttpResponse<byte[]> resp = future.get(seconds, java.util.concurrent.TimeUnit.SECONDS);
+            if (resp.statusCode() != 200) throw new IOException("HTTP " + resp.statusCode() + " on " + url);
+            byte[] body = resp.body();
+            boolean gz = resp.headers().firstValue("content-encoding")
+                    .map(v -> v.toLowerCase().contains("gzip")).orElse(false);
+            if (gz) {
+                try (var in = new java.util.zip.GZIPInputStream(new java.io.ByteArrayInputStream(body))) {
+                    body = in.readAllBytes();
+                }
+            }
+            return new String(body, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
+            throw new IOException("Serveur de mise à jour trop lent (>" + seconds + " s) — CDN dégradé");
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable c = e.getCause();
+            throw c instanceof IOException io ? io : new IOException(String.valueOf(c));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrompu");
+        }
+    }
+
     public static String toStringQuick(String url) throws IOException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(12))
