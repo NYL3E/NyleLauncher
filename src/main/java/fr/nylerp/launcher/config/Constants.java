@@ -10,8 +10,15 @@ public final class Constants {
     /** Payload version baked at compile time. Bump together with the
      *  {@code payload-X.Y.Z} git tag. Displayed in the launcher footer so a
      *  player can visually confirm which payload they're running after a
-     *  silent bootstrap refresh. */
-    public static final String PAYLOAD_VERSION = "1.0.84";
+     *  silent bootstrap refresh.
+     *
+     *  <p>ATTENTION — purement cosmétique : la version publiée dans
+     *  {@code manifest.json} (celle que le bootstrap compare) est dérivée du NOM DU TAG
+     *  par la CI ({@code .github/workflows/payload.yml}, {@code ${GITHUB_REF_NAME#payload-}}),
+     *  pas de cette constante. Elle avait dérivé (1.0.84 dans le code alors que
+     *  payload-1.0.87 était publié) sans que personne ne le voie : le seul symptôme est
+     *  un mauvais numéro affiché dans le pied de page et dans « À propos ». */
+    public static final String PAYLOAD_VERSION = "1.0.88";
     public static final String MC_VERSION   = "1.21.1";
     public static final String LOADER       = "fabric";
 
@@ -24,9 +31,9 @@ public final class Constants {
     public static final String DISCORD_URL  = "https://discord.gg/nylerp"; // TODO: real invite
     public static final String WEBSITE      = "https://nylerp.fr";
 
-    /** Tag GitHub de la release qui héberge le pack. MVP DEV : on tire {@code pack-latest} (mêmes mods
-     *  client que la prod → connexion OK au serveur de dev) ; passer à {@code pack-dev} quand on testera
-     *  des mods CLIENT en dev (release séparée). */
+    /** Tag GitHub de la release qui héberge le pack : {@code pack-dev} (canal DEV, mods client WIP) ou
+     *  {@code pack-latest} (prod). Le manifest pack-dev réutilise les URLs pack-latest pour les fichiers
+     *  inchangés et ne remplace que les jars en test → aucune duplication du pack complet. */
     private static final String PACK_TAG = DEV ? "pack-dev" : "pack-latest";
 
     /**

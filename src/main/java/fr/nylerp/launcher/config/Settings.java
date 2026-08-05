@@ -36,6 +36,10 @@ public final class Settings {
      *  too — see {@code OptionalMods.ENTRIES} — because DH's render pipeline
      *  produces 1+ second hitches on the no-Iris fallback path. */
     public boolean optionalIris             = false;
+    /** Punchy! — animations à la première personne (mains visibles, combat,
+     *  mouvement, interaction). Purement client/cosmétique : aucun effet sur
+     *  les dégâts ni le recul réels, donc rien à synchroniser côté serveur. */
+    public boolean optionalPunchy           = false;
     /** Persists the launcher's mute toggle (ambient + music) across sessions
      *  so players who silenced the launcher once don't have to do it on
      *  every start. */

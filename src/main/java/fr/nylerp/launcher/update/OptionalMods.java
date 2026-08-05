@@ -74,7 +74,19 @@ public final class OptionalMods {
                 "iris-fabric-1.8.8+mc1.21.1.jar",
                 "https://cdn.modrinth.com/data/YL57xq9U/versions/zsoi0dso/iris-fabric-1.8.8%2Bmc1.21.1.jar",
                 "2e6ba2ffa1e1a6799288245a7e0ac68ee8df1d41b98362189df58f535cae34fa9277801e4136633467341b7dae5be0e5c698011b480b3d91b66d3dd4f7567aa6",
-                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons)
+                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons),
+            // Punchy! 2.6.2 — animations à la première personne (mains visibles avec
+            // l'objet tenu, animations de combat/mouvement/interaction, physique en main).
+            // `environment: client` dans son fabric.mod.json et `server_side: unsupported`
+            // sur Modrinth → strictement du rendu local : ni les dégâts ni le recul réels
+            // ne changent, donc aucune divergence client/serveur possible. Sa seule
+            // dépendance déclarée est fabric-api, déjà livrée par le manifeste du pack
+            // (mods/fabric-api-0.116.12+1.21.1.jar) → rien à ajouter ici.
+            new Entry(
+                "punchy-2.6.2-fabric-1.21.1.jar",
+                "https://cdn.modrinth.com/data/8aoMKplv/versions/H45vu8VY/punchy-2.6.2-fabric-1.21.1.jar",
+                "2bcf8e68b0bbaeb8b9261bfe2e5cbd43e150e8dfcaa0424f84a7799b1dd2892a241bae43dc8dd64a8583d1d6ce5c1f9bc89fc484a8e5389ac8d5e2a63829729e",
+                () -> Settings.get().optionalPunchy)
     );
 
     /** Filenames the launcher itself shipped as optional but that have been

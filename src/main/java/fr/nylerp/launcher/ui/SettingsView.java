@@ -572,13 +572,19 @@ public class SettingsView extends BorderPane {
                 v -> { Settings.get().optionalDistantHorizons = v; Settings.get().save(); },
                 dhMac);
 
+        HBox punchyRow = optionalModRow(
+                "Punchy! (animations)",
+                "Tes mains deviennent visibles avec l'objet tenu, et les coups, les déplacements et les interactions sont animés. Purement visuel — ni les dégâts ni le recul ne changent. Réglable en jeu.",
+                Settings.get().optionalPunchy,
+                v -> { Settings.get().optionalPunchy = v; Settings.get().save(); });
+
         Button openMods = folderButton("Ouvrir le dossier des mods",
                 () -> openInExplorer(fr.nylerp.launcher.config.AppPaths.gameDir().resolve("mods").toFile()));
         HBox openModsRow = new HBox(openMods);
         openModsRow.setAlignment(Pos.CENTER_LEFT);
         openModsRow.setPadding(new Insets(6, 0, 0, 0));
 
-        return new VBox(14, h, p, litematicaRow, irisRow, dhRow, openModsRow);
+        return new VBox(14, h, p, litematicaRow, irisRow, dhRow, punchyRow, openModsRow);
     }
 
     /** A single optional-mod row: title + description on the left, pill switch
