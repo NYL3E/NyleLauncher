@@ -72,11 +72,26 @@ class DevUpdatePathTest {
     }
 
     @Test
-    @DisplayName("PROD : le dossier de cache reste NyleRP/payload")
+    @DisplayName("PROD : le dossier de cache reste celui d'avant, et differe de celui du DEV")
     void cacheProdInchange() {
         Path prod = Bootstrap.cacheDirFor("prod");
         assertEquals("payload", prod.getFileName().toString());
-        assertEquals("NyleRP", prod.getParent().getFileName().toString());
+
+        // Le dossier PARENT depend du systeme : « NyleRP » sur macOS et Windows, « .nylerp » sur
+        // Linux (convention des fichiers caches). Figer « NyleRP » faisait passer ce test sur le
+        // poste de developpement et echouer la CI, qui tourne sur Ubuntu — le code de production
+        // etant correct dans les deux cas. On verifie donc la convention REELLE de chaque systeme
+        // plutot qu'une seule d'entre elles.
+        String os = System.getProperty("os.name", "").toLowerCase();
+        String parentAttendu = (os.contains("mac") || os.contains("win")) ? "NyleRP" : ".nylerp";
+        assertEquals(parentAttendu, prod.getParent().getFileName().toString(),
+                "dossier de cache de production deplace — les joueurs reperdraient leur charge");
+
+        // Ce qui compte vraiment, et qui ne depend d'aucun systeme : les deux canaux ne partagent
+        // PAS leur cache. Sans cette separation, le repli hors-ligne d'un socle de production
+        // pouvait demarrer une charge DEV et envoyer un joueur sur le serveur de developpement.
+        assertNotEquals(Bootstrap.cacheDirFor("dev"), prod,
+                "les caches des deux canaux se confondent");
     }
 
     @Test
