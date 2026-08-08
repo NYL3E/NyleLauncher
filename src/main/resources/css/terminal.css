@@ -1,77 +1,265 @@
 /*
- * terminal.css — thème DEV « terminal / Claude Code » (owner 2026-07-20).
- * Chargé APRÈS style.css UNIQUEMENT sur un build DEV (voir Channel/LauncherApp), donc il gagne sur
- * les conflits. Principe : on redéfinit la PALETTE (variables -c-*) de .root → toute l'UI vire au
- * vert-sur-noir, puis on force le MONOSPACE sur les classes de texte. Vibe : fond noir, texte vert,
- * bordures vertes, léger glow — reconnaissable comme un terminal de dev.
+ * terminal.css — direction artistique du canal DEV : « on ouvre un terminal, pas un launcher ».
+ *
+ * PORTÉE — chargé APRÈS style.css et UNIQUEMENT sur un build DEV (voir Channel / LauncherApp),
+ * donc il gagne sur tous les conflits. Un joueur en production ne charge jamais ce fichier : sa
+ * feuille de style, ses couleurs et ses polices restent celles d'avant, à l'octet près.
+ *
+ * ── POURQUOI TOUT EST EN NIVEAUX DE GRIS ICI ─────────────────────────────────────────────────
+ * Le canal DEV est « vert et noir uniquement ». Le vert n'est PAS écrit dans cette feuille : il est
+ * produit à l'affichage par le filtre phosphore posé sur la racine de chaque écran
+ * (TerminalTheme.phosphore) — désaturation totale, puis multiplication par une teinte verte unique.
+ * Les valeurs ci-dessous décrivent donc une INTENSITÉ, pas une couleur :
+ *     blanc  → vert vif      gris moyen → vert éteint      noir → noir
+ * Écrire du vert ici le multiplierait une seconde fois et l'assombrirait. Toute retouche se fait
+ * en gris, et la teinte se change en un seul endroit : TerminalTheme.PHOSPHORE.
+ *
+ * ── LES TROIS GESTES ─────────────────────────────────────────────────────────────────────────
+ *   1. hiérarchie par INTENSITÉ (le thème n'a qu'une teinte) ;
+ *   2. chasse fixe partout, sans ombre portée (une ombre sur du texte de terminal bave) ;
+ *   3. plus aucun arrondi — un terminal a des angles droits, pas des pilules.
  */
 
 .root {
     -c-bg:          #05070A;
-    -c-bg-2:        #0A0F0C;
-    -c-glass:       rgba(0,255,120,0.035);
-    -c-glass-hi:    rgba(0,255,120,0.08);
-    -c-glass-brd:   rgba(0,255,120,0.18);
-    -c-glass-brd-hi:rgba(0,255,120,0.32);
+    -c-bg-2:        #0B0C0B;
+    -c-glass:       rgba(255,255,255,0.045);
+    -c-glass-hi:    rgba(255,255,255,0.11);
+    -c-glass-brd:   rgba(255,255,255,0.26);
+    -c-glass-brd-hi:rgba(255,255,255,0.55);
 
-    -c-text:        #C6FFD6;
-    -c-text-2:      #5FD98A;
-    -c-text-3:      #37A566;
-    -c-text-4:      #1E5E3C;
+    /* ÉCHELLE D'INTENSITÉS — identique à TerminalTheme (Java). Contrastes WCAG mesurés APRÈS
+       filtre, sur fond noir : text 7,7:1 · text-2/3 5,3:1 · accent 11:1 · accent-hi 15,8:1.
+       -c-text-4 (2,5:1) est DÉCORATIF : cadres, points de conduite, creux de barre — jamais un
+       texte que l'utilisateur doit lire. */
+    -c-text:        #9E9E9E;   /* texte courant                      */
+    -c-text-2:      #8A8A8A;   /* texte secondaire                   */
+    -c-text-3:      #848484;   /* plancher de lisibilité             */
+    -c-text-4:      #4E4E4E;   /* décoratif : cadres, points, creux  */
 
-    -c-accent:      #00E676;
-    -c-accent-hi:   #6BFFAD;
-    -c-accent-lo:   #00B85E;
+    -c-accent:      #C0C0C0;   /* ce qui compte                      */
+    -c-accent-hi:   #FFFFFF;   /* intensité maximale du tube         */
+    -c-accent-lo:   #909090;
 
-    -c-ok:          #00E676;
+    -c-ok:          #C0C0C0;
 }
 
-/* Fonds : on retire le halo orange de prod, on met un léger halo vert. */
+/* ── Fonds ─────────────────────────────────────────────────────────────────────────────────── */
+
 .login-root {
     -fx-background-color:
-        radial-gradient(center 32% 18%, radius 50%, rgba(0,230,118,0.06), transparent 70%),
+        radial-gradient(center 30% 14%, radius 55%, rgba(255,255,255,0.05), transparent 72%),
         -c-bg;
 }
 .main-root { -fx-background-color: -c-bg; }
 
-/* MONOSPACE partout (les classes de style.css figent Montserrat → on les surcharge). */
+/* ── Chasse fixe partout ───────────────────────────────────────────────────────────────────────
+ * style.css fige une famille Montserrat par classe : il faut donc re-cibler chaque classe, un
+ * sélecteur générique ne suffirait pas. La famille logique « Monospaced » est résolue par JavaFX
+ * vers une vraie police à chasse fixe présente sur chaque OS (Menlo / Courier New / DejaVu Sans
+ * Mono) — rien de nouveau n'est embarqué dans le payload.
+ */
 .root, .label, .text, .text-field, .button,
-.hd-title, .hd-title-em, .hd-sub, .brand, .nav-link,
-.btn-ms, .btn-ghost, .field-input, .field-label,
-.divider-label, .foot-ver {
+.hd-title, .hd-title-em, .hd-sub, .brand, .nav-link, .nav-link-active,
+.btn-ms, .btn-ghost, .field-input, .field-label, .divider-label, .foot-ver,
+.status, .status-error, .micro, .ram-val, .kicker, .online-label, .news-tag, .nyle-tooltip,
+.term-info, .term-info-em, .term-bar-frame, .term-bar-fill, .term-bar-rest, .term-bar-pct {
     -fx-font-family: "Monospaced";
+    -fx-font-weight: bold;
 }
 
-/* Accent de titre : glow vert « écran cathodique ». */
-.hd-title-em {
-    -fx-fill: -c-accent;
-    -fx-effect: dropshadow(gaussian, rgba(0,230,118,0.45), 10, 0.25, 0, 0);
-}
-.brand { -fx-text-fill: -c-accent; }
+/* ── Écran de connexion ────────────────────────────────────────────────────────────────────── */
 
-/* Bouton principal : style terminal (bordé vert, fond sombre, hover rempli). */
-.btn-ms {
-    -fx-background-color: rgba(0,230,118,0.10);
+.login-card {
+    -fx-background-color: rgba(10,10,10,0.86);
+    -fx-background-radius: 0;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+}
+.hd-title    { -fx-fill: -c-text-2; -fx-font-size: 26px; }
+.hd-title-em { -fx-fill: -c-accent-hi; -fx-font-size: 26px; }
+.hd-sub      { -fx-text-fill: -c-text-3; -fx-font-size: 11px; -fx-letter-spacing: 0.10em; }
+
+.field-label { -fx-text-fill: -c-text-3; -fx-font-size: 10px; -fx-letter-spacing: 0.20em; }
+.field-input {
+    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-background-radius: 0;
+    -fx-text-fill: -c-text;
+    -fx-prompt-text-fill: -c-text-3;   /* c'est du texte : jamais le niveau décoratif */
+    -fx-highlight-fill: rgba(255,255,255,0.30);
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+}
+.field-input:focused { -fx-background-color: rgba(255,255,255,0.09); -fx-border-color: -c-accent-hi; }
+
+.divider-line  { -fx-background-color: -c-glass-brd; }
+.divider-label { -fx-text-fill: -c-text-3; -fx-font-size: 10px; -fx-letter-spacing: 0.24em; }
+.foot-ver      { -fx-text-fill: -c-text-3; -fx-font-size: 10px; }
+
+/* ── Boutons ───────────────────────────────────────────────────────────────────────────────────
+ * Le survol se lit comme une ligne prise par le curseur : le fond s'allume, le cadre monte à
+ * l'intensité maximale. Pas de transition (JavaFX n'en gère pas) — instantané, comme un terminal.
+ */
+.btn-ms, .btn-ghost {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-text-fill: -c-accent;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+.btn-ms:hover, .btn-ghost:hover {
+    -fx-background-color: rgba(255,255,255,0.16);
+    -fx-border-color: -c-accent-hi;
+    -fx-text-fill: -c-accent-hi;
+}
+.btn-ms:pressed, .btn-ghost:pressed { -fx-background-color: rgba(255,255,255,0.30); }
+
+/* Bouton JOUER : encadré comme un champ de terminal, pas un dégradé orange. */
+.btn-play {
+    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-background-radius: 0;
     -fx-text-fill: -c-accent;
     -fx-border-color: -c-accent;
-    -fx-border-width: 1.2;
-    -fx-border-radius: 6;
-    -fx-background-radius: 6;
+    -fx-border-width: 1.4;
+    -fx-border-radius: 0;
+    -fx-cursor: hand;
 }
-.btn-ms:hover  { -fx-background-color: rgba(0,230,118,0.20); }
-.btn-ms:pressed{ -fx-background-color: rgba(0,230,118,0.30); }
+.btn-play:hover {
+    -fx-background-color: rgba(255,255,255,0.26);
+    -fx-border-color: -c-accent-hi;
+}
+.btn-play:pressed  { -fx-background-color: rgba(255,255,255,0.42); }
+.btn-play:disabled { -fx-opacity: 0.45; }
+.btn-play .label       { -fx-text-fill: -c-accent; }
+.btn-play:hover .label { -fx-text-fill: -c-accent-hi; }
 
-/* Champs : fond noir, curseur/bordure verts. */
-.field-input {
-    -fx-background-color: rgba(0,255,120,0.04);
-    -fx-text-fill: -c-text;
-    -fx-highlight-fill: rgba(0,230,118,0.35);
+/* ── Barre du bas ──────────────────────────────────────────────────────────────────────────── */
+
+.bottom-bar {
+    -fx-background-color: #060707;
+    -fx-border-color: -c-glass-brd transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+.status { -fx-text-fill: -c-text-2; -fx-font-size: 11px; }
+
+/* ERREUR — le thème n'a qu'une teinte : une erreur ne peut donc pas « passer au rouge ».
+   Elle se signale par l'INTENSITÉ MAXIMALE, un préfixe « !! » ajouté par la vue, et un
+   clignotement lent piloté en Java (MainView) — trois signaux qu'aucune ligne ordinaire n'a. */
+.status-error { -fx-text-fill: -c-accent-hi; -fx-font-size: 11px; }
+
+/* Barre de chargement (TerminalProgress) : [########............]  42% */
+.term-bar          { -fx-line-spacing: 0; }
+.term-bar-frame    { -fx-fill: -c-text-4; -fx-font-size: 12px; }
+.term-bar-fill     { -fx-fill: -c-accent-hi; -fx-font-size: 12px; }
+.term-bar-rest     { -fx-fill: -c-text-4; -fx-font-size: 12px; }
+.term-bar-pct      { -fx-fill: -c-text;   -fx-font-size: 12px; }
+
+/* La ProgressBar d'origine n'est pas affichée en DEV, mais on l'habille quand même : si un futur
+   écran la réintroduit, elle ne doit pas ressurgir en orange de production. */
+.progress .bar   { -fx-background-color: -c-accent-hi; -fx-background-radius: 0; }
+.progress .track { -fx-background-color: rgba(255,255,255,0.10); -fx-background-radius: 0; }
+
+/* ── Bloc d'état de session (coin haut-gauche de l'accueil) ────────────────────────────────── */
+
+.term-info    { -fx-text-fill: -c-text-3;   -fx-font-size: 11px; }
+.term-info-em { -fx-text-fill: -c-accent-hi;-fx-font-size: 11px; }
+
+/* ── Panneaux, capsule de compte, actualités ───────────────────────────────────────────────── */
+
+.header-capsule {
+    -fx-background-color: rgba(9,10,9,0.88);
+    -fx-background-radius: 0;
     -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
 }
-.field-input:focused {
-    -fx-background-color: rgba(0,230,118,0.06);
+.capsule-icon         { -fx-background-radius: 0; }
+.capsule-icon:hover   { -fx-background-color: rgba(255,255,255,0.18); }
+.capsule-icon:pressed { -fx-background-color: rgba(255,255,255,0.30); }
+
+.glass-news-panel {
+    -fx-background-color: rgba(9,10,9,0.88);
+    -fx-background-radius: 0;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+}
+.news-item-glass, .news-item {
+    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-background-radius: 0;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+}
+/* Survol d'une actualité : la ligne s'allume et se décale d'un cran, comme un curseur qui la prend. */
+.news-item-glass:hover, .news-item:hover {
+    -fx-background-color: rgba(255,255,255,0.16);
+    -fx-border-color: -c-accent-hi;
+    -fx-translate-x: 3;
+}
+.news-tag {
+    -fx-background-color: rgba(255,255,255,0.14);
+    -fx-background-radius: 0;
+    -fx-text-fill: -c-accent-hi;
+    -fx-font-size: 9px;
+    -fx-letter-spacing: 0.18em;
+}
+.kicker       { -fx-text-fill: -c-accent; -fx-font-size: 10px; -fx-letter-spacing: 0.20em; }
+.online-label { -fx-text-fill: -c-ok;     -fx-font-size: 10px; }
+.micro        { -fx-text-fill: -c-text-3; -fx-font-size: 10px; -fx-letter-spacing: 0.16em; }
+.ram-val      { -fx-text-fill: -c-text;   -fx-font-size: 15px; }
+
+.update-banner {
+    -fx-background-color: rgba(255,255,255,0.08);
+    -fx-background-radius: 0;
     -fx-border-color: -c-accent;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
+}
+.update-download-btn {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-text-fill: -c-accent-hi;
+    -fx-border-color: -c-accent-hi;
+    -fx-border-width: 1;
+    -fx-border-radius: 0;
+    -fx-cursor: hand;
+}
+.update-download-btn:hover { -fx-background-color: rgba(255,255,255,0.22); }
+
+.nyle-tooltip {
+    -fx-background-color: rgba(6,7,6,0.97);
+    -fx-background-radius: 0;
+    -fx-text-fill: -c-accent;
+    -fx-font-size: 10px;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+    -fx-border-width: 1;
 }
 
-/* Pied de page : marque bien « canal DEV ». */
-.foot-ver { -fx-text-fill: -c-text-3; }
+/* ── Paramètres ────────────────────────────────────────────────────────────────────────────── */
+
+.mod-row {
+    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-background-radius: 0;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+}
+.mod-row:hover { -fx-background-color: rgba(255,255,255,0.12); -fx-border-color: -c-accent-hi; }
+.feature-card {
+    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-background-radius: 0;
+    -fx-border-color: -c-glass-brd;
+    -fx-border-radius: 0;
+}
+.feature-card:hover { -fx-background-color: rgba(255,255,255,0.12); -fx-border-color: -c-accent-hi; }
+.nav-link:hover { -fx-text-fill: -c-accent-hi; }
+
+/* Marque en haut de l'écran : rappelle en permanence qu'on n'est PAS en production. */
+.brand { -fx-text-fill: -c-accent-hi; -fx-letter-spacing: 0.18em; }

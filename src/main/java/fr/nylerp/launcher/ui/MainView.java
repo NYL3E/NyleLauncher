@@ -44,6 +44,8 @@ public class MainView extends BorderPane {
 
     private final Label status = new Label("Prêt à jouer");
     private final ProgressBar progress = new ProgressBar(0);
+    /** Vue « terminal » de {@link #progress} — non nulle sur un build DEV uniquement. */
+    private fr.nylerp.launcher.ui.terminal.TerminalProgress termProgress;
     private HBox updateBanner;
     private Button playBtn;
     private Label playLabel;
@@ -221,6 +223,9 @@ public class MainView extends BorderPane {
      *  only {@link #startPlay} wired the spinner, so clicking
      *  {@code METTRE À JOUR} just disabled the button with no motion. */
     private void setPlayBusy(boolean busy) {
+        // Canal DEV : la barre terminal n'anime son curseur d'attente QUE pendant un travail réel.
+        // Au repos elle reste strictement figée — pas d'animation permanente sur l'écran d'accueil.
+        if (termProgress != null) termProgress.setBusy(busy);
         if (playSpinner == null || playIcon == null) return;
         if (busy) {
             playSpinner.start();
@@ -274,14 +279,15 @@ public class MainView extends BorderPane {
 
     private void refreshPlayButton() {
         if (playLabel == null || playIcon == null) return;
+        boolean dev = fr.nylerp.launcher.config.Constants.DEV;
         if (modpackUpdatePending || launcherUpdateUrl != null) {
             playLabel.setText("METTRE À JOUR");
-            playLabel.setFont(Fonts.bold(15));
+            playLabel.setFont(dev ? fr.nylerp.launcher.ui.terminal.TerminalTheme.mono(15) : Fonts.bold(15));
             playIcon.setVisible(false);
             playIcon.setManaged(false);
         } else {
             playLabel.setText("JOUER");
-            playLabel.setFont(Fonts.bold(22));
+            playLabel.setFont(dev ? fr.nylerp.launcher.ui.terminal.TerminalTheme.mono(20) : Fonts.bold(22));
             playIcon.setVisible(true);
             playIcon.setManaged(true);
         }
@@ -597,7 +603,10 @@ public class MainView extends BorderPane {
         logo.setSmooth(true);
         logo.setCache(true);
         Circle dot = new Circle(6, Color.web("#22C55E"));
-        pulse(dot);
+        // La pastille qui respire n'existe que dans la disposition de production : en DEV elle
+        // n'est jamais ajoutée à la scène. Sans cette garde, sa Timeline tournait quand même,
+        // indéfiniment, sur un nœud détaché — une animation permanente que personne ne voit.
+        if (!fr.nylerp.launcher.config.Constants.DEV) pulse(dot);
         Label online = new Label("— JOUEURS EN LIGNE");
         online.setFont(Fonts.medium(14));
         online.setTextFill(Color.web("#F4F4F7"));
@@ -606,17 +615,41 @@ public class MainView extends BorderPane {
         // endpoint (cf. site-mc /api/server). 30s polling keeps the UI
         // honest without hammering the server. Replaces the hard-coded
         // 42 placeholder.
+        // Un SEUL abonnement : en canal DEV seul le formatage change (ligne de terminal au lieu
+        // de la capitale espacée). Démarrer le sondage deux fois doublerait les requêtes.
+        final boolean devFmt = fr.nylerp.launcher.config.Constants.DEV;
         fr.nylerp.launcher.net.ServerStatus.start(count -> javafx.application.Platform.runLater(() -> {
-            if (count >= 0) online.setText(count + " JOUEURS EN LIGNE");
-            else            online.setText("HORS LIGNE");
+            if (devFmt) {
+                online.setText("> joueurs ...... " + (count >= 0 ? String.valueOf(count) : "hors ligne"));
+            } else if (count >= 0) {
+                online.setText(count + " JOUEURS EN LIGNE");
+            } else {
+                online.setText("HORS LIGNE");
+            }
         }));
         HBox onlineRow = new HBox(10, dot, online);
         onlineRow.setAlignment(Pos.CENTER_LEFT);
 
         logo.setTranslateY(4);
         onlineRow.setTranslateY(-5);
-        HBox leftBlock = new HBox(20, logo, onlineRow);
-        leftBlock.setAlignment(Pos.CENTER_LEFT);
+        Region leftBlock;
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            // Canal DEV : le logo devient un mot en ASCII art (dessiné une fois) et le compteur
+            // rejoint un bloc d'état de session façon sortie de commande. Le compteur en ligne
+            // reste le MÊME Label, donc le sondage ServerStatus branché plus haut continue de
+            // l'alimenter — on ne duplique pas la source de vérité.
+            online.setText("> joueurs ...... --");
+            online.setStyle("");
+            VBox devBlock = new VBox(10,
+                    fr.nylerp.launcher.ui.terminal.TerminalSkin.marqueAscii("NYLE", 190),
+                    fr.nylerp.launcher.ui.terminal.TerminalSkin.blocInfos(online));
+            devBlock.setAlignment(Pos.TOP_LEFT);
+            leftBlock = devBlock;
+        } else {
+            HBox row = new HBox(20, logo, onlineRow);
+            row.setAlignment(Pos.CENTER_LEFT);
+            leftBlock = row;
+        }
         leftBlock.setMaxWidth(Region.USE_PREF_SIZE);
         leftBlock.setMaxHeight(Region.USE_PREF_SIZE);
         StackPane.setAlignment(leftBlock, Pos.TOP_LEFT);
@@ -672,6 +705,18 @@ public class MainView extends BorderPane {
      *  swap MediaView visibility. The off-screen player is paused, never
      *  disposed, so the next swap is instant. */
     private void installBackground(StackPane body) {
+        // ── Canal DEV : fond terminal au lieu des deux vidéos ────────────────────────────────
+        // Le thème DEV n'a pas d'arrière-plan vidéo : le fond est peint une fois sur un Canvas
+        // (cf. TerminalSkin.fondTerminal). On sort AVANT de construire les MediaPlayer, donc
+        // aucun décodage H.264 ne tourne — c'est aussi ce qui rend l'écran DEV moins gourmand
+        // que la prod au repos. view1/view2/player1/player2 restent nuls ; tous leurs autres
+        // points d'usage (mute, easter egg, volume) sont déjà gardés contre null.
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            body.getChildren().add(fr.nylerp.launcher.ui.terminal.TerminalSkin.fondTerminal());
+            installAgentEasterEgg(body);
+            return;
+        }
+
         // 2026-05-16 — fallback Region with fond-launcher.png REMOVED. The
         // image was the cause of the "vieille photo qui flash" the player
         // saw when navigating Settings → Home: a freshly-built MainView
@@ -957,23 +1002,29 @@ public class MainView extends BorderPane {
         btn.setMinSize(44, 44);
         btn.setPrefSize(44, 44);
         btn.setMaxSize(44, 44);
+        // Ce bouton est stylé EN LIGNE (pas via une classe CSS), donc terminal.css ne peut pas
+        // l'atteindre : le canal DEV a besoin de sa propre variante, sinon il resterait la seule
+        // pastille arrondie blanche au milieu d'une interface à angles droits.
+        boolean dev = fr.nylerp.launcher.config.Constants.DEV;
+        final String repos = dev ? "rgba(5,8,7,0.80)"  : "rgba(8,8,11,0.62)";
+        final String survol= dev ? "rgba(34,255,136,0.22)" : "rgba(20,20,28,0.78)";
+        final String cadre = dev ? "rgba(34,255,136,0.45)" : "rgba(255,255,255,0.12)";
+        final String rayon = dev ? "0" : "22";
         btn.setStyle(
-            "-fx-background-color: rgba(8,8,11,0.62);" +
-            "-fx-background-radius: 22;" +
-            "-fx-border-color: rgba(255,255,255,0.12);" +
-            "-fx-border-radius: 22;" +
+            "-fx-background-color: " + repos + ";" +
+            "-fx-background-radius: " + rayon + ";" +
+            "-fx-border-color: " + cadre + ";" +
+            "-fx-border-radius: " + rayon + ";" +
             "-fx-border-width: 1;" +
             "-fx-cursor: hand;" +
             "-fx-padding: 0;"
         );
-        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace(
-            "rgba(8,8,11,0.62)", "rgba(20,20,28,0.78)")));
-        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace(
-            "rgba(20,20,28,0.78)", "rgba(8,8,11,0.62)")));
+        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace(repos, survol)));
+        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace(survol, repos)));
         btn.setTooltip(new Tooltip("Couper / réactiver le son d'ambiance"));
 
         muteIcon = new SVGPath();
-        muteIcon.setFill(Color.web("#F4F4F7"));
+        muteIcon.setFill(Color.web(dev ? "#22FF88" : "#F4F4F7"));
         applyMuteIconShape();
         btn.setGraphic(muteIcon);
 
@@ -1159,6 +1210,10 @@ public class MainView extends BorderPane {
         cover.setFitWidth(CARD_W);
         cover.setPreserveRatio(true);
         cover.setSmooth(true);
+        // Canal DEV : le filtre phosphore rend cette photo en vert vif, ce qui en faisait de loin
+        // l'objet le plus lumineux de l'écran — l'œil y allait avant d'aller au bouton JOUER. On la
+        // recule à mi-intensité : elle devient une image scannée sur un terminal, pas un projecteur.
+        if (fr.nylerp.launcher.config.Constants.DEV) cover.setOpacity(0.42);
 
         Label tagLbl = new Label("OUVERTURE");
         tagLbl.setFont(Fonts.black(9));
@@ -1223,7 +1278,18 @@ public class MainView extends BorderPane {
         progress.getStyleClass().add("progress");
         progress.setPrefHeight(3);
         progress.setMaxWidth(Double.MAX_VALUE);
-        VBox mid = new VBox(6, status, progress);
+        // Canal DEV : la ProgressBar reste la SOURCE de vérité (tous les setProgress du launcher
+        // continuent de l'alimenter) mais n'est pas ajoutée à la scène ; c'est TerminalProgress,
+        // abonnée à sa propriété, qui est affichée. Aucun appelant n'est modifié, donc le chemin
+        // de mise à jour de la prod est intouché.
+        VBox mid;
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            termProgress = new fr.nylerp.launcher.ui.terminal.TerminalProgress(progress.progressProperty());
+            installStatusTerminal();
+            mid = new VBox(4, status, termProgress);
+        } else {
+            mid = new VBox(6, status, progress);
+        }
         mid.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(mid, Priority.ALWAYS);
 
@@ -1235,6 +1301,11 @@ public class MainView extends BorderPane {
         playLabel = new Label("JOUER");
         playLabel.setFont(Fonts.bold(22));
         playLabel.setTextFill(Color.WHITE);
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            // Le libellé passe en chasse fixe pour que la recomposition au survol se fasse sans
+            // que la largeur du bouton ne saute d'un caractère à l'autre.
+            playLabel.setFont(fr.nylerp.launcher.ui.terminal.TerminalTheme.mono(20));
+        }
         playSpinner = new CubeSpinner(28.0);   // fits inside the 44-px-tall button
         HBox playContent = new HBox(10, playIcon, playSpinner, playLabel);
         playContent.setAlignment(Pos.CENTER);
@@ -1255,6 +1326,11 @@ public class MainView extends BorderPane {
             }
         });
         playBtn = play;
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            // Survol : le libellé se recompose caractère par caractère. Le reste du survol
+            // (cadre, fond, chevron) est traité en CSS — cf. .btn-play:hover dans terminal.css.
+            fr.nylerp.launcher.ui.terminal.TerminalHover.recompose(play, playLabel);
+        }
 
         HBox bar = new HBox(24, mid, play);
         bar.setAlignment(Pos.CENTER);
@@ -1267,6 +1343,48 @@ public class MainView extends BorderPane {
         bar.setMaxHeight(64);
         bar.getStyleClass().add("bottom-bar");
         return bar;
+    }
+
+    /**
+     * Canal DEV : habille la ligne d'état comme une sortie de terminal, et donne aux <b>erreurs</b>
+     * une signature qui ne repose pas sur la couleur.
+     *
+     * <p>Le thème DEV n'a qu'une seule teinte (vert) : passer une erreur en rouge est exclu. Elle
+     * se distingue donc par <b>trois</b> signaux qu'aucune ligne ordinaire ne porte :
+     * <ul>
+     *   <li>un préfixe {@code !!} au lieu du chevron {@code >} habituel ;</li>
+     *   <li>l'<b>intensité maximale</b> du tube (classe {@code status-error}) alors que l'état
+     *       courant est en vert éteint ;</li>
+     *   <li>un <b>clignotement lent</b> (1,4 s de période), le seul mouvement de tout l'écran au
+     *       repos — l'œil y va tout seul.</li>
+     * </ul>
+     * Le clignotement ne tourne QUE pendant une erreur : au repos, rien n'est animé.
+     */
+    private void installStatusTerminal() {
+        javafx.animation.Timeline clignote = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(Duration.ZERO,
+                        e -> status.setOpacity(1.0)),
+                new javafx.animation.KeyFrame(Duration.millis(700),
+                        e -> status.setOpacity(0.45)),
+                new javafx.animation.KeyFrame(Duration.millis(1400),
+                        e -> status.setOpacity(1.0)));
+        clignote.setCycleCount(javafx.animation.Animation.INDEFINITE);
+
+        // Le texte brut vient d'une demi-douzaine d'appelants partagés avec la production : on ne
+        // les modifie pas, on décore ici, au dernier moment, ce qu'ils ont écrit.
+        final String[] dernier = { null };
+        status.textProperty().addListener((o, ancien, nouveau) -> {
+            if (nouveau == null || nouveau.equals(dernier[0])) return;
+            boolean erreur = nouveau.toLowerCase(java.util.Locale.ROOT).startsWith("erreur");
+            String decore = (erreur ? "!! " : "> ") + nouveau;
+            status.getStyleClass().remove("status-error");
+            if (erreur) status.getStyleClass().add("status-error");
+            if (erreur) { clignote.playFromStart(); } else { clignote.stop(); status.setOpacity(1.0); }
+            dernier[0] = decore;
+            status.setText(decore);
+        });
+        dernier[0] = "> " + status.getText();      // amorce : l'état initial porte déjà l'invite
+        status.setText(dernier[0]);
     }
 
     private static Region spacer(double h) {

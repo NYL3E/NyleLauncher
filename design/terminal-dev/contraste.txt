@@ -1,0 +1,12 @@
+Contraste WCAG 2.1 du theme DEV, mesure sur les pixels RENDUS
+(apres desaturation + multiplication par 0x2bff8fff)
+
+reference de fond : #000000
+
+BG (fond)                  #000000     1.00:1   -
+NOISE (papier peint)       #051C10     1.18:1   decoratif seulement
+FRAME (cadres, points)     #0D502D     2.20:1   decoratif seulement
+DIM (texte secondaire)     #199252     5.27:1   texte OK
+TEXT (texte courant)       #1EB264     7.61:1   texte OK
+ACCENT (ce qui compte)     #25DB7B    11.50:1   texte OK
+HOT (crete, alerte)        #2BFF8F    15.80:1   texte OK

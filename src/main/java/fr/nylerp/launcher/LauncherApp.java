@@ -74,6 +74,12 @@ public class LauncherApp extends Application {
             showLogin();
         }
         stage.sizeToScene();   // window = scene content (1000 × BODY_HEIGHT+64) + the platform's OWN chrome
+        // Écran d'ouverture « terminal » — canal DEV UNIQUEMENT. Posé après sizeToScene (pour ne
+        // pas peser sur le calcul de taille) et avant show(), pour que la toute première image
+        // affichée soit le terminal et non l'interface qu'il est censé masquer.
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            fr.nylerp.launcher.ui.terminal.TerminalBoot.playOn(scene);
+        }
         stage.show();
     }
 
@@ -209,6 +215,17 @@ public class LauncherApp extends Application {
             stage.setScene(scene);
         } else {
             scene.setRoot(root);
+        }
+        // Canal DEV : filtre « phosphore » (désaturation + multiplication par un vert unique) posé
+        // sur la racine de CHAQUE écran. C'est ce qui tient la consigne « vert et noir uniquement »
+        // sans repeindre à la main les dizaines de couleurs écrites en dur dans les vues — y
+        // compris les images, qu'aucune feuille de style n'aurait pu atteindre.
+        // En production : rien, pas même un appel — l'interface est strictement celle d'avant.
+        if (fr.nylerp.launcher.config.Constants.DEV) {
+            root.setEffect(fr.nylerp.launcher.ui.terminal.TerminalTheme.phosphore(
+                    scene.getWidth() > 0 ? scene.getWidth() : 1000,
+                    scene.getHeight() > 0 ? scene.getHeight()
+                            : fr.nylerp.launcher.ui.MainView.BODY_HEIGHT + 64.0));
         }
     }
 

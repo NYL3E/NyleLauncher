@@ -18,7 +18,7 @@ public final class Constants {
      *  pas de cette constante. Elle avait dérivé (1.0.84 dans le code alors que
      *  payload-1.0.87 était publié) sans que personne ne le voie : le seul symptôme est
      *  un mauvais numéro affiché dans le pied de page et dans « À propos ». */
-    public static final String PAYLOAD_VERSION = "1.0.88";
+    public static final String PAYLOAD_VERSION = "1.0.89";
     public static final String MC_VERSION   = "1.21.1";
     public static final String LOADER       = "fabric";
 
