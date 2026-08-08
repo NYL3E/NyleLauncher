@@ -1,0 +1,105 @@
+ÉTAT DE RÉFÉRENCE (code corrigé, aucune modification)
+
+════════════════════════════════════════════════════════════════════════
+TÉMOIN : aucun — état livré. Attendu : VERT
+════════════════════════════════════════════════════════════════════════
+DevUpdatePathTest > Piège 3 — une charge inchangée ne doit PAS être retéléchargée en boucle PASSED
+DevUpdatePathTest > PROD : le manifeste reste exactement celui des socles déjà installés PASSED
+DevUpdatePathTest > PROD : le workflow de production empaquette toujours le socle PASSED
+DevUpdatePathTest > PROD : le dossier de cache reste NyleRP/payload PASSED
+DevUpdatePathTest > DEV : une charge est bien publiée, sinon le socle n'a rien à télécharger PASSED
+DevUpdatePathTest > Piège 2 — la version du socle DEV ne doit pas déclencher l'écran « Launcher obsolète » PASSED
+DevUpdatePathTest > Piège 1 — la version du socle DEV vient d'une seule source, jamais d'un littéral figé PASSED
+DevUpdatePathTest > DEV : manifeste et cache STRICTEMENT distincts de la production PASSED
+DevUpdatePathTest > Canal inconnu, vide ou absent : repli en production PASSED
+DevUpdatePathTest > DEV : le paquet distribué est le SOCLE, pas la charge empaquetée PASSED
+DevUpdatePathTest > PROD : aucune propriété système ne peut détourner un socle de production PASSED
+BUILD SUCCESSFUL in 9s
+
+════════════════════════════════════════════════════════════════════════
+TÉMOIN : 1/4 — le workflow DEV ré-empaquette la charge (--main-class fr.nylerp.launcher.Main). Attendu : ROUGE
+════════════════════════════════════════════════════════════════════════
+> Task :bootstrap:test FAILED
+DevUpdatePathTest > Piège 3 — une charge inchangée ne doit PAS être retéléchargée en boucle PASSED
+DevUpdatePathTest > PROD : le manifeste reste exactement celui des socles déjà installés PASSED
+DevUpdatePathTest > PROD : le workflow de production empaquette toujours le socle PASSED
+DevUpdatePathTest > PROD : le dossier de cache reste NyleRP/payload PASSED
+DevUpdatePathTest > DEV : une charge est bien publiée, sinon le socle n'a rien à télécharger PASSED
+DevUpdatePathTest > Piège 2 — la version du socle DEV ne doit pas déclencher l'écran « Launcher obsolète » PASSED
+DevUpdatePathTest > Piège 1 — la version du socle DEV vient d'une seule source, jamais d'un littéral figé PASSED
+DevUpdatePathTest > DEV : manifeste et cache STRICTEMENT distincts de la production PASSED
+DevUpdatePathTest > Canal inconnu, vide ou absent : repli en production PASSED
+DevUpdatePathTest > DEV : le paquet distribué est le SOCLE, pas la charge empaquetée FAILED
+DevUpdatePathTest > PROD : aucune propriété système ne peut détourner un socle de production PASSED
+11 tests completed, 1 failed
+BUILD FAILED in 9s
+
+════════════════════════════════════════════════════════════════════════
+TÉMOIN : 2/4 — plus aucune charge publiée sur dev-payload. Attendu : ROUGE
+════════════════════════════════════════════════════════════════════════
+> Task :bootstrap:test FAILED
+DevUpdatePathTest > Piège 3 — une charge inchangée ne doit PAS être retéléchargée en boucle PASSED
+DevUpdatePathTest > PROD : le manifeste reste exactement celui des socles déjà installés PASSED
+DevUpdatePathTest > PROD : le workflow de production empaquette toujours le socle PASSED
+DevUpdatePathTest > PROD : le dossier de cache reste NyleRP/payload PASSED
+DevUpdatePathTest > DEV : une charge est bien publiée, sinon le socle n'a rien à télécharger FAILED
+DevUpdatePathTest > Piège 2 — la version du socle DEV ne doit pas déclencher l'écran « Launcher obsolète » PASSED
+DevUpdatePathTest > Piège 1 — la version du socle DEV vient d'une seule source, jamais d'un littéral figé PASSED
+DevUpdatePathTest > DEV : manifeste et cache STRICTEMENT distincts de la production PASSED
+DevUpdatePathTest > Canal inconnu, vide ou absent : repli en production PASSED
+DevUpdatePathTest > DEV : le paquet distribué est le SOCLE, pas la charge empaquetée PASSED
+DevUpdatePathTest > PROD : aucune propriété système ne peut détourner un socle de production PASSED
+11 tests completed, 1 failed
+BUILD FAILED in 10s
+
+════════════════════════════════════════════════════════════════════════
+TÉMOIN : 3/4 — version du socle DEV laissée dériver (pas de -PbootstrapVersion). Attendu : ROUGE
+════════════════════════════════════════════════════════════════════════
+> Task :bootstrap:test FAILED
+DevUpdatePathTest > Piège 3 — une charge inchangée ne doit PAS être retéléchargée en boucle PASSED
+DevUpdatePathTest > PROD : le manifeste reste exactement celui des socles déjà installés PASSED
+DevUpdatePathTest > PROD : le workflow de production empaquette toujours le socle PASSED
+DevUpdatePathTest > PROD : le dossier de cache reste NyleRP/payload PASSED
+DevUpdatePathTest > DEV : une charge est bien publiée, sinon le socle n'a rien à télécharger PASSED
+DevUpdatePathTest > Piège 2 — la version du socle DEV ne doit pas déclencher l'écran « Launcher obsolète » PASSED
+DevUpdatePathTest > Piège 1 — la version du socle DEV vient d'une seule source, jamais d'un littéral figé FAILED
+DevUpdatePathTest > DEV : manifeste et cache STRICTEMENT distincts de la production PASSED
+DevUpdatePathTest > Canal inconnu, vide ou absent : repli en production PASSED
+DevUpdatePathTest > DEV : le paquet distribué est le SOCLE, pas la charge empaquetée PASSED
+DevUpdatePathTest > PROD : aucune propriété système ne peut détourner un socle de production PASSED
+11 tests completed, 1 failed
+BUILD FAILED in 9s
+
+════════════════════════════════════════════════════════════════════════
+TÉMOIN : 4/4 — caches DEV et PROD de nouveau confondus. Attendu : ROUGE
+════════════════════════════════════════════════════════════════════════
+> Task :bootstrap:test FAILED
+DevUpdatePathTest > Piège 3 — une charge inchangée ne doit PAS être retéléchargée en boucle PASSED
+DevUpdatePathTest > PROD : le manifeste reste exactement celui des socles déjà installés PASSED
+DevUpdatePathTest > PROD : le workflow de production empaquette toujours le socle PASSED
+DevUpdatePathTest > PROD : le dossier de cache reste NyleRP/payload PASSED
+DevUpdatePathTest > DEV : une charge est bien publiée, sinon le socle n'a rien à télécharger PASSED
+DevUpdatePathTest > Piège 2 — la version du socle DEV ne doit pas déclencher l'écran « Launcher obsolète » PASSED
+DevUpdatePathTest > Piège 1 — la version du socle DEV vient d'une seule source, jamais d'un littéral figé PASSED
+DevUpdatePathTest > DEV : manifeste et cache STRICTEMENT distincts de la production FAILED
+DevUpdatePathTest > Canal inconnu, vide ou absent : repli en production PASSED
+DevUpdatePathTest > DEV : le paquet distribué est le SOCLE, pas la charge empaquetée PASSED
+DevUpdatePathTest > PROD : aucune propriété système ne peut détourner un socle de production PASSED
+11 tests completed, 1 failed
+BUILD FAILED in 8s
+
+════════════════════════════════════════════════════════════════════════
+TÉMOIN : retour à l'état livré. Attendu : VERT
+════════════════════════════════════════════════════════════════════════
+DevUpdatePathTest > Piège 3 — une charge inchangée ne doit PAS être retéléchargée en boucle PASSED
+DevUpdatePathTest > PROD : le manifeste reste exactement celui des socles déjà installés PASSED
+DevUpdatePathTest > PROD : le workflow de production empaquette toujours le socle PASSED
+DevUpdatePathTest > PROD : le dossier de cache reste NyleRP/payload PASSED
+DevUpdatePathTest > DEV : une charge est bien publiée, sinon le socle n'a rien à télécharger PASSED
+DevUpdatePathTest > Piège 2 — la version du socle DEV ne doit pas déclencher l'écran « Launcher obsolète » PASSED
+DevUpdatePathTest > Piège 1 — la version du socle DEV vient d'une seule source, jamais d'un littéral figé PASSED
+DevUpdatePathTest > DEV : manifeste et cache STRICTEMENT distincts de la production PASSED
+DevUpdatePathTest > Canal inconnu, vide ou absent : repli en production PASSED
+DevUpdatePathTest > DEV : le paquet distribué est le SOCLE, pas la charge empaquetée PASSED
+DevUpdatePathTest > PROD : aucune propriété système ne peut détourner un socle de production PASSED
+BUILD SUCCESSFUL in 8s

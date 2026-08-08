@@ -1,0 +1,82 @@
+BANC D'ESSAI — LA MISE À JOUR DU LAUNCHER DEV, POUR DE VRAI
+==========================================================
+Date : 2026-08-08.  Machine : macOS 26.4 aarch64, JDK 21.0.3.
+
+Ce que ce banc éprouve : un SOCLE DEV réel (jpackage mis à part, c'est le même jar que celui
+que la CI empaquettera) est lancé contre un manifeste servi en local, exactement comme il le
+sera contre le tag `dev-payload`. On lui fait voir une charge, puis une charge PLUS RÉCENTE.
+
+Deux charges RÉELLEMENT différentes ont été construites depuis la source du dépôt :
+  charge dev-1 = source du dépôt telle quelle
+  charge dev-2 = même source, avec UNE correction visible à l'écran (le sous-titre de l'écran
+                 de démarrage), pour simuler une itération de développement.
+  SHA-256 dev-1 : c122f9d739d9f9f21326c0bf2ab33cdf01c236876cd80666843f0c0c9b5005a3
+  SHA-256 dev-2 : cbc0a7689eec8c3594062a78d700cabac18b8957779a71f02ae10e23845ff4ce
+Les empreintes diffèrent : ce ne sont pas deux étiquettes sur le même fichier.
+
+
+A — INSTALLATION INITIALE (cache vide)
+--------------------------------------
+[bootstrap] bootstrap version=0.3.22 canal=dev
+[bootstrap] manifeste=http://127.0.0.1:8823/manifest.json
+[bootstrap] cache=/Users/nyle/Library/Application Support/NyleRP/payload-dev
+[bootstrap] manifest version=dev-1 sha=c122f9d739d9
+[bootstrap] downloading payload dev-1 ← http://127.0.0.1:8823/payload-dev-1.jar
+[bootstrap] downloaded + verified
+[bootstrap] launch fr.nylerp.launcher.Main from launcher-dev-1.jar
+
+  → capture : 1-installation-charge-dev-1.png
+    « [ ui ] payload dev-1 » et le sous-titre d'origine
+    « mods en test · serveur de dev · aucune donnee de production ».
+
+
+B — RELANCE SANS RIEN PUBLIER  (piège n°1 : la mise à jour en boucle)
+--------------------------------------------------------------------
+[bootstrap] bootstrap version=0.3.22 canal=dev
+[bootstrap] manifeste=http://127.0.0.1:8823/manifest.json
+[bootstrap] cache=/Users/nyle/Library/Application Support/NyleRP/payload-dev
+[bootstrap] manifest version=dev-1 sha=c122f9d739d9
+[bootstrap] payload dev-1 already cached, hash matches
+[bootstrap] launch fr.nylerp.launcher.Main from launcher-dev-1.jar
+
+  → « already cached, hash matches » : AUCUN retéléchargement.
+    Le socle compare des SHA-256, pas des numéros de version ; un manifeste inchangé ne
+    provoque donc jamais la boucle « mise à jour disponible » perpétuelle qui avait mordu
+    ce dépôt en juillet.
+
+
+C — LE DÉVELOPPEUR PUBLIE UNE NOUVELLE CHARGE, LE TESTEUR RELANCE. C'EST TOUT.
+------------------------------------------------------------------------------
+(le manifeste local passe de dev-1 à dev-2 — c'est ce que fera la CI sur `dev-payload`)
+
+[bootstrap] bootstrap version=0.3.22 canal=dev
+[bootstrap] manifeste=http://127.0.0.1:8823/manifest.json
+[bootstrap] cache=/Users/nyle/Library/Application Support/NyleRP/payload-dev
+[bootstrap] manifest version=dev-2 sha=cbc0a7689eec
+[bootstrap] downloading payload dev-2 ← http://127.0.0.1:8823/payload-dev-2.jar
+[bootstrap] downloaded + verified
+[bootstrap] launch fr.nylerp.launcher.Main from launcher-dev-2.jar
+
+  → capture : 2-mise-a-jour-charge-dev-2.png
+    « [ ui ] payload dev-2 » ET le sous-titre « CHARGE B · arrivee sans reinstallation ·
+    preuve de mise a jour », qui n'existe QUE dans le jar dev-2. Ce n'est donc pas
+    seulement le numéro qui a changé : le CODE de la nouvelle charge s'exécute.
+
+  → captures d'accueil : 3-accueil-charge-dev-1.png puis 4-accueil-charge-dev-2.png
+    « > payload .... dev-1 » puis « > payload .... dev-2 ».
+
+  Aucun installeur n'a été téléchargé. Aucun paquet n'a été réinstallé. Aucun mot de passe
+  administrateur n'a été demandé. Le paquet posé sur le disque n'a pas été touché d'un octet.
+
+
+CE QUI A ÉTÉ ÉCRIT SUR LE DISQUE
+--------------------------------
+  ~/Library/Application Support/NyleRP/payload-dev/launcher-dev-1.jar
+  ~/Library/Application Support/NyleRP/payload-dev/launcher-dev-2.jar
+Uniquement dans l'espace de données de l'utilisateur — jamais dans l'application.
+
+
+LE THÈME TERMINAL N'A PAS BOUGÉ
+-------------------------------
+Les quatre captures montrent la DA phosphore intacte : ASCII art animé, journal de démarrage,
+vert sur noir, barre de progression, « [ clic pour passer ] ».

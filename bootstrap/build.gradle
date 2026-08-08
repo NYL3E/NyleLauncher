@@ -24,6 +24,16 @@ repositories {
 dependencies {
     // Only Gson + slf4j-simple — keep deps minimal so the bootstrap stays small.
     implementation 'com.google.code.gson:gson:2.11.0'
+
+    // Garde-fous du chemin de mise à jour DEV (voir DevUpdatePathTest). Portée test uniquement :
+    // le jar publié reste aussi petit qu'avant.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging { events 'passed', 'failed', 'skipped' }
 }
 
 application {
@@ -56,5 +66,24 @@ def writeBootstrapVersion = tasks.register('writeBootstrapVersion') {
 }
 sourceSets.main.resources.srcDir(writeBootstrapVersion)
 processResources.dependsOn(writeBootstrapVersion)
+
+// Canal du SOCLE (2026-08-08) : 'prod' par défaut, 'dev' avec -Pchannel=dev.
+//   ./gradlew :bootstrap:shadowJar                   → socle PROD (manifeste du site, cache payload/)
+//   ./gradlew :bootstrap:shadowJar -Pchannel=dev     → socle DEV  (manifeste dev-payload, cache payload-dev/)
+// Écrit sur le même modèle que la version : une ressource générée, jamais une constante Java à
+// maintenir à la main — c'est précisément la dérive qui avait mordu Bootstrap.VERSION.
+def writeBootstrapChannel = tasks.register('writeBootstrapChannel') {
+    def chan = (project.findProperty('channel') ?: 'prod').toString()
+    def outDir = layout.buildDirectory.dir('generated/channel')
+    outputs.dir(outDir)
+    inputs.property('channel', chan)
+    doLast {
+        def f = outDir.get().file('bootstrap-channel.properties').asFile
+        f.parentFile.mkdirs()
+        f.text = "channel=${chan}\n"
+    }
+}
+sourceSets.main.resources.srcDir(writeBootstrapChannel)
+processResources.dependsOn(writeBootstrapChannel)
 
 build.dependsOn shadowJar

@@ -1,21 +1,138 @@
 name: Build DEV launcher
 
-# Launcher de DÉVELOPPEMENT (owner 2026-07-21). Standalone : on jpackage le PAYLOAD directement,
-# construit en canal DEV (-Pchannel=dev → serveur de dev game45-fr:20652, pack-latest, thème
-# terminal), SANS bootstrap ni auto-update (SelfUpdater est neutralisé en dev). Déclenchement
-# MANUEL (workflow_dispatch) → installeurs Win/Mac/Linux publiés sur la release `dev-launcher`,
-# que l'équipe beta télécharge. Non signé : l'avertissement Gatekeeper/SmartScreen est normal
-# pour un build interne (clic « ouvrir quand même » / « informations complémentaires → exécuter »).
+# Launcher de DÉVELOPPEMENT — MÊME ARCHITECTURE QUE LA PRODUCTION (2026-08-08).
+#
+# Historique : ce workflow empaquetait le PAYLOAD directement (--main-class fr.nylerp.launcher.Main).
+# Résultat, un launcher DEV n'allait JAMAIS chercher quoi que ce soit : chaque itération obligeait
+# les testeurs à re-télécharger et réinstaller le MSI/DMG/DEB. C'était le seul canal du projet à ne
+# pas respecter la règle « socle minimal + charge téléchargée ».
+#
+# Désormais, exactement comme bootstrap.yml :
+#   job `payload` — construit la charge DEV (shadowJar -Pchannel=dev), calcule son SHA-256 et
+#                   publie charge + manifest.json sur le tag STABLE `dev-payload` ;
+#   job `native`  — empaquette le SOCLE DEV (bootstrap shadowJar -Pchannel=dev) en MSI/DMG/DEB
+#                   publiés sur `dev-launcher`.
+#
+# Ce que ça change pour un testeur : il installe le socle UNE fois, puis chaque nouvelle charge
+# publiée est prise au démarrage suivant. Aucune réinstallation, aucun droit d'administrateur
+# (la charge vit dans %LOCALAPPDATA%/~/Library/Application Support), aucune écriture dans le paquet
+# installé (donc aucune signature macOS invalidée).
+#
+# Deux usages :
+#   - « publier une nouvelle charge DEV » (le cas courant, plusieurs fois par jour) : lancer avec
+#     l'entrée `installers` à false — seul le job `payload` tourne, les testeurs l'ont au prochain
+#     démarrage ;
+#   - « refaire les installeurs DEV » (rare : uniquement si le SOCLE change) : `installers` à true.
 
 on:
   workflow_dispatch:
+    inputs:
+      installers:
+        description: "Reconstruire aussi les installeurs du socle DEV (nécessaire uniquement si le socle a changé)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+env:
+  # Version du SOCLE DEV. Elle est injectée dans le jar (-PbootstrapVersion) ET passée à jpackage,
+  # depuis cette seule variable : c'est la dérive entre les deux qui avait mordu la prod en juillet.
+  #
+  # Elle DOIT rester >= BrokenBootstrapDialog.MIN_REQUIRED_BOOTSTRAP, sinon la charge affiche
+  # l'écran bloquant « Launcher obsolète » à tous les testeurs DEV, avec un bouton qui les envoie
+  # télécharger le launcher de PRODUCTION. Le test bootstrap/DevUpdatePathTest vérifie cette borne.
+  #
+  # Elle n'entre dans AUCUNE comparaison de mise à jour : SelfUpdater est neutralisé en DEV et le
+  # socle compare des SHA-256, pas des numéros. Il n'y a donc pas de boucle de mise à jour possible
+  # ici — mais la bumper reste utile pour lire, dans les journaux d'un testeur, quel socle il a.
+  DEV_BOOTSTRAP_VERSION: "0.3.22"
+
 jobs:
-  build:
-    name: Installeur DEV (${{ matrix.platform }})
+  # ── Garde-fous : le canal DEV doit rester un canal QUI SE MET À JOUR ──────────────────────────
+  # Ce job échoue si quelqu'un ré-empaquette le payload directement, débranche la publication de la
+  # charge, refait pointer le socle DEV sur le manifeste de prod, ou casse la séparation des caches.
+  garde:
+    name: Garde-fous du chemin de mise à jour DEV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - run: |
+          chmod +x gradlew
+          ./gradlew :bootstrap:test --no-daemon
+
+  payload:
+    name: Charge DEV (publiée sur dev-payload)
+    needs: garde
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build charge DEV (shadowJar -Pchannel=dev)
+        run: |
+          chmod +x gradlew
+          ./gradlew :shadowJar --no-daemon -Pchannel=dev
+
+      - name: Nom, version et SHA-256
+        id: meta
+        run: |
+          JAR=$(ls build/libs/nylelauncher-*.jar | grep -v sources | head -1)
+          # La version DEV est le numéro de run : strictement croissant, jamais réutilisé, donc
+          # jamais de collision de nom d'actif ni de cache CDN périmé. Le socle, lui, ne compare
+          # pas des numéros : il retélécharge dès que le SHA-256 diffère.
+          VER="dev-${GITHUB_RUN_NUMBER}"
+          SHA=$(sha256sum "$JAR" | awk '{print $1}')
+          mkdir -p dist
+          cp "$JAR" "dist/payload-${VER}.jar"
+          echo "version=$VER"  >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA"   >> "$GITHUB_OUTPUT"
+          echo "Charge DEV $VER — $SHA"
+
+      - name: Écrire manifest.json
+        run: |
+          cat > dist/manifest.json <<EOF
+          {
+            "version": "${{ steps.meta.outputs.version }}",
+            "jar_url": "https://github.com/NYL3E/NyleLauncher/releases/download/dev-payload/payload-${{ steps.meta.outputs.version }}.jar",
+            "main_class": "fr.nylerp.launcher.Main",
+            "sha256": "${{ steps.meta.outputs.sha256 }}"
+          }
+          EOF
+          cat dist/manifest.json
+
+      - name: Publier sur le tag dev-payload
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-payload
+          name: Charge DEV (payload)
+          # prerelease + make_latest:false → cette release n'usurpe jamais la « dernière version »
+          # que voient les joueurs. draft explicitement à false : une release restée en brouillon
+          # rend ses actifs introuvables (404) — le dépôt s'est déjà fait avoir avec pack-latest.
+          prerelease: true
+          draft: false
+          make_latest: false
+          files: |
+            dist/payload-${{ steps.meta.outputs.version }}.jar
+            dist/manifest.json
+          body: |
+            Charge du canal DEV, servie au socle DEV via `manifest.json`.
+            **Ne pas télécharger à la main.** Le socle DEV installé la récupère tout seul
+            au démarrage suivant — c'est le principe : plus jamais de réinstallation.
+
+            Version : `${{ steps.meta.outputs.version }}`
+
+  native:
+    name: Installeur du SOCLE DEV (${{ matrix.platform }})
+    needs: garde
+    if: inputs.installers
     strategy:
       fail-fast: false
       matrix:
@@ -34,22 +151,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: 'liberica'   # Liberica Full = JavaFX embarqué (sinon le UI crash au QuantumRenderer)
+          distribution: 'liberica'   # Liberica Full = JavaFX embarqué, requis par la charge
           java-version: '21'
           java-package: 'jdk+fx'
 
-      - name: Build payload DEV (shadowJar -Pchannel=dev)
+      - name: Build socle DEV (bootstrap shadowJar -Pchannel=dev)
         shell: bash
         run: |
           chmod +x gradlew || true
-          ./gradlew :shadowJar --no-daemon -Pchannel=dev
+          ./gradlew :bootstrap:shadowJar --no-daemon \
+            -Pchannel=dev -PbootstrapVersion="${DEV_BOOTSTRAP_VERSION}"
 
       - name: Package with jpackage
         shell: bash
         run: |
           mkdir -p dist
-          JAR=$(ls build/libs/nylelauncher-*.jar | grep -v sources | head -1)
-          echo "payload jar: $JAR"
+          JAR=$(ls bootstrap/build/libs/nylelauncher-bootstrap-*.jar | head -1)
+          echo "socle jar: $JAR"
           case "${{ matrix.ext }}" in
             msi) TYPE=msi ;;
             deb) TYPE=deb ;;
@@ -60,23 +178,28 @@ jobs:
             mac)     ICON=src/main/resources/images/app_icon.icns ;;
             linux)   ICON=src/main/resources/images/app_icon.png ;;
           esac
-          # Modules JDK détectés par jdeps sur le fat jar. IMPORTANT : JavaFX est EMBARQUÉ dans le
-          # jar (classpath), comme en prod (java -jar). On n'ajoute donc PAS les modules javafx.* à
-          # jlink — sinon le même paquet existe dans le jar ET dans les jmods Liberica → « split
-          # package » → jlink échoue. On embarque seulement les modules java.*/jdk.* dont JavaFX a
-          # besoin depuis le classpath (java.desktop pour AWT/Swing, java.xml pour FXML, web, etc.).
-          # jdeps écrit ses warnings « split package » sur STDOUT avant la liste de modules :
-          # ne garder QUE la ligne finale (lettres/chiffres/points/virgules), sinon --add-modules
-          # reçoit « Warning: … » et jlink explose.
+
+          # Même liste de modules que bootstrap.yml : jdeps ne voit pas à l'intérieur de la charge
+          # chargée par URLClassLoader, donc les modules JavaFX sont ajoutés à la main. Sans eux,
+          # l'image jlink n'a aucun pipeline QuantumRenderer et l'interface plante au démarrage.
           DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 21 "$JAR" 2>/dev/null | grep -E '^[a-z][a-z0-9.,]*$' | tail -n 1)
           [ -n "$DEPS" ] || DEPS=java.base
+          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported,javafx.base,javafx.graphics,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,jdk.jfr,java.scripting,java.management"
           echo "jdeps modules: $DEPS"
-          ALL_MODULES="${DEPS},jdk.crypto.ec,jdk.crypto.cryptoki,jdk.naming.dns,jdk.localedata,jdk.charsets,jdk.zipfs,jdk.unsupported,jdk.jfr,java.scripting,java.management,java.desktop,java.xml,java.sql,java.naming,java.logging,jdk.jsobject,jdk.xml.dom"
+          echo "final --add-modules: $ALL_MODULES"
+
+          # macOS refuse une version d'application commençant par 0 → 0.x.y devient 1.x.y, comme
+          # en prod. Purement cosmétique : rien ne compare ce numéro sur le canal DEV.
+          APP_VER="${DEV_BOOTSTRAP_VERSION}"
+          if [ "${{ matrix.platform }}" = "mac" ]; then
+            APP_VER=$(echo "$APP_VER" | sed -E 's/^0\./1./')
+          fi
 
           EXTRA_ARGS=()
           case "${{ matrix.platform }}" in
             windows)
               # UUID d'upgrade DIFFÉRENT de la prod → le launcher DEV s'installe À CÔTÉ du prod.
+              # --win-per-user-install : installation dans %LOCALAPPDATA%, donc sans élévation.
               EXTRA_ARGS+=(
                 --win-shortcut --win-menu --win-menu-group "NyleRP DEV"
                 --win-per-user-install
@@ -99,10 +222,10 @@ jobs:
           jpackage \
             --verbose --type "$TYPE" \
             --name NyleLauncherDev \
-            --app-version "1.0.0" \
-            --input build/libs \
+            --app-version "$APP_VER" \
+            --input bootstrap/build/libs \
             --main-jar "$(basename "$JAR")" \
-            --main-class fr.nylerp.launcher.Main \
+            --main-class fr.nylerp.bootstrap.Bootstrap \
             --dest dist \
             --java-options "-Xmx1024m" \
             --vendor "NyleRP" \
@@ -119,6 +242,14 @@ jobs:
         with:
           tag_name: dev-launcher
           name: NyleLauncher DEV (beta)
-          body: "Launcher de developpement — pointe sur le serveur de dev (game45-fr:20652). Non signe : clic droit → Ouvrir (Mac) / Informations complementaires → Executer (Windows)."
           prerelease: true
+          draft: false
+          make_latest: false
+          body: |
+            Socle du launcher DEV — pointe sur le serveur de developpement (game45-fr:20652).
+            Non signe : clic droit -> Ouvrir (Mac) / Informations complementaires -> Executer (Windows).
+
+            **A installer UNE seule fois.** Ce paquet ne contient plus l'interface : il telecharge
+            la charge DEV a chaque demarrage. Les mises a jour suivantes arrivent toutes seules,
+            sans reinstallation.
           files: dist/*.${{ matrix.ext }}

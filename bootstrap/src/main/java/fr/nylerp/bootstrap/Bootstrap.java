@@ -27,10 +27,28 @@ import java.util.stream.Stream;
  * Single responsibility: fetch the manifest, download (or reuse a cached copy
  * of) the payload JAR, verify its SHA-256, then load it and invoke its main().
  *
- * No UI, no business logic, no business URLs hardcoded except {@link #MANIFEST_URL}.
+ * No UI, no business logic, no business URLs hardcoded except the two manifest
+ * URLs of {@link #manifestUrlFor(String)}.
  * That way the actual launcher (UI, auth, modpack updater, every button & label)
  * lives in the payload and can be replaced 100% remotely without forcing users
  * to reinstall anything.
+ *
+ * <p><b>Deux canaux, un seul socle</b> (2026-08-08). Le socle est désormais construit deux fois :
+ * en canal <b>prod</b> (défaut) et en canal <b>dev</b>. La seule différence est la PAIRE
+ * {manifeste, dossier de cache} — tout le reste du code est partagé, ce qui garantit que le
+ * canal DEV éprouve exactement le même mécanisme de mise à jour que la production.
+ *
+ * <p><b>Pourquoi le canal DEV avait besoin de ça.</b> Le paquet DEV était auparavant un
+ * {@code jpackage} du PAYLOAD lui-même : aucun socle, donc aucun moyen d'aller chercher une
+ * nouvelle version. Les testeurs devaient réinstaller le MSI/DMG/DEB à chaque itération. En
+ * repassant par le socle, une nouvelle version de payload DEV est prise au démarrage suivant,
+ * sans réinstallation, sans droits d'administrateur et sans toucher au paquet installé (donc
+ * sans jamais invalider sa signature macOS).
+ *
+ * <p><b>Pourquoi des dossiers de cache séparés.</b> Si les deux canaux partageaient
+ * {@code NyleRP/payload}, le repli « pas d'internet → dernier payload en cache » d'un socle de
+ * PRODUCTION pourrait démarrer un payload DEV — c'est-à-dire envoyer un joueur de prod sur le
+ * serveur de développement. Le canal DEV écrit donc dans {@code NyleRP/payload-dev}.
  */
 public final class Bootstrap {
 
@@ -58,9 +76,62 @@ public final class Bootstrap {
         }
     }
 
-    /** The only business URL inside the bootstrap. Stable forever. */
-    private static final String MANIFEST_URL =
+    /**
+     * Canal du socle : {@code "prod"} (défaut) ou {@code "dev"}, lu au démarrage depuis la
+     * ressource {@code bootstrap-channel.properties} écrite par {@code processResources} selon
+     * {@code -Pchannel} (voir bootstrap/build.gradle).
+     *
+     * <p>Repli en {@code "prod"} au moindre doute (ressource absente, illisible, valeur inconnue) :
+     * un socle qui ne sait pas qui il est doit se comporter comme celui de production.
+     */
+    static final String CHANNEL = readChannel();
+
+    private static String readChannel() {
+        try (InputStream in = Bootstrap.class.getResourceAsStream("/bootstrap-channel.properties")) {
+            if (in == null) return "prod";
+            java.util.Properties p = new java.util.Properties();
+            p.load(in);
+            return normalizeChannel(p.getProperty("channel"));
+        } catch (Exception e) {
+            return "prod";
+        }
+    }
+
+    /** Le seul canal reconnu autre que la production est {@code dev} ; tout le reste retombe en prod. */
+    static String normalizeChannel(String raw) {
+        if (raw == null) return "prod";
+        return "dev".equals(raw.trim().toLowerCase(java.util.Locale.ROOT)) ? "dev" : "prod";
+    }
+
+    /**
+     * Manifeste de PRODUCTION. Valeur historique, inchangée : c'est le contrat des socles déjà
+     * installés chez les joueurs. Ne jamais la modifier sans migrer le site.
+     */
+    static final String PROD_MANIFEST_URL =
             "https://nyle-mc-server.pages.dev/launcher/manifest.json";
+
+    /**
+     * Manifeste du canal DEV — un actif de release GitHub sur un tag STABLE ({@code dev-payload}),
+     * pas une page du site. Deux raisons : publier un payload DEV ne doit dépendre que de la CI du
+     * dépôt (aucun déploiement Cloudflare à faire à la main), et le dépôt utilise déjà exactement ce
+     * schéma pour le modpack ({@code pack-dev} / {@code pack-latest}).
+     */
+    static final String DEV_MANIFEST_URL =
+            "https://github.com/NYL3E/NyleLauncher/releases/download/dev-payload/manifest.json";
+
+    /**
+     * Manifeste effectif du canal donné.
+     *
+     * <p>La propriété système {@code nylerp.devManifestUrl} permet de détourner le socle vers un
+     * manifeste local — c'est ce qui rend le chemin de mise à jour ÉPROUVABLE hors CI. Elle n'est
+     * lue qu'en canal DEV : un socle de production ne peut être redirigé par aucune propriété ni
+     * variable d'environnement, son URL reste littérale.
+     */
+    static String manifestUrlFor(String channel) {
+        if (!"dev".equals(channel)) return PROD_MANIFEST_URL;
+        String override = System.getProperty("nylerp.devManifestUrl", "").trim();
+        return override.isEmpty() ? DEV_MANIFEST_URL : override;
+    }
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
@@ -85,14 +156,17 @@ public final class Bootstrap {
         // (independently-versioned) Constants.APP_VERSION, which would create infinite
         // update loops when the bootstrap is bumped without a coordinated payload bump.
         System.setProperty("nyleauth.installedVersion", VERSION);
-        log("bootstrap version=" + VERSION);
+        String manifestUrl = manifestUrlFor(CHANNEL);
+        log("bootstrap version=" + VERSION + " canal=" + CHANNEL);
+        log("manifeste=" + manifestUrl);
 
-        Path cache = cacheDir();
+        Path cache = cacheDirFor(CHANNEL);
         Files.createDirectories(cache);
+        log("cache=" + cache);
 
         Manifest manifest;
         try {
-            manifest = fetchManifest();
+            manifest = fetchManifest(manifestUrl);
             log("manifest version=" + manifest.version + " sha=" + shortSha(manifest.sha256));
         } catch (Exception e) {
             log("WARN cannot fetch manifest (" + e.getMessage() + ") — falling back to cache");
@@ -100,9 +174,16 @@ public final class Bootstrap {
             if (cached == null) {
                 throw new RuntimeException("No internet AND no cached payload available", e);
             }
+            System.setProperty("nyleauth.payloadVersion", versionOfCached(cached));
             launch(cached, args, "fr.nylerp.launcher.Main");
             return;
         }
+
+        // Version RÉELLEMENT chargée, exposée au payload. Le payload embarque bien une constante
+        // PAYLOAD_VERSION, mais elle est figée à la compilation et avait déjà dérivé sans que
+        // personne ne le voie (1.0.84 affiché pour un payload-1.0.87 publié). La seule source de
+        // vérité est le manifeste que le socle vient d'appliquer.
+        System.setProperty("nyleauth.payloadVersion", manifest.version);
 
         Path target = cache.resolve("launcher-" + manifest.version + ".jar");
         boolean needDownload = !Files.exists(target)
@@ -138,6 +219,7 @@ public final class Bootstrap {
                 if (cached != null) {
                     log("WARN download corrupted 3x — starting on cached payload " + cached.getFileName()
                             + " (will retry the update next start)");
+                    System.setProperty("nyleauth.payloadVersion", versionOfCached(cached));
                     launch(cached, args, "fr.nylerp.launcher.Main");
                     return;
                 }
@@ -149,6 +231,8 @@ public final class Bootstrap {
         } else {
             log("payload " + manifest.version + " already cached, hash matches");
         }
+
+        if ("dev".equals(CHANNEL)) pruneDevCache(cache, target);
 
         launch(target, args, manifest.mainClass);
     }
@@ -169,9 +253,9 @@ public final class Bootstrap {
 
     // ── HTTP ─────────────────────────────────────────────────────────────────
 
-    private static Manifest fetchManifest() throws IOException, InterruptedException {
+    private static Manifest fetchManifest(String manifestUrl) throws IOException, InterruptedException {
         // Cache-buster so CDN never serves a stale manifest.
-        String url = MANIFEST_URL + "?t=" + System.currentTimeMillis();
+        String url = manifestUrl + (manifestUrl.contains("?") ? "&" : "?") + "t=" + System.currentTimeMillis();
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(15))
                 .header("User-Agent", "NyleLauncherBootstrap/1.0")
@@ -180,7 +264,7 @@ public final class Bootstrap {
                 .build();
         HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) {
-            throw new IOException("HTTP " + resp.statusCode() + " on " + MANIFEST_URL);
+            throw new IOException("HTTP " + resp.statusCode() + " on " + manifestUrl);
         }
         JsonObject o = JsonParser.parseString(resp.body()).getAsJsonObject();
         Manifest m = new Manifest();
@@ -269,21 +353,81 @@ public final class Bootstrap {
         }
     }
 
-    /** Per-OS cache dir. Cross-platform conventions, no admin needed. */
-    private static Path cacheDir() {
+    /**
+     * Dossier de cache du payload, par système ET par canal.
+     *
+     * <p>Conventions par OS, toujours dans l'espace utilisateur : c'est ce qui permet d'écrire la
+     * nouvelle charge <b>sans aucun droit d'administrateur</b> sous Windows ({@code %LOCALAPPDATA%},
+     * jamais {@code Program Files}) et <b>sans toucher au paquet installé</b> sous macOS (donc sans
+     * jamais invalider la signature du {@code .app}).
+     *
+     * <p>Le canal DEV a son propre dossier ({@code payload-dev}) : sans cette séparation, le repli
+     * hors-ligne d'un socle de PRODUCTION ({@link #mostRecentCached}) pourrait démarrer un payload
+     * DEV et envoyer un joueur sur le serveur de développement.
+     */
+    static Path cacheDirFor(String channel) {
+        String leaf = "dev".equals(channel) ? "payload-dev" : "payload";
         String os = System.getProperty("os.name", "").toLowerCase();
         String home = System.getProperty("user.home");
         if (os.contains("win")) {
             String appdata = System.getenv("LOCALAPPDATA");
             if (appdata != null && !appdata.isEmpty()) {
-                return Paths.get(appdata, "NyleRP", "payload");
+                return Paths.get(appdata, "NyleRP", leaf);
             }
-            return Paths.get(home, "AppData", "Local", "NyleRP", "payload");
+            return Paths.get(home, "AppData", "Local", "NyleRP", leaf);
         }
         if (os.contains("mac")) {
-            return Paths.get(home, "Library", "Application Support", "NyleRP", "payload");
+            return Paths.get(home, "Library", "Application Support", "NyleRP", leaf);
         }
-        return Paths.get(home, ".nylerp", "payload");
+        return Paths.get(home, ".nylerp", leaf);
+    }
+
+    /**
+     * Nombre de charges conservées dans le cache DEV. Le payload pèse ~76 Mo et le canal DEV publie
+     * plusieurs fois par jour : sans purge, le disque d'un testeur se remplit en une semaine. On
+     * garde la charge courante plus les {@value #DEV_CACHE_KEEP}−1 plus récentes, ce qui préserve le
+     * repli « démarrer sur la version d'avant » de {@link #mostRecentCached}.
+     *
+     * <p>La purge est <b>volontairement limitée au canal DEV</b> : le cache de production garde le
+     * comportement exact qu'il a aujourd'hui.
+     */
+    private static final int DEV_CACHE_KEEP = 3;
+
+    /** Supprime les charges les plus anciennes, sans jamais toucher à {@code keep}. */
+    private static void pruneDevCache(Path cacheDir, Path keep) {
+        try (Stream<Path> s = Files.list(cacheDir)) {
+            java.util.List<Path> jars = s
+                    .filter(p -> {
+                        String n = p.getFileName().toString();
+                        return n.startsWith("launcher-") && n.endsWith(".jar");
+                    })
+                    .sorted(Comparator.<Path>comparingLong(p -> {
+                        try { return Files.getLastModifiedTime(p).toMillis(); }
+                        catch (Exception e) { return 0L; }
+                    }).reversed())
+                    .toList();
+            int kept = 0;
+            for (Path p : jars) {
+                boolean isCurrent = keep != null && p.toAbsolutePath().equals(keep.toAbsolutePath());
+                if (isCurrent || kept < DEV_CACHE_KEEP) {
+                    if (!isCurrent) kept++;
+                    continue;
+                }
+                Files.deleteIfExists(p);
+                log("cache dev: purge " + p.getFileName());
+            }
+        } catch (Exception e) {
+            log("WARN purge du cache dev impossible: " + e.getMessage());
+        }
+    }
+
+    /** Déduit la version d'une charge en cache depuis son nom {@code launcher-<version>.jar}. */
+    private static String versionOfCached(Path jar) {
+        String n = jar.getFileName().toString();
+        if (n.startsWith("launcher-") && n.endsWith(".jar")) {
+            return n.substring("launcher-".length(), n.length() - ".jar".length());
+        }
+        return "inconnue";
     }
 
     private static String shortSha(String sha) {

@@ -674,7 +674,7 @@ public class MainView extends BorderPane {
 
         // ── Payload version footer (bottom-left, low-contrast). Lets the
         //    user see at a glance which silent payload update they're on.
-        Label versionLbl = new Label("v" + fr.nylerp.launcher.config.Constants.PAYLOAD_VERSION);
+        Label versionLbl = new Label("v" + fr.nylerp.launcher.config.Constants.runningPayloadVersion());
         versionLbl.setFont(Fonts.medium(10));
         versionLbl.setTextFill(Color.web("#6B6F7A"));
         versionLbl.setStyle("-fx-letter-spacing: 0.12em;");

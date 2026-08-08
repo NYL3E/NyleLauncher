@@ -389,7 +389,7 @@ public final class TerminalBoot extends Pane {
                 line("auth", compte,                                               "ok"),
                 line("net",  srv,                                                  "cible"),
                 line("pack", packTag,                                              "verrouille"),
-                line("ui",   "payload " + fr.nylerp.launcher.config.Constants.PAYLOAD_VERSION
+                line("ui",   "payload " + fr.nylerp.launcher.config.Constants.runningPayloadVersion()
                              + " · demarrage " + uptime + " ms",                   "ok"),
         };
     }

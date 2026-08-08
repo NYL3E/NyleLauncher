@@ -31,9 +31,23 @@ public final class SelfUpdater {
     public record Info(boolean hasUpdate, String latestTag, String currentTag, String releaseUrl) {}
 
     public static CompletableFuture<Info> check() {
-        // Canal DEV (owner 2026-07-21) : JAMAIS d'auto-update — sinon le launcher dev proposerait
-        // d'installer la dernière release PROD (tag v*) et s'écraserait lui-même. On renvoie « aucune
-        // mise à jour » (newer=false).
+        // Canal DEV : pas d'auto-update d'INSTALLEUR — et c'est toujours la bonne réponse.
+        //
+        // Cette classe ne met pas à jour le launcher : elle met à jour le SOCLE, en téléchargeant
+        // et relançant un MSI/DMG/DEB publié sur les tags `v*`. Or les tags `v*` sont les socles de
+        // PRODUCTION : les proposer à un testeur DEV, c'est écraser son launcher DEV par celui des
+        // joueurs. La garde reste donc en place, inchangée.
+        //
+        // Ce qui a changé le 2026-08-08, c'est que « pas d'auto-update ici » ne veut plus dire
+        // « pas de mise à jour du tout ». Le paquet DEV est désormais un SOCLE (comme en prod) et
+        // non plus le payload empaqueté tel quel : la charge est retéléchargée à chaque démarrage
+        // depuis le manifeste `dev-payload`, sans réinstallation ni droits d'administrateur.
+        // Autrement dit le chemin de mise à jour du canal DEV ne passe plus par ici du tout —
+        // il passe par fr.nylerp.bootstrap.Bootstrap.
+        //
+        // Conséquence pratique : ne PAS lever cette garde pour « réactiver les MAJ en DEV ». Ce
+        // serait rebrancher la voie qui réinstalle, à la place de celle qui n'a pas besoin de le
+        // faire. Le test bootstrap/DevUpdatePathTest verrouille l'autre bout de la chaîne.
         if (fr.nylerp.launcher.config.Channel.isDev())
             return CompletableFuture.completedFuture(new Info(false, "", "v" + installedVersion(), ""));
         return CompletableFuture.supplyAsync(() -> {

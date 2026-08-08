@@ -134,7 +134,7 @@ public final class TerminalSkin {
                 ligne("serveur", fr.nylerp.launcher.config.Constants.SERVER_HOST
                         + ":" + fr.nylerp.launcher.config.Constants.SERVER_PORT, false),
                 ligne("pack",    packTag, false),
-                ligne("payload", fr.nylerp.launcher.config.Constants.PAYLOAD_VERSION, false));
+                ligne("payload", fr.nylerp.launcher.config.Constants.runningPayloadVersion(), false));
         compteur.getStyleClass().add("term-info");
         box.getChildren().add(compteur);
         box.setAlignment(Pos.TOP_LEFT);

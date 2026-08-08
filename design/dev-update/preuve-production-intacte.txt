@@ -1,0 +1,85 @@
+CE QUI GARANTIT QUE LA PRODUCTION NE VOIT RIEN CHANGER
+======================================================
+Date : 2026-08-08.
+
+Le chantier touche au bootstrap, c'est-à-dire au chemin qu'empruntent TOUS les joueurs.
+Voici les quatre preuves, de la plus forte à la plus faible.
+
+
+1) LE SOCLE DE PRODUCTION, CONSTRUIT ET LANCÉ POUR DE VRAI
+----------------------------------------------------------
+Construit sans aucune option (`./gradlew :bootstrap:shadowJar`), donc exactement comme le fait
+bootstrap.yml. Ressource embarquée :
+
+    channel=prod
+
+Lancé dans un HOME isolé, AVEC la propriété de dérivation DEV volontairement positionnée sur
+un manifeste pirate local :
+
+    java -Duser.home=/tmp/fakehome-prod \
+         -Dnylerp.devManifestUrl=http://127.0.0.1:8823/manifest.json \
+         -jar socle-prod.jar
+
+    [bootstrap] bootstrap version=0.3.22 canal=prod
+    [bootstrap] manifeste=https://nyle-mc-server.pages.dev/launcher/manifest.json
+    [bootstrap] cache=/tmp/fakehome-prod/Library/Application Support/NyleRP/payload
+    [bootstrap] manifest version=1.0.88 sha=19ee4a5f3683
+    [bootstrap] downloading payload 1.0.88 <- https://github.com/NYL3E/NyleLauncher/releases/download/payload-1.0.88/payload-1.0.88.jar
+
+  - il se déclare en canal prod ;
+  - il IGNORE la dérivation : l'URL reste le manifeste littéral du site ;
+  - son cache reste NyleRP/payload (jamais payload-dev) ;
+  - il va chercher et télécharge la VRAIE charge de production. Le chemin prod fonctionne.
+
+
+2) LE CACHE DE PRODUCTION DE CETTE MACHINE N'A PAS ÉTÉ TOUCHÉ
+--------------------------------------------------------------
+~/Library/Application Support/NyleRP/payload/ : 51 jars, date de modification du dossier
+03:08 — soit AVANT le premier lancement du banc DEV (03:43). Le fichier le plus récent qu'il
+contient date lui aussi de 03:08.
+
+(Une première comparaison d'empreinte avait bougé : elle portait sur une sortie `ls -la` qui
+inclut la ligne « .. », c'est-à-dire le dossier parent NyleRP, dont la date change forcément
+quand payload-dev y est créé à côté. Les FICHIERS du cache prod, eux, sont inchangés.)
+
+
+3) LES DIFFÉRENCES DE CODE SONT TOUTES NEUTRES EN PRODUCTION
+-------------------------------------------------------------
+  Bootstrap.java
+    - le canal se replie sur "prod" si la ressource est absente, illisible ou inconnue ;
+    - manifestUrlFor("prod") renvoie le littéral historique, mot pour mot ;
+    - cacheDirFor("prod") renvoie NyleRP/payload, comme avant ;
+    - la purge du cache est gardée par `if ("dev".equals(CHANNEL))` — le cache de production
+      n'est jamais purgé, son comportement est identique ;
+    - la propriété nyleauth.payloadVersion est POSÉE en prod mais aucun code de production
+      ne la lit (voir ci-dessous).
+
+  Constants.runningPayloadVersion()
+    - première ligne : `if (!DEV) return PAYLOAD_VERSION;`
+      En production la méthode renvoie donc la constante, exactement la valeur affichée
+      aujourd'hui. Les quatre points d'affichage migrés (MainView, SettingsView, TerminalBoot,
+      TerminalSkin) sont donc strictement inchangés côté joueur — et TerminalBoot/TerminalSkin
+      ne sont de toute façon construits QUE sur le canal DEV.
+
+  SelfUpdater
+    - AUCUN changement de comportement : seul le commentaire a été réécrit. La garde
+      `if (Channel.isDev())` reste en place et à l'identique.
+
+  bootstrap.yml, payload.yml
+    - non modifiés. La chaîne de production est intouchée.
+
+  Enfin : les socles DÉJÀ INSTALLÉS chez les joueurs ne changent pas non plus, puisque ce
+  sont des binaires figés. Rien de tout ceci ne les atteint tant que l'owner ne publie pas
+  un nouveau tag v*.
+
+
+4) DES TESTS QUI VERROUILLENT CES INVARIANTS
+---------------------------------------------
+bootstrap/src/test/java/fr/nylerp/bootstrap/DevUpdatePathTest.java :
+  - « PROD : le manifeste reste exactement celui des socles déjà installés »
+    (comparé à un littéral recopié dans le test, qui sert de témoin) ;
+  - « PROD : aucune propriété système ne peut détourner un socle de production » ;
+  - « PROD : le dossier de cache reste NyleRP/payload » ;
+  - « PROD : le workflow de production empaquette toujours le socle »
+    (et n'est jamais construit avec -Pchannel=dev) ;
+  - « Canal inconnu, vide ou absent : repli en production ».
