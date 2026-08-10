@@ -1118,6 +1118,7 @@ public class MainView extends BorderPane {
         VBox body = new VBox(12);
         body.setPadding(new Insets(16, 20, 20, 20));
         body.getChildren().add(buildOpeningNews());
+        body.getChildren().add(buildPartenaireHosterfy());
 
         // Scrollable news list so more items can be added later without resizing the panel
         ScrollPane scroll = new ScrollPane(body);
@@ -1391,6 +1392,79 @@ public class MainView extends BorderPane {
         Region r = new Region();
         r.setMinHeight(h); r.setPrefHeight(h); r.setMaxHeight(h);
         return r;
+    }
+
+    /**
+     * LA SECTION DE NOTRE HÉBERGEUR, sous l'actualité.
+     *
+     * <p>Owner 2026-08-10 : « met un petit logo hosterfy.com, c'est notre hébergeur partenaire, et
+     * on doit leur faire une petite section dédiée sur le launcher ». Une carte, pas une bannière :
+     * elle vit dans le flux de l'actualité, se fait discrète, et n'entre jamais en concurrence avec
+     * le bouton JOUER.
+     *
+     * <h2>Pourquoi le logo n'est pas agrandi</h2>
+     * La seule image de marque récupérable est leur favicon, en 32×32 — leur site refuse les
+     * requêtes automatisées. L'étirer produirait exactement le flou qu'on vient de corriger sur les
+     * boutons du bandeau de téléportation. Il est donc affiché en 32 px, sa taille NATIVE, et c'est
+     * la typographie qui porte la section. Le jour où un logo vectoriel est fourni, seule la ligne
+     * de chargement change.
+     */
+    private Region buildPartenaireHosterfy() {
+        final double CARD_W = 280;
+        final String SITE = "https://hosterfy.com";
+
+        ImageView logo = new ImageView(new Image(
+                getClass().getResourceAsStream("/assets/partenaires/hosterfy.png")));
+        // Taille NATIVE du favicon : ni agrandissement, ni lissage.
+        logo.setFitWidth(32);
+        logo.setFitHeight(32);
+        logo.setPreserveRatio(true);
+        logo.setSmooth(false);
+
+        Label tag = new Label("PARTENAIRE");
+        tag.setFont(Fonts.black(9));
+        tag.getStyleClass().add("news-tag");
+        HBox tagRow = new HBox(tag);
+        tagRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label nom = new Label("Hosterfy");
+        nom.setFont(Fonts.bold(15));
+        nom.setTextFill(Color.web("#F4F4F7"));
+
+        Label quoi = new Label("L'hébergeur qui fait tourner nos serveurs.");
+        quoi.setFont(Fonts.medium(11));
+        quoi.setTextFill(Color.web("#A2A2AC"));
+        quoi.setWrapText(true);
+
+        Label lien = new Label("hosterfy.com");
+        lien.setFont(Fonts.bold(11));
+        // La couleur de leur marque, relevée sur le logo (#0070C0) et éclaircie pour rester
+        // lisible sur le fond sombre du panneau.
+        lien.setTextFill(Color.web("#4EA8E8"));
+
+        VBox texte = new VBox(4, nom, quoi, lien);
+        HBox ligne = new HBox(12, logo, texte);
+        ligne.setAlignment(Pos.CENTER_LEFT);
+
+        VBox bloc = new VBox(8, tagRow, ligne);
+        bloc.setPadding(new Insets(13, 14, 14, 14));
+
+        VBox card = new VBox(bloc);
+        card.getStyleClass().add("news-item-glass");
+        card.setPrefWidth(CARD_W);
+        card.setMaxWidth(CARD_W);
+        card.setStyle("-fx-cursor: hand;");
+        card.setOnMouseClicked(e -> openBrowser(SITE));
+
+        Rectangle clip = new Rectangle();
+        clip.setArcWidth(24);
+        clip.setArcHeight(24);
+        clip.widthProperty().bind(card.widthProperty());
+        clip.heightProperty().bind(card.heightProperty());
+        card.setClip(clip);
+
+        Animations.hoverLift(card, 2);
+        return card;
     }
 
     private void openBrowser(String url) {
