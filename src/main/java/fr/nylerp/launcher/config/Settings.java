@@ -44,6 +44,15 @@ public final class Settings {
      *  so players who silenced the launcher once don't have to do it on
      *  every start. */
     public boolean launcherAudioMuted       = false;
+    /** Coupe l'arrière-plan VIDÉO du launcher, et le garde coupé aux démarrages
+     *  suivants (owner 2026-08-13 : « les petits PC ont du mal avec la vidéo »).
+     *  <p>Ce n'est pas un simple masquage : quand c'est vrai, les MediaPlayer ne
+     *  sont pas construits du tout au démarrage — donc aucun décodage H.264 ne
+     *  tourne, exactement comme sur le canal DEV. Cacher la MediaView sans
+     *  arrêter le lecteur aurait laissé le décodeur consommer le processeur pour
+     *  des images que personne ne regarde, c'est-à-dire tout le contraire de ce
+     *  qui est demandé. */
+    public boolean launcherVideoDisabled    = false;
     /** Ferme le launcher dès que le jeu démarre. Activé par défaut — le joueur
      *  n'a pas besoin du launcher une fois Minecraft lancé ; décochable dans
      *  les paramètres pour le garder ouvert (debug, relance rapide). */

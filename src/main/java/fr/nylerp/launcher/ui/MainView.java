@@ -124,6 +124,17 @@ public class MainView extends BorderPane {
     private boolean audioMuted = Settings.get().launcherAudioMuted;
     private SVGPath muteIcon;
 
+    /** Hydraté depuis {@link Settings#launcherVideoDisabled} : le fond vidéo reste
+     *  coupé d'une session à l'autre, sans quoi le joueur au petit PC devrait le
+     *  recouper à chaque démarrage — ce qui est précisément la demande. */
+    private boolean videoCoupee = Settings.get().launcherVideoDisabled;
+    private SVGPath videoIcon;
+    /** Le corps où vivent les MediaView. Mémorisé pour pouvoir RALLUMER la vidéo
+     *  après coup : au démarrage coupé, les lecteurs n'existent pas encore et il
+     *  faut donc pouvoir les construire au moment du clic, pas seulement les
+     *  reprendre. */
+    private StackPane corpsFond;
+
     private final java.util.function.Consumer<Account> onSwitchAccount;
     private final Runnable onAddAccount;
     private final Runnable onLogout;
@@ -672,6 +683,16 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(muteBtn, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(muteBtn, new Insets(0, 22, 18, 0));
 
+        // ── Lecture / pause du fond vidéo, juste à GAUCHE du bouton de son.
+        //    Marge droite = 22 (marge du son) + 44 (sa largeur) + 10 (écart) = 76, pour que les
+        //    deux pastilles forment une paire régulière plutôt que deux boutons posés côte à côte.
+        //    Absent du canal DEV : son fond est un Canvas, il n'y a aucune vidéo à couper.
+        Region videoBtn = fr.nylerp.launcher.config.Constants.DEV ? null : buildVideoButton();
+        if (videoBtn != null) {
+            StackPane.setAlignment(videoBtn, Pos.BOTTOM_RIGHT);
+            StackPane.setMargin(videoBtn, new Insets(0, 76, 18, 0));
+        }
+
         // ── Payload version footer (bottom-left, low-contrast). Lets the
         //    user see at a glance which silent payload update they're on.
         Label versionLbl = new Label("v" + fr.nylerp.launcher.config.Constants.runningPayloadVersion());
@@ -682,6 +703,7 @@ public class MainView extends BorderPane {
         StackPane.setMargin(versionLbl, new Insets(0, 0, 22, 28));
 
         stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn, versionLbl);
+        if (videoBtn != null) stack.getChildren().add(videoBtn);
         return stack;
     }
 
@@ -717,6 +739,19 @@ public class MainView extends BorderPane {
             return;
         }
 
+        corpsFond = body;
+
+        // ── Fond vidéo coupé par le joueur : on s'arrête AVANT toute construction ────────────
+        // Même sortie anticipée que le canal DEV ci-dessus, et pour la même raison : ce qui coûte
+        // cher n'est pas d'AFFICHER la vidéo, c'est de la DÉCODER. Ne pas construire les
+        // MediaPlayer est donc le seul moyen de tenir la promesse faite au joueur — masquer la
+        // MediaView aurait laissé deux flux H.264 tourner pour personne. Le fond uni du corps
+        // (#08080B) prend le relais, exactement comme pendant la fenêtre de décodage au démarrage.
+        if (videoCoupee) {
+            installAgentEasterEgg(body);
+            return;
+        }
+
         // 2026-05-16 — fallback Region with fond-launcher.png REMOVED. The
         // image was the cause of the "vieille photo qui flash" the player
         // saw when navigating Settings → Home: a freshly-built MainView
@@ -727,13 +762,30 @@ public class MainView extends BorderPane {
         // now, and LauncherApp caches the MainView instance so subsequent
         // navigations don't tear down + re-instantiate the players at all.
 
+        construireVideos(body);
+        installAgentEasterEgg(body);
+    }
+
+    /**
+     * Construit et lance les deux lecteurs de fond. Extrait de {@link #installBackground} pour
+     * être REJOUABLE : quand le joueur rallume la vidéo, les lecteurs n'existent pas encore (le
+     * démarrage coupé ne les crée pas), il ne suffit donc pas de reprendre la lecture.
+     *
+     * <p>Les MediaView sont insérées en TÊTE de la pile ({@code add(0, …)}) et non ajoutées à la
+     * fin. À la première construction le corps est vide et cela revient au même ; au rallumage, en
+     * revanche, la pile contient déjà les panneaux, les boutons et le pied de page — une simple
+     * addition aurait posé la vidéo PAR-DESSUS toute l'interface.
+     */
+    private void construireVideos(StackPane body) {
+        if (view1 != null || player1 != null) return;      // déjà en place
+
         view1 = newBgMediaView(body);
         view2 = newBgMediaView(body);
         // view2 starts hidden — first clip is always videolauncher1.
         view2.setVisible(false);
 
-        body.getChildren().add(view1);
-        body.getChildren().add(view2);
+        body.getChildren().add(0, view1);
+        body.getChildren().add(1, view2);
 
         try {
             player1 = newBgPlayer("/media/videolauncher1.mp4", view1);
@@ -786,8 +838,32 @@ public class MainView extends BorderPane {
             if (view1 != null) view1.setVisible(false);
             if (view2 != null) view2.setVisible(false);
         }
+    }
 
-        installAgentEasterEgg(body);
+    /**
+     * Coupe le fond vidéo et REND les ressources : les lecteurs sont libérés, pas mis en pause.
+     *
+     * <p>Une pause suffirait à arrêter le décodage, mais laisserait deux pipelines multimédia et
+     * leurs tampons en mémoire — sur la machine modeste qui motive cette option, c'est justement ce
+     * qu'on veut rendre. {@code dispose()} après avoir détaché la vue est l'ordre imposé par JavaFX :
+     * libérer un lecteur encore rattaché à une MediaView laisse celle-ci pointer sur un pipeline
+     * mort.
+     */
+    private void arreterVideos() {
+        for (MediaView v : new MediaView[] { view1, view2 }) {
+            if (v == null) continue;
+            v.setVisible(false);
+            try { v.setMediaPlayer(null); } catch (Throwable ignored) {}
+            if (corpsFond != null) corpsFond.getChildren().remove(v);
+        }
+        for (MediaPlayer p : new MediaPlayer[] { player1, player2 }) {
+            if (p == null) continue;
+            try { p.stop(); }    catch (Throwable ignored) {}
+            try { p.dispose(); } catch (Throwable ignored) {}
+        }
+        view1 = null; view2 = null;
+        player1 = null; player2 = null;
+        currentPlayer = null;
     }
 
     /** Build a MediaView wired up exactly like the legacy launcher-bg view:
@@ -1081,6 +1157,85 @@ public class MainView extends BorderPane {
             muteIcon.setScaleX(0.85);
             muteIcon.setScaleY(0.85);
         }
+    }
+
+    /**
+     * LECTURE / PAUSE DU FOND VIDÉO — owner 2026-08-13 : « les petits PC ont du mal avec la vidéo ».
+     *
+     * <p>Même gabarit et même style que le bouton de son, canal DEV compris : les deux forment une
+     * paire, et une pastille qui ne ressemblerait pas à sa voisine se lirait comme un élément
+     * étranger. Le libellé de l'infobulle dit l'effet RÉEL (la vidéo ne sera pas relancée aux
+     * prochains démarrages), parce que c'est un réglage qui survit à la fermeture — un joueur doit
+     * pouvoir le comprendre sans avoir à le tester deux fois.
+     */
+    private Region buildVideoButton() {
+        Button btn = new Button();
+        btn.setMinSize(44, 44);
+        btn.setPrefSize(44, 44);
+        btn.setMaxSize(44, 44);
+        boolean dev = fr.nylerp.launcher.config.Constants.DEV;
+        final String repos = dev ? "rgba(5,8,7,0.80)"  : "rgba(8,8,11,0.62)";
+        final String survol= dev ? "rgba(34,255,136,0.22)" : "rgba(20,20,28,0.78)";
+        final String cadre = dev ? "rgba(34,255,136,0.45)" : "rgba(255,255,255,0.12)";
+        final String rayon = dev ? "0" : "22";
+        btn.setStyle(
+            "-fx-background-color: " + repos + ";" +
+            "-fx-background-radius: " + rayon + ";" +
+            "-fx-border-color: " + cadre + ";" +
+            "-fx-border-radius: " + rayon + ";" +
+            "-fx-border-width: 1;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 0;"
+        );
+        btn.setOnMouseEntered(e -> btn.setStyle(btn.getStyle().replace(repos, survol)));
+        btn.setOnMouseExited(e -> btn.setStyle(btn.getStyle().replace(survol, repos)));
+        btn.setTooltip(new Tooltip(
+                "Couper / relancer la vidéo de fond\nCoupée, elle ne se relancera plus au démarrage"));
+
+        videoIcon = new SVGPath();
+        videoIcon.setFill(Color.web(dev ? "#22FF88" : "#F4F4F7"));
+        applyVideoIconShape();
+        btn.setGraphic(videoIcon);
+
+        btn.setOnAction(e -> toggleVideo());
+        return btn;
+    }
+
+    /**
+     * Bascule le fond vidéo, et RETIENT le choix.
+     *
+     * <p>Couper libère les lecteurs ({@link #arreterVideos}) plutôt que de les mettre en pause :
+     * l'objet de ce bouton est de rendre du processeur et de la mémoire, pas de cacher des images.
+     * Relancer reconstruit ce qui a été libéré — et fonctionne donc aussi après un démarrage où
+     * les lecteurs n'ont jamais existé.
+     */
+    private void toggleVideo() {
+        videoCoupee = !videoCoupee;
+        try {
+            if (videoCoupee) arreterVideos();
+            else if (corpsFond != null) construireVideos(corpsFond);
+        } catch (Throwable t) {
+            // Un fond d'écran ne doit jamais empêcher de jouer : en cas d'échec on garde le fond
+            // uni et on enregistre quand même le choix, sinon le joueur retrouverait la vidéo au
+            // prochain démarrage alors qu'il vient tout juste de demander à s'en passer.
+            System.err.println("[MainView] bascule du fond vidéo impossible : " + t);
+        }
+        applyVideoIconShape();
+        Settings.get().launcherVideoDisabled = videoCoupee;
+        Settings.get().save();
+    }
+
+    private void applyVideoIconShape() {
+        if (videoIcon == null) return;
+        // Material Icons « play_arrow » quand la vidéo est coupée (le bouton la RELANCE),
+        // « pause » quand elle tourne (le bouton la COUPE) : l'icône annonce l'action, pas l'état.
+        if (videoCoupee) {
+            videoIcon.setContent("M8 5v14l11-7z");
+        } else {
+            videoIcon.setContent("M6 19h4V5H6v14zm8-14v14h4V5h-4z");
+        }
+        videoIcon.setScaleX(0.85);
+        videoIcon.setScaleY(0.85);
     }
 
     private Region buildGlassNewsPanel() {
