@@ -58,6 +58,24 @@ public final class JavaRuntime {
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private static Path javaBinary(Path root) {
+        Path attendu = javaBinaryAt(root);
+        if (attendu != null && Files.exists(attendu)) return attendu;
+        // L'APLATISSEMENT A PU ÉCHOUER : le binaire est alors resté un cran plus bas, dans le
+        // dossier d'origine de l'archive (« jdk-21.0.12+8 »). On le cherche là plutôt que de
+        // déclarer le runtime absent — sans quoi le launcher re-télécharge 180 Mo à CHAQUE
+        // démarrage et rééchoue au même endroit, bloquant le joueur définitivement.
+        // Constaté le 13/08 chez LeGueux0 : « Erreur: …\jdk-21/jdk-21.0.12+8/bin/ucrtbase.dll ».
+        try (Stream<Path> s = Files.list(root)) {
+            for (Path enfant : s.filter(Files::isDirectory).toList()) {
+                Path p = javaBinaryAt(enfant);
+                if (p != null && Files.exists(p)) return p;
+            }
+        } catch (IOException ignored) { /* dossier illisible → on rendra le chemin attendu */ }
+        return attendu;
+    }
+
+    /** Le chemin du binaire java SOUS une racine de JDK donnée, selon l'OS. */
+    private static Path javaBinaryAt(Path root) {
         String os = osSlug();
         if ("windows".equals(os)) {
             // javaw.exe = GUI-subsystem java : launching the game from the
@@ -143,16 +161,77 @@ public final class JavaRuntime {
         try (Stream<Path> s = Files.list(root)) {
             child = s.filter(Files::isDirectory).findFirst().orElseThrow();
         }
+        java.util.List<Path> entrees;
         try (Stream<Path> s = Files.list(child)) {
-            s.forEach(p -> {
-                try {
-                    Files.move(p, root.resolve(p.getFileName()), StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            entrees = s.toList();
+        }
+        for (Path p : entrees) {
+            deplacerObstine(p, root.resolve(p.getFileName()));
         }
         Files.deleteIfExists(child);
+    }
+
+    /**
+     * Déplace une entrée en RÉSISTANT aux verrous transitoires de Windows.
+     *
+     * <p>Le déplacement échouait chez un joueur sur {@code bin/ucrtbase.dll} — une DLL du runtime C
+     * que Windows Defender scanne systématiquement à l'extraction, et qu'il VERROUILLE le temps du
+     * scan. L'ancienne version relançait l'exception au premier échec : l'arborescence restait à
+     * moitié déplacée, {@code javaw.exe} n'était jamais au chemin attendu, et le launcher
+     * re-téléchargeait le JDK à chaque démarrage pour rééchouer au même endroit. Le joueur était
+     * bloqué DÉFINITIVEMENT, avec pour toute explication le chemin du fichier — parce que c'est
+     * exactement ce que rend {@code AccessDeniedException.getMessage()}.
+     *
+     * <p>Trois filets, dans l'ordre : on réessaie (le verrou d'un antivirus dure une poignée de
+     * centaines de millisecondes), puis on COPIE si le déplacement reste impossible (une copie
+     * n'exige pas le verrou exclusif qu'un renommage réclame), et en dernier recours on renonce à
+     * CETTE entrée sans casser l'installation — {@link #javaBinary} sait désormais retrouver le
+     * binaire resté un cran plus bas.
+     */
+    private static void deplacerObstine(Path source, Path cible) {
+        IOException dernier = null;
+        for (int essai = 1; essai <= 5; essai++) {
+            try {
+                Files.move(source, cible, StandardCopyOption.REPLACE_EXISTING);
+                return;
+            } catch (IOException e) {
+                dernier = e;
+                try { Thread.sleep(150L * essai); } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
+        // Le renommage reste refusé : on copie. Plus lent, mais sans verrou exclusif.
+        try {
+            if (Files.isDirectory(source)) {
+                copierArborescence(source, cible);
+            } else {
+                Files.createDirectories(cible.getParent());
+                Files.copy(source, cible, StandardCopyOption.REPLACE_EXISTING);
+            }
+            LOG.warn("Déplacement refusé pour {} ({}), copie effectuée à la place",
+                    source.getFileName(), dernier == null ? "?" : dernier.getClass().getSimpleName());
+        } catch (IOException e) {
+            LOG.error("Ni déplacement ni copie possibles pour {} : {} — installation poursuivie, "
+                    + "le binaire java sera cherché à son emplacement d'origine",
+                    source, e.toString());
+        }
+    }
+
+    /** Copie récursive, utilisée quand un renommage de dossier est refusé. */
+    private static void copierArborescence(Path source, Path cible) throws IOException {
+        try (Stream<Path> s = Files.walk(source)) {
+            for (Path p : s.toList()) {
+                Path dst = cible.resolve(source.relativize(p).toString());
+                if (Files.isDirectory(p)) {
+                    Files.createDirectories(dst);
+                } else {
+                    Files.createDirectories(dst.getParent());
+                    Files.copy(p, dst, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
     }
 
     private JavaRuntime() {}

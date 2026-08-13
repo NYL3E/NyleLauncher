@@ -1168,6 +1168,39 @@ public class MainView extends BorderPane {
      * prochains démarrages), parce que c'est un réglage qui survit à la fermeture — un joueur doit
      * pouvoir le comprendre sans avoir à le tester deux fois.
      */
+    /**
+     * Traduit une exception de lancement en phrase que le JOUEUR peut suivre.
+     *
+     * <p>Le libellé était {@code "Erreur: " + ex.getMessage()}. Sur les exceptions de fichier, ce
+     * message vaut le CHEMIN et rien d'autre : un joueur a vu
+     * {@code « Erreur: C:\…\jdk-21.0.12+8\bin/ucrtbase.dll »} — barre presque pleine, aucune idée de
+     * quoi faire, et le problème revenait à chaque essai. La classe de l'exception, elle, dit
+     * précisément ce qui s'est passé ; on s'en sert pour donner la marche à suivre.
+     */
+    private static String messageLisible(Throwable ex) {
+        Throwable cause = ex;
+        while (cause.getCause() != null && cause.getCause() != cause) cause = cause.getCause();
+        String detail = cause.getMessage() == null ? "" : cause.getMessage();
+
+        if (cause instanceof java.nio.file.AccessDeniedException
+                || cause instanceof java.nio.file.FileSystemException) {
+            return "Fichier bloqué par l'antivirus ou déjà utilisé — relance le launcher. "
+                    + "Si ça persiste, autorise le dossier NyleLauncher dans ton antivirus.";
+        }
+        if (cause instanceof java.net.UnknownHostException) {
+            return "Pas de connexion Internet (DNS injoignable) — vérifie ta connexion.";
+        }
+        if (cause instanceof java.net.SocketTimeoutException
+                || cause instanceof java.net.ConnectException
+                || cause instanceof java.net.http.HttpTimeoutException) {
+            return "Connexion au serveur de mise à jour impossible — réessaie dans un instant.";
+        }
+        if (cause instanceof java.io.EOFException || detail.toLowerCase().contains("zip")) {
+            return "Téléchargement incomplet — relance le launcher, il reprendra le fichier.";
+        }
+        return "Erreur : " + (detail.isBlank() ? cause.getClass().getSimpleName() : detail);
+    }
+
     private Region buildVideoButton() {
         Button btn = new Button();
         btn.setMinSize(44, 44);
@@ -1662,7 +1695,7 @@ public class MainView extends BorderPane {
                 });
             } catch (Exception ex) {
                 Platform.runLater(() -> {
-                    status.setText("Erreur: " + ex.getMessage());
+                    status.setText(messageLisible(ex));
                     play.setDisable(false);
                     setPlayBusy(false);
                     refreshPlayButton();
@@ -1835,7 +1868,7 @@ public class MainView extends BorderPane {
                 }
             } catch (Exception ex) {
                 Platform.runLater(() -> {
-                    status.setText("Erreur: " + ex.getMessage());
+                    status.setText(messageLisible(ex));
                     play.setDisable(false);
                     setPlayBusy(false);
                     refreshPlayButton();
