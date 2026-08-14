@@ -28,6 +28,18 @@ public final class JavaRuntime {
             LOG.info("JRE already present: {}", javaBin);
             return javaBin;
         }
+        // AUCUN JDK COMPLET ICI. Le dossier peut malgré tout contenir les restes d'une installation
+        // à moitié faite : c'est le cas quand l'aplatissement a échoué en cours de route (antivirus
+        // qui verrouille un fichier), laissant `bin/` d'un côté et `lib/` de l'autre. On lançait
+        // alors un `javaw.exe` dont les bibliothèques avaient déménagé, et la JVM mourait sur
+        // « could not open …/lib/jvm.cfg » — une erreur hors de notre fenêtre, dans une boîte
+        // Windows, que le joueur ne pouvait ni comprendre ni contourner.
+        // On repart donc d'un dossier VIDE : une réinstallation propre coûte un téléchargement,
+        // une arborescence incohérente coûte un joueur.
+        if (Files.exists(root)) {
+            LOG.warn("Runtime incomplet sous {} — purge avant réinstallation", root);
+            supprimerRecursivement(root);
+        }
         Files.createDirectories(root);
 
         String os = osSlug();
@@ -49,7 +61,13 @@ public final class JavaRuntime {
 
         javaBin = javaBinary(root);
         if (javaBin == null || !Files.isExecutable(javaBin)) {
-            throw new IOException("JRE extracted but 'java' binary not found under " + root);
+            // javaBinary() n'accepte QUE les JDK entiers : si l'on tombe ici après une extraction
+            // réussie, c'est que l'arborescence est restée éclatée malgré les réessais et la copie
+            // de secours. Mieux vaut le dire franchement que rendre un binaire qui mourra sur
+            // « could not open …/lib/jvm.cfg » dans une boîte Windows.
+            throw new IOException("Java n'a pas pu être installé complètement (dossier "
+                    + root + "). Un antivirus bloque probablement l'écriture : autorise le dossier "
+                    + "NyleLauncher, puis relance.");
         }
         LOG.info("JRE installed at {}", javaBin);
         return javaBin;
@@ -59,19 +77,52 @@ public final class JavaRuntime {
 
     private static Path javaBinary(Path root) {
         Path attendu = javaBinaryAt(root);
-        if (attendu != null && Files.exists(attendu)) return attendu;
+        if (estComplet(attendu)) return attendu;
         // L'APLATISSEMENT A PU ÉCHOUER : le binaire est alors resté un cran plus bas, dans le
         // dossier d'origine de l'archive (« jdk-21.0.12+8 »). On le cherche là plutôt que de
         // déclarer le runtime absent — sans quoi le launcher re-télécharge 180 Mo à CHAQUE
         // démarrage et rééchoue au même endroit, bloquant le joueur définitivement.
-        // Constaté le 13/08 chez LeGueux0 : « Erreur: …\jdk-21/jdk-21.0.12+8/bin/ucrtbase.dll ».
+        // Constaté le 13/08 chez LeGueux0 : « Erreur: …/jdk-21/jdk-21.0.12+8/bin/ucrtbase.dll ».
         try (Stream<Path> s = Files.list(root)) {
             for (Path enfant : s.filter(Files::isDirectory).toList()) {
                 Path p = javaBinaryAt(enfant);
-                if (p != null && Files.exists(p)) return p;
+                if (estComplet(p)) return p;
             }
-        } catch (IOException ignored) { /* dossier illisible → on rendra le chemin attendu */ }
-        return attendu;
+        } catch (IOException ignored) { /* dossier illisible → aucun candidat */ }
+        return null;
+    }
+
+    /**
+     * VRAI seulement si ce binaire appartient à un JDK ENTIER.
+     *
+     * <p>Trouver {@code javaw.exe} ne suffit pas : la JVM charge ses bibliothèques RELATIVEMENT à
+     * son propre emplacement, à commencer par {@code ../lib/jvm.cfg}. Quand l'aplatissement du
+     * dossier échoue à mi-chemin, {@code bin/} peut rester dans le dossier de l'archive pendant que
+     * {@code lib/} a, lui, bien été déplacé. Le binaire existe, il est même exécutable — et il
+     * meurt aussitôt sur « could not open …/lib/jvm.cfg », dans une boîte de dialogue Windows hors
+     * de notre interface. Deuxième symptôme observé chez le même joueur, le 14/08, juste après
+     * avoir corrigé le premier.
+     *
+     * <p>On exige donc la présence de {@code lib/jvm.cfg} À CÔTÉ du {@code bin/} retenu. Un JDK
+     * éclaté sur deux dossiers n'est pas « presque bon » : il est inutilisable, et le dire tout de
+     * suite déclenche la réinstallation propre au lieu d'un lancement voué à l'échec.
+     */
+    private static boolean estComplet(Path binaire) {
+        if (binaire == null || !Files.exists(binaire)) return false;
+        Path racineJdk = binaire.getParent() == null ? null : binaire.getParent().getParent();
+        if (racineJdk == null) return false;
+        return Files.isRegularFile(racineJdk.resolve("lib").resolve("jvm.cfg"));
+    }
+
+    /** Efface un dossier et tout son contenu, sans jamais lever. */
+    private static void supprimerRecursivement(Path racine) {
+        try (Stream<Path> s = Files.walk(racine)) {
+            s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try { Files.deleteIfExists(p); } catch (IOException ignored) { }
+            });
+        } catch (IOException e) {
+            LOG.warn("Purge partielle de {} : {}", racine, e.toString());
+        }
     }
 
     /** Le chemin du binaire java SOUS une racine de JDK donnée, selon l'OS. */
