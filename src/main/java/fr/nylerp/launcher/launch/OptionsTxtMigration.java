@@ -57,7 +57,7 @@ public final class OptionsTxtMigration {
             return;
         }
         try {
-            List<String> lines = new ArrayList<>(Files.readAllLines(opts));
+            List<String> lines = new ArrayList<>(fr.nylerp.launcher.util.LectureTexte.lignes(opts));
             String entry = "\"file/" + packFileName + "\"";
             boolean changed = false;
             boolean foundLine = false;
@@ -123,7 +123,7 @@ public final class OptionsTxtMigration {
             return; // already applied, or clean install (shipped options.txt already correct)
         }
         try {
-            List<String> lines = new ArrayList<>(Files.readAllLines(opts));
+            List<String> lines = new ArrayList<>(fr.nylerp.launcher.util.LectureTexte.lignes(opts));
             boolean changed = false;
             java.util.Set<String> unbind = new java.util.HashSet<>(java.util.Arrays.asList(UNBIND_KEYS));
             java.util.Set<String> present = new java.util.HashSet<>();

@@ -46,7 +46,7 @@ public final class KeybindDefaults {
     private static void patchOptions(String optionKey) throws Exception {
         Path options = AppPaths.gameDir().resolve("options.txt");
         List<String> lines = Files.exists(options)
-                ? new ArrayList<>(Files.readAllLines(options, StandardCharsets.UTF_8))
+                ? new ArrayList<>(fr.nylerp.launcher.util.LectureTexte.lignes(options))
                 : new ArrayList<>();
         boolean replaced = false;
         for (int i = 0; i < lines.size(); i++) {

@@ -70,7 +70,7 @@ public final class LightTextures {
         List<String> out = new ArrayList<>();
         Path opt = options();
         if (!Files.exists(opt)) { out.add("vanilla"); out.add("fabric"); return out; }
-        for (String line : Files.readAllLines(opt, StandardCharsets.UTF_8)) {
+        for (String line : LectureTexte.lignes(opt)) {
             if (line.startsWith("resourcePacks:")) {
                 JsonArray arr = JsonParser.parseString(line.substring("resourcePacks:".length())).getAsJsonArray();
                 arr.forEach(e -> out.add(e.getAsString()));
@@ -84,7 +84,7 @@ public final class LightTextures {
     private static void writePacks(List<String> packs) throws Exception {
         Path opt = options();
         List<String> lines = Files.exists(opt)
-                ? new ArrayList<>(Files.readAllLines(opt, StandardCharsets.UTF_8))
+                ? new ArrayList<>(LectureTexte.lignes(opt))
                 : new ArrayList<>();
         String newLine = "resourcePacks:" + GSON.toJson(packs);
         boolean replaced = false;

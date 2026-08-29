@@ -32,7 +32,7 @@ public final class AuthManager {
         Path file = AppPaths.sessionFile();
         if (!Files.exists(file)) return null;
         try {
-            String json = Files.readString(file);
+            String json = fr.nylerp.launcher.util.LectureTexte.lire(file);
             SessionFile sf = GSON.fromJson(json, SessionFile.class);
             if (sf == null || sf.account == null) {
                 // Either the file is from a pre-wrapped era (raw Account record) or empty.

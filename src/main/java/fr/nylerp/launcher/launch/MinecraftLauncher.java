@@ -199,12 +199,24 @@ public final class MinecraftLauncher {
             boolean finishedEarly = proc.waitFor(4, TimeUnit.SECONDS);
             if (finishedEarly) {
                 int rc = proc.exitValue();
-                String head = Files.exists(mcLog)
-                        ? Files.readString(mcLog).lines().limit(60).reduce("", (a, b) -> a + "\n" + b)
-                        : "(no log)";
+                // Le journal du jeu vient d'un process qui écrit dans la page de codes du
+                // SYSTÈME — sur un Windows français, un seul accent suffisait à faire échouer
+                // une lecture UTF-8 stricte, et la joueuse voyait « Input length = 3 » à la
+                // place de la panne réelle. On lit donc en tolérant, et jamais autrement.
+                String head = fr.nylerp.launcher.util.LectureTexte.lireOuDefaut(mcLog, "(no log)")
+                        .lines().limit(60).reduce("", (a, b) -> a + "\n" + b);
                 LOG.error("Minecraft exited early rc={} — first lines of log:\n{}", rc, head);
-                throw new IOException("Minecraft a planté immédiatement (code " + rc + "). "
-                        + "Voir " + mcLog + " — extraits :\n" + head);
+                // Le journal complet reste sur le disque et part avec le rapport ; ce que le
+                // JOUEUR reçoit, c'est la marche à suivre. Une pile d'appels dans une barre
+                // d'état n'a jamais aidé personne à relancer son jeu.
+                String conseil = DiagnosticCrash.conseil(head, rc);
+                if (conseil == null) {
+                    String parlante = DiagnosticCrash.ligneParlante(head);
+                    conseil = "Le jeu s'est fermé au démarrage (code " + rc + ")."
+                            + (parlante.isBlank() ? "" : " " + parlante)
+                            + " Relance le launcher ; si ça recommence, envoie un rapport au staff.";
+                }
+                throw new IOException(conseil);
             }
             LOG.info("Minecraft is running (pid {}).", proc.pid());
             return proc;

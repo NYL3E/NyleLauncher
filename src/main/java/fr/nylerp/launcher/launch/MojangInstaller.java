@@ -42,7 +42,7 @@ public final class MojangInstaller {
         JsonObject version = null;
         if (Files.exists(versionJsonPath)) {
             try {
-                version = GSON.fromJson(Files.readString(versionJsonPath), JsonObject.class);
+                version = GSON.fromJson(fr.nylerp.launcher.util.LectureTexte.lire(versionJsonPath), JsonObject.class);
                 if (version == null || !version.has("downloads")) version = null;   // corrompu → re-fetch
             } catch (Exception corrupt) {
                 version = null;
@@ -107,7 +107,7 @@ public final class MojangInstaller {
                          null);
 
         // 6. Assets objects
-        JsonObject idx = GSON.fromJson(Files.readString(idxPath), JsonObject.class);
+        JsonObject idx = GSON.fromJson(fr.nylerp.launcher.util.LectureTexte.lire(idxPath), JsonObject.class);
         JsonObject objects = idx.getAsJsonObject("objects");
         int j = 0, m = objects.size();
         for (String key : objects.keySet()) {

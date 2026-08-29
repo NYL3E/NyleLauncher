@@ -48,7 +48,7 @@ public final class AccountStore {
         Path f = file();
         if (Files.exists(f)) {
             try {
-                StoreFile sf = GSON.fromJson(Files.readString(f), StoreFile.class);
+                StoreFile sf = GSON.fromJson(fr.nylerp.launcher.util.LectureTexte.lire(f), StoreFile.class);
                 if (sf != null && sf.accounts != null) {
                     for (Account a : sf.accounts) {
                         if (a != null && a.username() != null && accounts.size() < MAX_ACCOUNTS) {

@@ -1198,6 +1198,24 @@ public class MainView extends BorderPane {
         if (cause instanceof java.io.EOFException || detail.toLowerCase().contains("zip")) {
             return "Téléchargement incomplet — relance le launcher, il reprendra le fichier.";
         }
+        // Un fichier dans un encodage inattendu ne doit plus JAMAIS être ce que voit un joueur :
+        // « Input length = 3 » ne veut rien dire pour personne (une joueuse l'a eu le 29/08, son
+        // jeu plantait et le launcher se cassait en lisant le journal qui l'expliquait).
+        // Les lectures passent désormais par LectureTexte ; ce filet reste pour ce qu'on aurait
+        // oublié, et il dit au moins quoi faire.
+        if (cause instanceof java.nio.charset.CharacterCodingException) {
+            return "Un fichier du jeu est illisible (encodage inattendu) — relance le launcher, "
+                    + "il le remplacera. Si ça persiste, envoie un rapport au staff.";
+        }
+        // Le diagnostic de plantage a déjà rédigé une phrase pour le joueur : on la garde telle
+        // quelle plutôt que de la préfixer d'un « Erreur : » qui la ferait passer pour un code.
+        if (cause instanceof java.io.IOException && detail.length() > 40
+                && (detail.startsWith("Le jeu") || detail.startsWith("Pas assez")
+                    || detail.startsWith("Ta carte") || detail.startsWith("Un fichier")
+                    || detail.startsWith("Un mod") || detail.startsWith("L'installation")
+                    || detail.startsWith("Le moteur"))) {
+            return detail;
+        }
         return "Erreur : " + (detail.isBlank() ? cause.getClass().getSimpleName() : detail);
     }
 
@@ -1886,7 +1904,7 @@ public class MainView extends BorderPane {
         try {
             java.nio.file.Path f = fr.nylerp.launcher.config.AppPaths.manifestCache();
             if (!java.nio.file.Files.exists(f)) return null;
-            String json = java.nio.file.Files.readString(f);
+            String json = fr.nylerp.launcher.util.LectureTexte.lire(f);
             com.google.gson.JsonObject obj = com.google.gson.JsonParser
                     .parseString(json).getAsJsonObject();
             if (!obj.has("loader")) return null;

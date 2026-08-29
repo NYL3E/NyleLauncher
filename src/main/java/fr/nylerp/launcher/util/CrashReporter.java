@@ -133,7 +133,7 @@ public final class CrashReporter {
             StringBuilder all = new StringBuilder();
             for (Path p : pending) {
                 all.append("==== ").append(p.getFileName()).append(" ====\n");
-                try { all.append(Files.readString(p)).append("\n"); } catch (IOException ignored) {}
+                all.append(LectureTexte.lireOuDefaut(p, "(illisible)")).append("\n");
             }
             String body = scrub(all.toString());
             Platform.runLater(() -> showDialog(body, pending));

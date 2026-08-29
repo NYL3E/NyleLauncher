@@ -35,7 +35,7 @@ final class HashCache {
     static HashCache load(Path file) {
         try {
             if (Files.exists(file)) {
-                Map<String, Entry> m = GSON.fromJson(Files.readString(file),
+                Map<String, Entry> m = GSON.fromJson(fr.nylerp.launcher.util.LectureTexte.lire(file),
                         new TypeToken<ConcurrentHashMap<String, Entry>>(){}.getType());
                 if (m != null) return new HashCache(m);
             }

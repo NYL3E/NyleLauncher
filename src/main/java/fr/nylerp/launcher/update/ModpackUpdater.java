@@ -88,7 +88,7 @@ public final class ModpackUpdater {
 
             Path cache = AppPaths.manifestCache();
             if (!Files.exists(cache)) return true;
-            Manifest local = GSON.fromJson(Files.readString(cache), Manifest.class);
+            Manifest local = GSON.fromJson(fr.nylerp.launcher.util.LectureTexte.lire(cache), Manifest.class);
             if (local == null || local.version == null) return true;
             return !remote.version.equals(local.version);
         } catch (Exception e) {
@@ -153,7 +153,7 @@ public final class ModpackUpdater {
             LOG.warn("Manifest fetch failed ({}), falling back to cached manifest (offline-resilient launch)",
                     fetchErr.toString());
             status("Serveur de mise à jour injoignable — vérification locale…");
-            json = Files.readString(cache);
+            json = fr.nylerp.launcher.util.LectureTexte.lire(cache);
             fromCache = true;
         }
         Manifest remote = GSON.fromJson(json, Manifest.class);
@@ -425,7 +425,7 @@ public final class ModpackUpdater {
         Set<String> s = new HashSet<>();
         try {
             if (Files.exists(record)) {
-                for (String line : Files.readAllLines(record)) {
+                for (String line : fr.nylerp.launcher.util.LectureTexte.lignes(record)) {
                     String t = line.trim();
                     if (!t.isEmpty()) s.add(t);
                 }

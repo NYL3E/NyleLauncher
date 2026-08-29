@@ -79,7 +79,7 @@ public final class Settings {
         Path file = AppPaths.settingsFile();
         if (Files.exists(file)) {
             try {
-                current = GSON.fromJson(Files.readString(file), Settings.class);
+                current = GSON.fromJson(fr.nylerp.launcher.util.LectureTexte.lire(file), Settings.class);
                 if (current == null) current = new Settings();
             } catch (Exception e) {
                 LOG.warn("Settings unreadable, resetting: {}", e.toString());
