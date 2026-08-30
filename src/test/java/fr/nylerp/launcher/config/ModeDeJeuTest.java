@@ -46,7 +46,9 @@ class ModeDeJeuTest {
 
     @Test
     void leSelecteurNExistePasPourUnJoueurOrdinaire() {
-        for (String pseudo : new String[]{"Valucks", "Kqzah_", "Darkousse", "nyl3e_", "NYL3EE", ""}) {
+        // Des pseudos VOISINS des autorisés : l'accès ne doit pas déborder d'un caractère.
+        for (String pseudo : new String[]{"Valucks", "Kqzah_", "Darkousse", "nyl3e_", "NYL3EE", "",
+                "MrCedric", "MrCedriic_", "FELL4EL", "FELL4ELII", "DISRY", "DISRYY_"}) {
             Account compte = new Account(Account.Type.MICROSOFT, pseudo, "u", null, null);
             assertFalse(fr.nylerp.launcher.ui.SelecteurMode.estAutorise(compte),
                     "« " + pseudo + " » ne doit pas avoir accès au sélecteur");
@@ -64,12 +66,14 @@ class ModeDeJeuTest {
     }
 
     @Test
-    void leSelecteurEstAutorisePourLOwner() {
+    void leSelecteurEstAutorisePourLOwnerEtLesTesteurs() {
         // La casse et les espaces ne doivent pas décider : le pseudo est comparé proprement.
         // On éprouve la RÈGLE et non la construction du composant — dessiner exigerait un
         // toolkit graphique, dont l'absence prouve déjà, dans les tests ci-dessus, qu'un
         // joueur non autorisé ne fait rien instancier du tout.
-        for (String pseudo : new String[]{"NYL3E", "nyl3e", " NYL3E "}) {
+        for (String pseudo : new String[]{"NYL3E", "nyl3e", " NYL3E ",
+                "MrCedriic", "mrcedriic", " MrCedriic ",
+                "FELL4ELI", "fell4eli", "DISRYY", "disryy"}) {
             assertTrue(fr.nylerp.launcher.ui.SelecteurMode.estAutorise(
                             new Account(Account.Type.MICROSOFT, pseudo, "u", null, null)),
                     "le sélecteur doit être autorisé pour « " + pseudo + " »");

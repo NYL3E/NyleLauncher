@@ -47,8 +47,19 @@ import javafx.util.Duration;
  */
 public final class SelecteurMode extends VBox {
 
-    /** Le seul compte pour lequel ce composant est construit. */
-    private static final String PROPRIETAIRE = "NYL3E";
+    /**
+     * Les comptes pour lesquels ce composant est construit.
+     *
+     * <p>L'owner, plus les testeurs qu'il a désignés (2026-08-30). La liste est courte et écrite
+     * ici plutôt que chargée depuis un fichier : pokényle est un terrain d'essai, et une liste
+     * distante donnerait à qui sait la lire l'existence d'un second univers — précisément ce que
+     * ce composant est censé ne pas divulguer.
+     *
+     * <p>Comparaison en minuscules et sans espaces : un pseudo saisi « MrCedriic » ou
+     * « mrcedriic » désigne le même joueur, et Mojang ne distingue pas la casse.
+     */
+    private static final java.util.Set<String> AUTORISES = java.util.Set.of(
+            "nyl3e", "mrcedriic", "fell4eli", "disryy");
 
     private static final Color ENCRE      = Color.web("#F4F4F7");
     private static final Color ENCRE_PALE = Color.web("#8A8A93");
@@ -78,7 +89,7 @@ public final class SelecteurMode extends VBox {
      */
     public static boolean estAutorise(Account compte) {
         if (compte == null || compte.username() == null) return false;
-        return PROPRIETAIRE.equalsIgnoreCase(compte.username().trim());
+        return AUTORISES.contains(compte.username().trim().toLowerCase(java.util.Locale.ROOT));
     }
 
     private SelecteurMode(Runnable auChangement) {
