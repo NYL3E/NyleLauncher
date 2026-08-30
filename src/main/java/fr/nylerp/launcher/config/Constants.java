@@ -18,7 +18,7 @@ public final class Constants {
      *  pas de cette constante. Elle avait dérivé (1.0.84 dans le code alors que
      *  payload-1.0.87 était publié) sans que personne ne le voie : le seul symptôme est
      *  un mauvais numéro affiché dans le pied de page et dans « À propos ». */
-    public static final String PAYLOAD_VERSION = "1.0.92";
+    public static final String PAYLOAD_VERSION = "1.0.94";
 
     /**
      * Version de payload à AFFICHER.
@@ -47,30 +47,33 @@ public final class Constants {
     // ── Serveur de jeu ──────────────────────────────────────────────────────────────────────
     // PROD : domaine → proxy Velocity (robuste si l'IP change).
     // DEV  : SERVER DEV direct (2f350981 = game45-fr.hosterfy.com:20652) — isolé de la prod.
-    public static final String SERVER_HOST  = DEV ? "game45-fr.hosterfy.com" : "play.nylerp.fr";
-    public static final int    SERVER_PORT  = DEV ? 20652 : 20161;
+    //
+    // DEPUIS LE SÉLECTEUR DE MODE (30/08), CE SONT DES MÉTHODES. Elles l'étaient déjà en
+    // pratique — la valeur dépendait du canal — mais le canal est figé à la compilation, alors
+    // que le mode de jeu change d'un clic, en cours d'exécution. Une constante `static final`
+    // aurait mémorisé le mode du DÉMARRAGE et envoyé le joueur sur le mauvais serveur après
+    // une bascule, sans rien signaler.
+    public static String serverHost() { return ModeDeJeu.courant().hote; }
+    public static int    serverPort() { return ModeDeJeu.courant().port; }
 
     public static final String DISCORD_URL  = "https://discord.gg/nylerp"; // TODO: real invite
     public static final String WEBSITE      = "https://nylerp.fr";
 
-    /** Tag GitHub de la release qui héberge le pack : {@code pack-dev} (canal DEV, mods client WIP) ou
-     *  {@code pack-latest} (prod). Le manifest pack-dev réutilise les URLs pack-latest pour les fichiers
-     *  inchangés et ne remplace que les jars en test → aucune duplication du pack complet. */
-    private static final String PACK_TAG = DEV ? "pack-dev" : "pack-latest";
+    /** Tag GitHub de la release qui héberge le pack du MODE COURANT : {@code pack-latest} (NyleRP
+     *  en prod), {@code pack-dev} (NyleRP sur canal DEV, mods client WIP) ou
+     *  {@code pack-pokenyle}. Le manifest pack-dev réutilise les URLs pack-latest pour les
+     *  fichiers inchangés et ne remplace que les jars en test → aucune duplication du pack. */
+    public static String packTag() { return ModeDeJeu.courant().packTag; }
 
-    /**
-     * URL of the remote manifest describing the current modpack state.
-     * Points to the GitHub Release asset that holds manifest.json.
-     */
-    public static final String MANIFEST_URL =
-            "https://github.com/NYL3E/NyleLauncher/releases/download/" + PACK_TAG + "/manifest.json";
+    /** URL du manifeste décrivant l'état du modpack à installer, pour le mode courant. */
+    public static String manifestUrl() {
+        return "https://github.com/NYL3E/NyleLauncher/releases/download/" + packTag() + "/manifest.json";
+    }
 
-    /**
-     * Base URL from which individual mod files listed in the manifest will be downloaded.
-     * Same release as manifest, or another host (R2 later).
-     */
-    public static final String PACK_BASE_URL =
-            "https://github.com/NYL3E/NyleLauncher/releases/download/" + PACK_TAG + "/";
+    /** Base depuis laquelle se téléchargent les fichiers listés par le manifeste. */
+    public static String packBaseUrl() {
+        return "https://github.com/NYL3E/NyleLauncher/releases/download/" + packTag() + "/";
+    }
 
     /** Microsoft Minecraft public client id — used by MultiMC, Prism, etc. */
     public static final String MS_CLIENT_ID = "00000000402b5328";

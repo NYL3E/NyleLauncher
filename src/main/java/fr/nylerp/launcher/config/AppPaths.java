@@ -26,7 +26,19 @@ public final class AppPaths {
         return p;
     }
 
-    public static Path gameDir()      { return ensure(rootDir().resolve("game")); }
+    /**
+     * Le dossier de jeu du MODE COURANT.
+     *
+     * <p>Chaque mode a son instance complète et séparée : deux univers qui partageraient un même
+     * dossier {@code mods} s'écraseraient l'un l'autre à chaque bascule, et le joueur
+     * retéléchargerait tout son pack à chaque aller-retour.
+     *
+     * <p><b>NyleRP garde {@code game/}, et ce n'est pas négociable</b> : c'est là que se trouve
+     * l'instance de tous les launchers déjà installés. Le jour où ils reçoivent le sélecteur,
+     * ils doivent démarrer comme la veille, sans un octet à retélécharger. Ce qui est nouveau
+     * s'installe à côté ({@code game-pokenyle/}), jamais à la place.
+     */
+    public static Path gameDir()      { return ensure(rootDir().resolve(ModeDeJeu.courant().dossier)); }
     public static Path modsDir()      { return ensure(gameDir().resolve("mods")); }
     public static Path configDir()    { return ensure(gameDir().resolve("config")); }
     public static Path resourcePacks(){ return ensure(gameDir().resolve("resourcepacks")); }
@@ -34,7 +46,19 @@ public final class AppPaths {
     public static Path launcherState(){ return ensure(rootDir().resolve("state")); }
     public static Path sessionFile()  { return launcherState().resolve("session.json"); }
     public static Path settingsFile() { return launcherState().resolve("settings.json"); }
-    public static Path manifestCache(){ return launcherState().resolve("manifest.json"); }
+    /**
+     * Le manifeste du pack, tel qu'on l'a appliqué la dernière fois — <b>par mode</b>.
+     *
+     * <p>Un seul fichier pour deux univers serait un piège silencieux : après une bascule, le
+     * launcher croirait son instance à jour parce que le manifeste de L'AUTRE mode s'y trouve,
+     * et lancerait le jeu avec des mods incomplets. NyleRP conserve le nom historique pour que
+     * rien ne bouge chez les joueurs déjà installés.
+     */
+    public static Path manifestCache(){
+        ModeDeJeu m = ModeDeJeu.courant();
+        return launcherState().resolve(m == ModeDeJeu.NYLERP ? "manifest.json"
+                                                             : "manifest-" + m.id + ".json");
+    }
 
     private static Path ensure(Path p) {
         try { Files.createDirectories(p); } catch (Exception ignored) {}

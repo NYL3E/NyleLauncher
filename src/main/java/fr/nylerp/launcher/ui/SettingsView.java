@@ -813,7 +813,7 @@ public class SettingsView extends BorderPane {
         g.setHgap(40); g.setVgap(12);
         g.add(kvColumn("VERSION", fr.nylerp.launcher.update.SelfUpdater.installedVersion()), 0, 0);
         g.add(kvColumn("PAYLOAD", Constants.runningPayloadVersion()), 1, 0);
-        g.add(kvColumn("SERVEUR", Constants.SERVER_HOST), 2, 0);
+        g.add(kvColumn("SERVEUR", Constants.serverHost()), 2, 0);
         g.add(kvColumn("LOADER", "Fabric"), 3, 0);
         g.add(kvColumn("MC", Constants.MC_VERSION), 4, 0);
         return new VBox(14, h, g);

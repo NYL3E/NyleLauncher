@@ -105,11 +105,16 @@ public final class ModpackUpdater {
      * a unique ?t= param forces a fresh fetch each call.
      */
     /** URL de base du manifest — package-private et non-finale UNIQUEMENT pour que les tests
-     *  puissent la pointer sur un serveur HTTP local (sain/lent/mort). Prod : jamais réassignée. */
-    static String manifestBaseUrl = Constants.MANIFEST_URL;
+     *  puissent la pointer sur un serveur HTTP local (sain/lent/mort). {@code null} en
+     *  production : l'URL est alors DEMANDÉE À CHAQUE APPEL, parce qu'elle dépend du mode de
+     *  jeu et que celui-ci change en cours d'exécution. Figée dans un champ statique, elle
+     *  aurait gardé le mode du démarrage et fait télécharger le mauvais pack après une
+     *  bascule — en silence, le manifeste répondant parfaitement. */
+    static String manifestBaseUrl = null;
 
     private static String manifestUrl() {
-        return manifestBaseUrl + "?t=" + System.currentTimeMillis();
+        String base = manifestBaseUrl != null ? manifestBaseUrl : Constants.manifestUrl();
+        return base + "?t=" + System.currentTimeMillis();
     }
 
     /** Prevents concurrent sync() calls — double-clicking "Mettre à jour" or clicking

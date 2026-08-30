@@ -172,7 +172,7 @@ public final class MinecraftLauncher {
 
         if (joinServer) {
             cmd.add("--quickPlayMultiplayer");
-            cmd.add(Constants.SERVER_HOST + ":" + Constants.SERVER_PORT);
+            cmd.add(Constants.serverHost() + ":" + Constants.serverPort());
         }
 
         LOG.info("Launching Minecraft as {} ({})", account.username(), account.type());

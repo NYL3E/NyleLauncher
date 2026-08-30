@@ -378,9 +378,9 @@ public final class TerminalBoot extends Pane {
             fr.nylerp.launcher.auth.Account a = fr.nylerp.launcher.auth.AccountStore.active();
             if (a != null) compte = a.username() + " (" + (a.isOffline() ? "offline" : "microsoft") + ")";
         } catch (Throwable ignored) { /* écran de démarrage : jamais bloquant */ }
-        String srv = fr.nylerp.launcher.config.Constants.SERVER_HOST
-                + ":" + fr.nylerp.launcher.config.Constants.SERVER_PORT;
-        String packTag = fr.nylerp.launcher.config.Constants.MANIFEST_URL.contains("pack-dev")
+        String srv = fr.nylerp.launcher.config.Constants.serverHost()
+                + ":" + fr.nylerp.launcher.config.Constants.serverPort();
+        String packTag = fr.nylerp.launcher.config.Constants.manifestUrl().contains("pack-dev")
                 ? "pack-dev" : "pack-latest";
         long uptime = uptimeMs();
         return new String[] {

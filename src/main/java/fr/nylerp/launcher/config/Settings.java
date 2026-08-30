@@ -23,6 +23,18 @@ public final class Settings {
     // 4 GB can sustain without pushing G1 into the Old Generation Compaction
     // pause zone. Players can manually bump in Settings if they want more.
     public int ramMb = 4096;
+    /**
+     * Le MODE DE JEU choisi — {@code "nylerp"} (défaut) ou {@code "pokenyle"}.
+     *
+     * <p>Stocké en texte plutôt qu'en énumération, et lu avec tolérance : un fichier de réglages
+     * écrit par une version future ne doit pas empêcher une version antérieure de démarrer. Un
+     * joueur qui n'a jamais touché au sélecteur voit ce champ absent de son fichier, Gson laisse
+     * donc la valeur par défaut, et il reste sur NyleRP sans rien remarquer — c'est exactement
+     * ce qu'on veut pour les milliers de launchers déjà installés.
+     *
+     * @see ModeDeJeu
+     */
+    public String modeDeJeu = "nylerp";
     /** Legacy field kept for backwards-compatible Gson deserialisation —
      *  earlier payload (1.0.46) used this to one-time bump 6 GB users to
      *  8 GB. We no longer enforce a minimum, so the field is read-only

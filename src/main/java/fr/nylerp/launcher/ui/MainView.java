@@ -288,6 +288,38 @@ public class MainView extends BorderPane {
         }));
     }
 
+    /**
+     * L'owner vient de changer d'univers.
+     *
+     * <p>Le mode est déjà enregistré quand on arrive ici ; il reste à faire dire la vérité à
+     * l'écran. Et la vérité, après une bascule, c'est qu'on ne sait RIEN de l'instance qui
+     * vient d'être désignée : elle a son propre dossier, son propre manifeste, et peut-être
+     * n'a-t-elle jamais été téléchargée. On repart donc d'un bouton neutre, puis on
+     * réinterroge le dépôt du NOUVEAU pack en tâche de fond — exactement comme au démarrage.
+     *
+     * <p>On ne lance surtout pas la synchronisation d'autorité : basculer sur pokényle peut
+     * représenter un gigaoctet à télécharger. C'est au joueur d'appuyer sur « Mettre à jour »
+     * quand il l'a décidé, pas au sélecteur d'engager sa connexion à sa place.
+     */
+    private void auChangementDeMode() {
+        modpackUpdatePending = false;
+        if (status != null) {
+            status.setText("Mode " + fr.nylerp.launcher.config.ModeDeJeu.courant().titre
+                    + " — vérification du pack…");
+        }
+        refreshPlayButton();
+        CompletableFuture.runAsync(() -> {
+            boolean pending = ModpackUpdater.hasUpdate();
+            Platform.runLater(() -> {
+                modpackUpdatePending = pending;
+                if (status != null) {
+                    status.setText(pending ? "Mise à jour du pack disponible" : "Prêt à jouer");
+                }
+                refreshPlayButton();
+            });
+        });
+    }
+
     private void refreshPlayButton() {
         if (playLabel == null || playIcon == null) return;
         boolean dev = fr.nylerp.launcher.config.Constants.DEV;
@@ -702,8 +734,19 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(versionLbl, Pos.BOTTOM_LEFT);
         StackPane.setMargin(versionLbl, new Insets(0, 0, 22, 28));
 
+        // ── Sélecteur de mode de jeu, bas-gauche, juste au-dessus du numéro de version.
+        //    Construit UNIQUEMENT pour le compte de l'owner : pour tout le monde, la fabrique
+        //    rend null et rien n'est ajouté à la scène. Un joueur ordinaire ne voit donc pas un
+        //    bouton désactivé, il ne voit rien du tout — et son instance NyleRP ne bouge pas.
+        SelecteurMode selecteurMode = SelecteurMode.pour(account, this::auChangementDeMode);
+        if (selecteurMode != null) {
+            StackPane.setAlignment(selecteurMode, Pos.BOTTOM_LEFT);
+            StackPane.setMargin(selecteurMode, new Insets(0, 0, 44, 26));
+        }
+
         stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn, versionLbl);
         if (videoBtn != null) stack.getChildren().add(videoBtn);
+        if (selecteurMode != null) stack.getChildren().add(selecteurMode);
         return stack;
     }
 

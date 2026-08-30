@@ -57,6 +57,23 @@ public final class ServerListSanitizer {
     public static void sweep() {
         Path serversDat = AppPaths.gameDir().resolve("servers.dat");
 
+        // ── CANAL DEV (owner 2026-07-21) : le launcher dev se connecte EN DIRECT au serveur de dev
+        //    (pas de proxy). On écrit une server-list à entrée UNIQUE pointant sur le serveur de dev,
+        //    et on court-circuite tout le nettoyage prod (qui, lui, force play.nylerp.fr et supprime
+        //    justement l'entrée du backend direct). ──
+        if (fr.nylerp.launcher.config.Channel.isDev()) {
+            try {
+                Files.createDirectories(serversDat.getParent());
+                Files.write(serversDat, devServersDat());
+                LOG.info("DEV : servers.dat écrit → « NYLE RP DEV » ({}:{})",
+                        fr.nylerp.launcher.config.Constants.serverHost(),
+                        fr.nylerp.launcher.config.Constants.serverPort());
+            } catch (Exception ex) {
+                LOG.warn("DEV : écriture de servers.dat échouée : {}", ex.toString());
+            }
+            return;
+        }
+
         // RESET UNIQUE (v2) — purge l'ancienne liste multi-serveurs et ne garde QUE play.nylerp.fr.
         // On supprime servers.dat une seule fois (gardé par un marqueur d'état) : la liste propre à
         // entrée unique est alors re-pull via l'entrée firstInstallOnly du manifest. Le marqueur
@@ -116,6 +133,28 @@ public final class ServerListSanitizer {
             return i;
         }
         return -1;
+    }
+
+    /**
+     * Construit le contenu binaire d'un {@code servers.dat} vanilla (NBT NON compressé) contenant UNE
+     * seule entrée pointant sur le serveur de dev. Les chaînes NBT ({@code short len + UTF-8}) sont
+     * exactement le format de {@link java.io.DataOutputStream#writeUTF} → on s'en sert directement.
+     */
+    private static byte[] devServersDat() throws java.io.IOException {
+        String ip = fr.nylerp.launcher.config.Constants.serverHost() + ":"
+                + fr.nylerp.launcher.config.Constants.serverPort();
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        try (java.io.DataOutputStream o = new java.io.DataOutputStream(bos)) {
+            o.writeByte(10); o.writeUTF("");            // TAG_Compound racine (nom vide)
+            o.writeByte(9);  o.writeUTF("servers");     // TAG_List "servers"
+            o.writeByte(10);                            // type des éléments = TAG_Compound
+            o.writeInt(1);                              // 1 serveur
+            o.writeByte(8); o.writeUTF("name"); o.writeUTF("NYLE RP DEV");
+            o.writeByte(8); o.writeUTF("ip");   o.writeUTF(ip);
+            o.writeByte(0);                             // TAG_End de l'élément
+            o.writeByte(0);                             // TAG_End de la racine
+        }
+        return bos.toByteArray();
     }
 
     private ServerListSanitizer() {}

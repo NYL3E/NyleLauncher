@@ -270,13 +270,35 @@ def _require_smoke_ok():
 
 
 def main():
-    _require_smoke_ok()
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", action="append", default=None, metavar="TAG",
                     help="Ne publier QUE ce(s) tag(s) (ex: --only pack-latest). "
                          "Utile pour reprendre après un rate-limit sans re-publier "
                          "une release subtree déjà complète.")
+    # --pack / --manifest / --tag : publier un pack SECONDAIRE (pokényle) sans toucher au
+    # pack NyleRP de production. Sans ces options, tout se comporte exactement comme avant.
+    ap.add_argument("--pack", default=None, help="dossier du pack (défaut : <repo>/pack)")
+    ap.add_argument("--manifest", default=None, help="manifeste à publier (défaut : <repo>/manifest.json)")
+    ap.add_argument("--tag", default=None, help="release cible (défaut : pack-latest)")
     args = ap.parse_args()
+
+    global PACK, MANIFEST, TAG, SUBTREE_RELEASES
+    secondaire = bool(args.tag and args.tag != TAG)
+    if args.pack:     PACK = pathlib.Path(args.pack).expanduser().resolve()
+    if args.manifest: MANIFEST = pathlib.Path(args.manifest).expanduser().resolve()
+    if args.tag:      TAG = args.tag
+    if secondaire:
+        # Le routage des sous-arbres appartient au pack NyleRP : un pack secondaire qui le
+        # garderait publierait ses emotes dans « pack-emotes » et écraserait celles de la prod.
+        SUBTREE_RELEASES = {}
+
+    # LE GARDE-FOU DU SMOKE-TEST NE VAUT QUE POUR LE PACK DE PRODUCTION : il vérifie que le
+    # pack NyleRP a démarré pour de vrai avant publication. Sur un pack secondaire il testerait
+    # le mauvais pack — on l'exige donc uniquement quand on publie bien pack-latest.
+    if not secondaire:
+        _require_smoke_ok()
+    else:
+        print(f"→ pack secondaire ({TAG}) : smoke-test de production non requis")
 
     if not MANIFEST.is_file():
         print("ERROR: manifest.json missing. Run sync-instance.py first.",

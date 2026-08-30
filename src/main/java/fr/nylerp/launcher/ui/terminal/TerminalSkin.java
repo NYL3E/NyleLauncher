@@ -127,12 +127,12 @@ public final class TerminalSkin {
      * ligne « joueurs » est branchée sur le compteur en ligne existant via {@code compteur}.
      */
     public static Region blocInfos(Label compteur) {
-        String packTag = fr.nylerp.launcher.config.Constants.MANIFEST_URL.contains("pack-dev")
+        String packTag = fr.nylerp.launcher.config.Constants.manifestUrl().contains("pack-dev")
                 ? "pack-dev" : "pack-latest";
         VBox box = new VBox(2,
                 ligne("canal",   "DEV", true),
-                ligne("serveur", fr.nylerp.launcher.config.Constants.SERVER_HOST
-                        + ":" + fr.nylerp.launcher.config.Constants.SERVER_PORT, false),
+                ligne("serveur", fr.nylerp.launcher.config.Constants.serverHost()
+                        + ":" + fr.nylerp.launcher.config.Constants.serverPort(), false),
                 ligne("pack",    packTag, false),
                 ligne("payload", fr.nylerp.launcher.config.Constants.runningPayloadVersion(), false));
         compteur.getStyleClass().add("term-info");

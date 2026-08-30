@@ -52,7 +52,9 @@ class ModpackSyncFallbackTest {
     @AfterEach
     void teardown() {
         System.setProperty("user.home", realHome);
-        ModpackUpdater.manifestBaseUrl = Constants.MANIFEST_URL;
+        // null = comportement de production : l'URL est redemandée à chaque appel, puisqu'elle
+        // dépend du mode de jeu choisi (voir ModpackUpdater.manifestBaseUrl).
+        ModpackUpdater.manifestBaseUrl = null;
     }
 
     private record Captured(List<String> statuses) implements ModpackUpdater.Listener {

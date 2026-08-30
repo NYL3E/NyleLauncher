@@ -26,8 +26,8 @@ import re
 import sys
 
 ROOT   = pathlib.Path(__file__).resolve().parents[1]
-PACK   = ROOT / "pack"
-OUT    = ROOT / "manifest.json"
+PACK   = ROOT / "pack"           # défaut ; surchargeable par --pack
+OUT    = ROOT / "manifest.json"   # défaut ; surchargeable par --out
 
 DEFAULT_REPO = "NYL3E/NyleLauncher"
 
@@ -77,7 +77,24 @@ def main():
     ap.add_argument("--mc", default="1.21.1")
     ap.add_argument("--loader-type", default="fabric")
     ap.add_argument("--loader-version", default="0.18.4")
+    # --pack / --out : publier un SECOND pack (pokényle) sans toucher au pack NyleRP de
+    # production qui vit dans ROOT/pack. Sans ces options, comportement strictement inchangé.
+    ap.add_argument("--pack", default=None, help="dossier du pack (défaut : <repo>/pack)")
+    ap.add_argument("--out",  default=None, help="fichier manifeste à écrire (défaut : <repo>/manifest.json)")
+    # Le routage des gros sous-arbres vers leur propre release (SUBTREE_RELEASES) n'existe que
+    # parce que le pack NyleRP dépasse les 1000 assets d'une release GitHub. Un SECOND pack qui
+    # tient largement sous ce plafond n'en a pas besoin — et surtout, il ne doit pas publier ses
+    # emotes dans « pack-emotes », qui appartient à NyleRP : il écraserait les siennes.
+    ap.add_argument("--sans-sous-releases", action="store_true",
+                    help="tout publier dans le tag --release (à utiliser pour un pack secondaire)")
     args = ap.parse_args()
+
+    global PACK, OUT
+    if args.pack: PACK = pathlib.Path(args.pack).expanduser().resolve()
+    if args.out:  OUT  = pathlib.Path(args.out).expanduser().resolve()
+
+    global SUBTREE_RELEASES
+    if args.sans_sous_releases: SUBTREE_RELEASES = {}
 
     if not PACK.is_dir():
         print(f"ERROR: {PACK} does not exist", file=sys.stderr)
