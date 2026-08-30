@@ -734,14 +734,18 @@ public class MainView extends BorderPane {
         StackPane.setAlignment(versionLbl, Pos.BOTTOM_LEFT);
         StackPane.setMargin(versionLbl, new Insets(0, 0, 22, 28));
 
-        // ── Sélecteur de mode de jeu, bas-gauche, juste au-dessus du numéro de version.
+        // ── Sélecteur de mode de jeu — TROISIÈME pastille de la rangée du bas-droite, à gauche
+        //    de la vidéo et du son. Marge droite = 22 (son) + 44 + 10 (vidéo) + 44 + 10 = 130,
+        //    pour que les trois forment une rangée régulière et non trois boutons voisins.
         //    Construit UNIQUEMENT pour le compte de l'owner : pour tout le monde, la fabrique
         //    rend null et rien n'est ajouté à la scène. Un joueur ordinaire ne voit donc pas un
         //    bouton désactivé, il ne voit rien du tout — et son instance NyleRP ne bouge pas.
         SelecteurMode selecteurMode = SelecteurMode.pour(account, this::auChangementDeMode);
         if (selecteurMode != null) {
-            StackPane.setAlignment(selecteurMode, Pos.BOTTOM_LEFT);
-            StackPane.setMargin(selecteurMode, new Insets(0, 0, 44, 26));
+            StackPane.setAlignment(selecteurMode, Pos.BOTTOM_RIGHT);
+            // Quand la vidéo est absente (canal DEV), la rangée n'a que deux pastilles : le
+            // sélecteur prend alors la place laissée libre plutôt que d'ouvrir un trou.
+            StackPane.setMargin(selecteurMode, new Insets(0, videoBtn != null ? 130 : 76, 18, 0));
         }
 
         stack.getChildren().addAll(leftBlock, rightColumn, capsule, muteBtn, versionLbl);
