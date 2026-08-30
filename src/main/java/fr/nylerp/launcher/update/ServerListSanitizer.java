@@ -1,6 +1,7 @@
 package fr.nylerp.launcher.update;
 
 import fr.nylerp.launcher.config.AppPaths;
+import fr.nylerp.launcher.config.ModeDeJeu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,19 +58,30 @@ public final class ServerListSanitizer {
     public static void sweep() {
         Path serversDat = AppPaths.gameDir().resolve("servers.dat");
 
-        // ── CANAL DEV (owner 2026-07-21) : le launcher dev se connecte EN DIRECT au serveur de dev
-        //    (pas de proxy). On écrit une server-list à entrée UNIQUE pointant sur le serveur de dev,
-        //    et on court-circuite tout le nettoyage prod (qui, lui, force play.nylerp.fr et supprime
-        //    justement l'entrée du backend direct). ──
-        if (fr.nylerp.launcher.config.Channel.isDev()) {
+        // ── LES INSTANCES QUI VISENT UN SERVEUR EN DIRECT ───────────────────────────────────
+        //    Deux cas, une seule règle : quand on ne passe pas par le proxy, on écrit une liste
+        //    à entrée UNIQUE pointant sur le bon serveur, et on court-circuite le nettoyage de
+        //    production (qui, lui, force play.nylerp.fr et supprimerait justement cette entrée).
+        //
+        //    · le canal DEV (owner 2026-07-21) vise le serveur de dev ;
+        //    · le mode POKÉNYLE vise le serveur Cobblemon, que le proxy ne route pas encore.
+        //
+        //    Pourquoi l'ÉCRIRE plutôt que compter sur la connexion automatique au lancement :
+        //    si celle-ci échoue — serveur en train de redémarrer, coupure réseau — le joueur
+        //    retombe sur un menu multijoueur VIDE et n'a aucun moyen de réessayer sans taper
+        //    une adresse IP à la main. L'entrée dans la liste est le filet de sécurité.
+        ModeDeJeu mode = ModeDeJeu.courant();
+        boolean enDirect = fr.nylerp.launcher.config.Channel.isDev() || mode == ModeDeJeu.POKENYLE;
+        if (enDirect) {
+            String nom = fr.nylerp.launcher.config.Channel.isDev() ? "NYLE RP DEV" : mode.titre;
             try {
                 Files.createDirectories(serversDat.getParent());
-                Files.write(serversDat, devServersDat());
-                LOG.info("DEV : servers.dat écrit → « NYLE RP DEV » ({}:{})",
+                Files.write(serversDat, serveurUnique(nom));
+                LOG.info("servers.dat écrit → « {} » ({}:{})", nom,
                         fr.nylerp.launcher.config.Constants.serverHost(),
                         fr.nylerp.launcher.config.Constants.serverPort());
             } catch (Exception ex) {
-                LOG.warn("DEV : écriture de servers.dat échouée : {}", ex.toString());
+                LOG.warn("écriture de servers.dat échouée : {}", ex.toString());
             }
             return;
         }
@@ -136,11 +148,14 @@ public final class ServerListSanitizer {
     }
 
     /**
-     * Construit le contenu binaire d'un {@code servers.dat} vanilla (NBT NON compressé) contenant UNE
-     * seule entrée pointant sur le serveur de dev. Les chaînes NBT ({@code short len + UTF-8}) sont
-     * exactement le format de {@link java.io.DataOutputStream#writeUTF} → on s'en sert directement.
+     * Construit le contenu binaire d'un {@code servers.dat} vanilla (NBT NON compressé) contenant
+     * UNE seule entrée, pointant sur le serveur du mode courant. Les chaînes NBT
+     * ({@code short len + UTF-8}) sont exactement le format de
+     * {@link java.io.DataOutputStream#writeUTF} → on s'en sert directement.
+     *
+     * @param nom le libellé affiché dans le menu multijoueur
      */
-    private static byte[] devServersDat() throws java.io.IOException {
+    private static byte[] serveurUnique(String nom) throws java.io.IOException {
         String ip = fr.nylerp.launcher.config.Constants.serverHost() + ":"
                 + fr.nylerp.launcher.config.Constants.serverPort();
         java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
@@ -149,7 +164,7 @@ public final class ServerListSanitizer {
             o.writeByte(9);  o.writeUTF("servers");     // TAG_List "servers"
             o.writeByte(10);                            // type des éléments = TAG_Compound
             o.writeInt(1);                              // 1 serveur
-            o.writeByte(8); o.writeUTF("name"); o.writeUTF("NYLE RP DEV");
+            o.writeByte(8); o.writeUTF("name"); o.writeUTF(nom);
             o.writeByte(8); o.writeUTF("ip");   o.writeUTF(ip);
             o.writeByte(0);                             // TAG_End de l'élément
             o.writeByte(0);                             // TAG_End de la racine
