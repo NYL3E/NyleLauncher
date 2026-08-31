@@ -59,7 +59,7 @@ public final class SelecteurMode extends VBox {
      * « mrcedriic » désigne le même joueur, et Mojang ne distingue pas la casse.
      */
     private static final java.util.Set<String> AUTORISES = java.util.Set.of(
-            "nyl3e", "mrcedriic", "fell4eli", "disryy");
+            "nyl3e", "mrcedriic", "fell4eli", "disryy", "milanzio");
 
     private static final Color ENCRE      = Color.web("#F4F4F7");
     private static final Color ENCRE_PALE = Color.web("#8A8A93");
