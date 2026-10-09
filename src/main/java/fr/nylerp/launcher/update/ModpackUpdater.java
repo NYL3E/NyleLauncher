@@ -196,6 +196,8 @@ public final class ModpackUpdater {
         Path hashCacheFile = AppPaths.launcherState().resolve("hashcache.json");
         HashCache hashes = HashCache.load(hashCacheFile);
         try {
+        // PASSE 1 (rapide, séquentielle) : ce qui est déjà bon est compté, le reste est mis en file.
+        List<ManifestEntry> aTelecharger = new ArrayList<>();
         for (ManifestEntry e : remote.files) {
             Path local = gameDir.resolve(e.path);
             // First-install-only entries (options.txt, certain configs) are
@@ -217,25 +219,15 @@ public final class ModpackUpdater {
                 listener.onProgress(done, total, bytesDone, bytesTotal);
                 continue;
             }
-            status("↓ " + e.path);
-            // For a mod jar, FIRST delete any existing jar that is the SAME mod
-            // under a different filename (same stable prefix, different version).
-            // This guarantees exactly ONE version of each managed mod, regardless
-            // of the .nyle_managed_mods record or GitHub asset-name sanitization,
-            // BEFORE the new jar lands next to the stale one.
-            String pth = e.path.replace('\\', '/');
-            if (pth.startsWith("mods/")) {
-                removeOtherVersions(modsDir, local.getFileName().toString());
-            }
-            Downloader.toFile(e.url, local, null);
-            String after = Hashing.sha256(local);
-            if (e.sha256 != null && !e.sha256.equalsIgnoreCase(after)) {
-                throw new IOException("Checksum KO pour " + e.path);
-            }
-            hashes.put(local, after);
-            done++;
-            bytesDone += Math.max(0, e.size);
-            listener.onProgress(done, total, bytesDone, bytesTotal);
+            aTelecharger.add(e);
+        }
+        // PASSE 2 : les téléchargements, EN PARALLÈLE. Un par un, une mise à jour complète du pack
+        // (≈ 1 Go, ~300 fichiers) attendait la fin de chaque fichier avant d'ouvrir le suivant — et le
+        // débit d'UNE connexion au CDN est souvent bridé. À plusieurs, le même total arrive bien plus
+        // vite. Chaque fichier garde exactement le traitement d'avant : ancienne version du mod
+        // retirée, téléchargement, empreinte vérifiée ; la première erreur arrête tout.
+        if (!aTelecharger.isEmpty()) {
+            telechargerEnParallele(aTelecharger, gameDir, modsDir, hashes, done, total, bytesDone, bytesTotal);
         }
         } finally {
             hashes.save(hashCacheFile);
@@ -310,7 +302,59 @@ public final class ModpackUpdater {
         status("Modpack à jour (" + total + " fichiers)");
     }
 
-    private void status(String line) {
+    /** Téléchargements simultanés : assez pour remplir la ligne, assez peu pour ménager les CDN. */
+    static final int TELECHARGEMENTS_SIMULTANES = 4;
+
+    private void telechargerEnParallele(List<ManifestEntry> fichiers, Path gameDir, Path modsDir, HashCache hashes,
+                                        int dejaFaits, int total, long octetsDeja, long octetsTotal) throws IOException {
+        // Les anciennes versions des mods sont retirées AVANT, une fois, sur ce fil : deux tâches ne
+        // nettoient jamais le même préfixe de mod en même temps.
+        for (ManifestEntry e : fichiers) {
+            String pth = e.path.replace('\\', '/');
+            if (pth.startsWith("mods/")) removeOtherVersions(modsDir, gameDir.resolve(e.path).getFileName().toString());
+        }
+        java.util.concurrent.atomic.AtomicInteger faits = new java.util.concurrent.atomic.AtomicInteger(dejaFaits);
+        java.util.concurrent.atomic.AtomicLong octets = new java.util.concurrent.atomic.AtomicLong(octetsDeja);
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(TELECHARGEMENTS_SIMULTANES, r -> {
+            Thread t = new Thread(r, "nyle-telechargement");
+            t.setDaemon(true);
+            return t;
+        });
+        java.util.concurrent.ExecutorCompletionService<Void> fin = new java.util.concurrent.ExecutorCompletionService<>(pool);
+        try {
+            for (ManifestEntry e : fichiers) {
+                fin.submit(() -> {
+                    Path local = gameDir.resolve(e.path);
+                    status("↓ " + e.path);
+                    Downloader.toFile(e.url, local, null);
+                    String apres = Hashing.sha256(local);
+                    if (e.sha256 != null && !e.sha256.equalsIgnoreCase(apres)) {
+                        throw new IOException("Checksum KO pour " + e.path);
+                    }
+                    hashes.put(local, apres);
+                    int d = faits.incrementAndGet();
+                    long b = octets.addAndGet(Math.max(0, e.size));
+                    synchronized (this) { listener.onProgress(d, total, b, octetsTotal); }
+                    return null;
+                });
+            }
+            for (int i = 0; i < fichiers.size(); i++) {
+                try {
+                    fin.take().get();
+                } catch (java.util.concurrent.ExecutionException ex) {
+                    Throwable c = ex.getCause();
+                    throw c instanceof IOException io ? io : new IOException(c);
+                }
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Téléchargement interrompu", ie);
+        } finally {
+            pool.shutdownNow();   // première erreur : on n'attend pas les autres
+        }
+    }
+
+    private synchronized void status(String line) {
         LOG.info(line);
         if (listener != null) listener.onStatus(line);
     }
