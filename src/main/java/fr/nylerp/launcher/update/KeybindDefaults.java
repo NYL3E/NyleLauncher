@@ -29,8 +29,15 @@ public final class KeybindDefaults {
 
     private KeybindDefaults() {}
 
-    /** À appeler au pré-lancement (après le sync du modpack, avant le démarrage de MC). */
+    /** À appeler au pré-lancement, avant le démarrage de MC. Sûr avant comme après le sync du
+     *  modpack : ne crée JAMAIS options.txt. */
     public static void applyOnce() {
+        // Installation neuve : pas encore d'options.txt. Surtout ne pas en créer un : options.txt est
+        // « firstInstallOnly » dans le manifeste, et un fichier présent empêcherait à jamais le sync de
+        // poser celui du pack (packs de ressources, touches, réglages) — cas réel : 1er clic sur
+        // « JOUER » avant la réponse du contrôle de mise à jour. Pas de marqueur non plus : la
+        // migration se fera au lancement suivant, sur le fichier livré.
+        if (!Files.exists(AppPaths.gameDir().resolve("options.txt"))) return;
         for (String[] fix : UNBIND_ONCE) {
             try {
                 Path marker = AppPaths.launcherState().resolve(fix[0] + ".done");
