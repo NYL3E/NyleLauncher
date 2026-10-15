@@ -61,6 +61,14 @@ public final class OptionalMods {
                 "https://cdn.modrinth.com/data/bEpr0Arc/versions/aEvrmYqW/litematica-fabric-1.21-0.19.60.jar",
                 "6808c6987a15c6659ceadd7757dcceefbbe3e45dbf5c017d2a7606b6e7d4dcffdeac3206b42950c2024b3f613d55fdb66d93e831d0ed83d874f5e2508c525218",
                 () -> Settings.get().optionalLitematica),
+            // malilib 0.21.10 — bibliothèque OBLIGATOIRE de Litematica 0.19.60 (« requires version 0.21.10- or
+            // later of malilib » : sans elle le jeu refuse de démarrer, vu le 15/10/2026). Suit le réglage
+            // Litematica : installée avec lui, supprimée avec lui.
+            new Entry(
+                "malilib-fabric-1.21-0.21.10.jar",
+                "https://cdn.modrinth.com/data/GcWjdA9I/versions/C99LEy6r/malilib-fabric-1.21-0.21.10.jar",
+                "9f70b4605ea23f8c8b519622a6cbdcac6c8934c70bab3b8ea2d5da071a37e71ff74406d2e154c5ba4ebc7772d76e97ae94f5760e71632bd8a11d23ae8ae9a111",
+                () -> Settings.get().optionalLitematica),
             // Distant Horizons 2.4.5-b — dropped back from the 3.0.3-b branch
             // we previously shipped (2026-05-12 freeze investigation). On
             // 3.0.3-b, terrain shader binds + buffer uploads were producing
