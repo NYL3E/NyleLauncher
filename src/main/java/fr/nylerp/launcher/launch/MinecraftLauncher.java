@@ -69,6 +69,10 @@ public final class MinecraftLauncher {
         // One-shot keybind defaults for existing players (Tom's terminal + PointBlank
         // unbound, perspective Y→F5). New players get these from the shipped options.txt.
         OptionsTxtMigration.applyKeybindDefaultsOnce(gameDir);
+        // Pokényle : Complementary Reimagined choisi dans Iris + profil allégé, UNE SEULE FOIS
+        // par instance (marqueur .nyle_shaders_v1) — le choix du joueur (touche K) tient ensuite.
+        fr.nylerp.launcher.update.ShaderDefaults.applyIrisDefaultsOnce(
+                gameDir, fr.nylerp.launcher.config.ModeDeJeu.courant());
 
         Path mcRoot  = AppPaths.rootDir().resolve("minecraft");
         Path clientJar = mcRoot.resolve("versions").resolve(Constants.MC_VERSION)
@@ -97,50 +101,13 @@ public final class MinecraftLauncher {
         // 4–8 GB machines. We cap -Xmx at physicalRam-2GB (floor 2 GB) and start with a SMALL -Xms
         // so the JVM commits lazily and can never fail at init. (physMb < 0 = detection failed →
         // keep the user's value, still lazy + no pre-touch so init is safe.)
-        long physMb = SystemRam.totalMb();
-        int maxMb = (physMb > 0) ? Math.max(2048, (int) Math.min(ramMb, physMb - 2048)) : ramMb;
+        int maxMb = clampHeapMb(ramMb, SystemRam.totalMb());
         int initMb = Math.min(maxMb, 1024);
         cmd.add("-Xmx" + maxMb + "M");
         cmd.add("-Xms" + initMb + "M");
 
-        // ── G1 GC (back to v1 baseline after ZGC regression) ────────────
-        // Tested progression on MrCedriic (RTX 3060, 8 GB heap, 193 mods):
-        //   1.0.33 G1 v1 (MaxGCPauseMillis=50, NewSize=20%):
-        //     max pause 323 ms, ~7 hitches/min, glfwPollEvents max 1264 ms
-        //   1.0.34 G1 v2 (MaxGCPauseMillis=25, NewSize=30%):
-        //     max pause 522 ms (WORSE — bigger eden, smaller budget bust)
-        //   1.0.35 ZGC:
-        //     STW pauses <1 ms (great), BUT Cycles ate CPU concurrently —
-        //     when heap hit 75%+ ZGC fired Major cycles back-to-back, each
-        //     using ~25 s of CPU concurrent work over 8 cycles, starving
-        //     the render thread. Result: glfwPollEvents stalls 2.3-3.7 s
-        //     each (vs 1.2 s with G1) — visually MUCH worse for player.
-        //
-        // Lesson: with 8 GB heap + 193 mods + 20 MB/s sustained alloc,
-        // ZGC has no headroom and concurrent collection competes with
-        // rendering. G1 v1 with its predictable short young-gen pauses
-        // is the better tradeoff until we either:
-        //   (a) reduce mod count, (b) raise default heap, or (c) make
-        //   Iris+heavy mods optional.
-        cmd.add("-XX:+UseG1GC");
-        cmd.add("-XX:MaxGCPauseMillis=50");
-        cmd.add("-XX:+UnlockExperimentalVMOptions");
-        cmd.add("-XX:+ParallelRefProcEnabled");
-        cmd.add("-XX:G1HeapRegionSize=8M");
-        cmd.add("-XX:G1NewSizePercent=20");
-        cmd.add("-XX:G1MaxNewSizePercent=40");
-        cmd.add("-XX:G1ReservePercent=20");
-        cmd.add("-XX:G1HeapWastePercent=5");
-        cmd.add("-XX:InitiatingHeapOccupancyPercent=15");
-        cmd.add("-XX:G1MixedGCCountTarget=4");
-        cmd.add("-XX:SurvivorRatio=32");
-        // NOTE: -XX:+AlwaysPreTouch removed — it physically commits the ENTIRE -Xmx at JVM init,
-        // which is the main cause of "Failed to launch JVM" on low-RAM machines. With the clamped
-        // -Xmx + small -Xms above, the heap commits lazily and start-up never fails on memory.
-        cmd.add("-XX:+DisableExplicitGC");
-        cmd.add("-XX:+UseStringDeduplication");
-        cmd.add("-XX:+PerfDisableSharedMem");
-        cmd.add("-XX:ReservedCodeCacheSize=512M");
+        // ── G1 GC : voir gcFlags() et les constantes GC_* plus bas ──────
+        cmd.addAll(gcFlags());
 
         // ── AWT / Java2D mitigation (keep — independent of GC choice) ──
         // MenuCanvas (used by Nyle menus) uses BufferedImage + Graphics2D
@@ -244,6 +211,78 @@ public final class MinecraftLauncher {
                     .resolve("nylelauncher");
         }
         return base.resolve("minecraft.log");
+    }
+
+    // ── Mémoire ─────────────────────────────────────────────────────────────────────────────
+
+    /** Plafond physique du -Xmx : RAM − 2 Go, plancher 2 Go ; {@code physMb <= 0} (détection
+     *  ratée) → la valeur demandée telle quelle. */
+    public static int clampHeapMb(int requestedMb, long physMb) {
+        return (physMb > 0) ? Math.max(2048, (int) Math.min(requestedMb, physMb - 2048)) : requestedMb;
+    }
+
+    // ── Drapeaux G1 du CLIENT (15/10/2026) ───────────────────────────────────────────────────
+    // Historique : jeu « Aikar » (drapeaux de SERVEUR à gros tas), calibré en mai 2026 sur un tas
+    // de 8 Go (MrCedriic, RTX 3060, 193 mods) — G1 v1 gardé après la régression ZGC (1.0.35 :
+    // cycles concurrents qui affamaient le fil de rendu, glfwPollEvents figé 2,3-3,7 s).
+    //
+    // Diagnostic du 15/10/2026 (perf-shaders, RAPPORT § 2) : client pokényle à 4 Go de tas,
+    // ensemble vivant 3,3-3,6 Go, 2 187 nettoyages complets en 3 jours (~0,7 s de gel chacun).
+    // Les réserves de serveur mangeaient la marge : 20 % minimum de jeune génération + 20 % de
+    // réserve laissaient ~2,5 Go « confortables » pour 3,4 Go d'objets durables, et un IHOP fixe
+    // à 15 % gardait un marquage concurrent quasi permanent (~6 pauses/min) qui prenait du CPU au
+    // rendu. Ces valeurs sont en cours de mesure au banc : les régler ICI, nulle part ailleurs.
+
+    /** Cible de pause G1 (ms). Inchangée. */
+    static final int GC_MAX_PAUSE_MS = 50;
+    /** Taille de région G1. Inchangée (8 Mo : peu d'objets « humongous » pour les gros tableaux de chunks). */
+    static final String GC_HEAP_REGION_SIZE = "8M";
+    /** Jeune génération MINIMUM (% du tas). 20 → 5 : le défaut G1 ; laisse G1 rétrécir la jeune
+     *  génération quand l'ensemble vivant remplit le tas, au lieu de forcer un nettoyage complet. */
+    static final int GC_NEW_SIZE_PERCENT = 5;
+    /** Jeune génération maximum (% du tas). Inchangée. */
+    static final int GC_MAX_NEW_SIZE_PERCENT = 40;
+    /** Réserve contre les échecs de promotion (% du tas). 20 → 10 : le défaut G1 ; 20 % de 4 Go
+     *  immobilisaient 800 Mo dont le client a besoin pour ses objets durables. */
+    static final int GC_RESERVE_PERCENT = 10;
+    /** Déchet toléré avant nettoyage mixte (% du tas). Inchangé. */
+    static final int GC_HEAP_WASTE_PERCENT = 5;
+    /** Nombre cible de nettoyages mixtes après un marquage. Inchangé. */
+    static final int GC_MIXED_COUNT_TARGET = 4;
+    /** Rapport eden / survivant. Inchangé. */
+    static final int GC_SURVIVOR_RATIO = 32;
+    /** Seuil de déclenchement du marquage concurrent (% du tas), ou {@code -1} = IHOP ADAPTATIF
+     *  de G1 (défaut de la JVM). Était 15 : marquage quasi permanent. Supprimé le 15/10/2026. */
+    static final int GC_INITIATING_HEAP_OCCUPANCY_PERCENT = -1;
+    /** Cache de code JIT. Inchangé (beaucoup de mods = beaucoup de code compilé). */
+    static final String GC_RESERVED_CODE_CACHE = "512M";
+
+    /** Les drapeaux JVM du ramasse-miettes passés au jeu, dans l'ordre. */
+    static List<String> gcFlags() {
+        List<String> f = new ArrayList<>();
+        f.add("-XX:+UseG1GC");
+        f.add("-XX:MaxGCPauseMillis=" + GC_MAX_PAUSE_MS);
+        // G1NewSizePercent / G1MaxNewSizePercent sont des options EXPÉRIMENTALES de HotSpot.
+        f.add("-XX:+UnlockExperimentalVMOptions");
+        f.add("-XX:+ParallelRefProcEnabled");
+        f.add("-XX:G1HeapRegionSize=" + GC_HEAP_REGION_SIZE);
+        f.add("-XX:G1NewSizePercent=" + GC_NEW_SIZE_PERCENT);
+        f.add("-XX:G1MaxNewSizePercent=" + GC_MAX_NEW_SIZE_PERCENT);
+        f.add("-XX:G1ReservePercent=" + GC_RESERVE_PERCENT);
+        f.add("-XX:G1HeapWastePercent=" + GC_HEAP_WASTE_PERCENT);
+        if (GC_INITIATING_HEAP_OCCUPANCY_PERCENT >= 0) {
+            f.add("-XX:InitiatingHeapOccupancyPercent=" + GC_INITIATING_HEAP_OCCUPANCY_PERCENT);
+        }
+        f.add("-XX:G1MixedGCCountTarget=" + GC_MIXED_COUNT_TARGET);
+        f.add("-XX:SurvivorRatio=" + GC_SURVIVOR_RATIO);
+        // NOTE: -XX:+AlwaysPreTouch removed — it physically commits the ENTIRE -Xmx at JVM init,
+        // which is the main cause of "Failed to launch JVM" on low-RAM machines. With the clamped
+        // -Xmx + small -Xms, the heap commits lazily and start-up never fails on memory.
+        f.add("-XX:+DisableExplicitGC");
+        f.add("-XX:+UseStringDeduplication");
+        f.add("-XX:+PerfDisableSharedMem");
+        f.add("-XX:ReservedCodeCacheSize=" + GC_RESERVED_CODE_CACHE);
+        return f;
     }
 
     private static String stripDashes(String uuid) {

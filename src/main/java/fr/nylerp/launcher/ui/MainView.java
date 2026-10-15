@@ -1884,7 +1884,9 @@ public class MainView extends BorderPane {
                                 .warn("Refresh avant lancement échoué (token en cache conservé): {}", m);
                     }
                 }
-                int ramMb = Settings.get().ramMb;
+                // Mémoire « Auto » (selon la RAM du PC) ou valeur du curseur ; le plafond physique
+                // est appliqué par MinecraftLauncher.
+                int ramMb = Settings.get().requestedRamMb(fr.nylerp.launcher.util.SystemRam.totalMb());
                 // Read Fabric version from the cached manifest so the launcher
                 // always installs the loader specified by the modpack publisher,
                 // not a hardcoded one that drifts out of sync.

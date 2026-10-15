@@ -258,7 +258,7 @@ public final class ModpackUpdater {
         //      live under the user's exclusive control, like shaderpacks.
         Set<Path> expected = new HashSet<>();
         for (ManifestEntry e : remote.files) expected.add(gameDir.resolve(e.path).normalize());
-        Set<String> optionalModNames = new HashSet<>(OptionalMods.filenames());
+        Set<String> optionalModNames = new HashSet<>(OptionalMods.filenames(fr.nylerp.launcher.config.ModeDeJeu.courant()));
 
         // ── Les mods AJOUTÉS PAR LE JOUEUR sont SACRÉS (jamais supprimés) ───
         //   5. mods/ — on ne supprime QUE les mods que CE LAUNCHER a installés :

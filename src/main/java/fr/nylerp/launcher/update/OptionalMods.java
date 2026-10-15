@@ -1,6 +1,7 @@
 package fr.nylerp.launcher.update;
 
 import fr.nylerp.launcher.config.AppPaths;
+import fr.nylerp.launcher.config.ModeDeJeu;
 import fr.nylerp.launcher.config.Settings;
 import fr.nylerp.launcher.util.Downloader;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 
 /**
  * Manages optional client-side mods that the player toggles in
@@ -35,8 +37,23 @@ public final class OptionalMods {
     /** A single optional mod definition.
      *  @param fileName  exact filename to use under mods/
      *  @param url       direct CDN url (Modrinth release link)
-     *  @param sha512    expected SHA-512 from the Modrinth API (verified after download) */
-    public record Entry(String fileName, String url, String sha512, BooleanSupplier enabled) {}
+     *  @param sha512    expected SHA-512 from the Modrinth API (verified after download)
+     *  @param modes     modes de jeu où l'entrée AGIT. Hors de ces modes, {@link #applyAll()} ne
+     *                   l'installe ni ne la supprime : un jar du même nom livré par le pack de
+     *                   l'autre mode reste intact (15/10/2026, Controlify n'est optionnel qu'en
+     *                   pokényle). */
+    public record Entry(String fileName, String url, String sha512, BooleanSupplier enabled,
+                        Predicate<ModeDeJeu> modes) {
+        /** Entrée active dans tous les modes (le cas historique). */
+        public Entry(String fileName, String url, String sha512, BooleanSupplier enabled) {
+            this(fileName, url, sha512, enabled, m -> true);
+        }
+
+        /** L'entrée agit-elle dans ce mode ? */
+        public boolean appliesTo(ModeDeJeu mode) {
+            return modes.test(mode);
+        }
+    }
 
     public static final List<Entry> ENTRIES = List.of(
             new Entry(
@@ -70,11 +87,15 @@ public final class OptionalMods {
             // for players who want shader packs without the LOD load. The DH
             // toggle force-enables this (see Settings.get().optionalIris being
             // OR'd with optionalDistantHorizons below).
+            // 15/10/2026 : toujours installé en mode pokényle, où Complementary Reimagined est
+            // actif par défaut (ShaderDefaults). Le joueur coupe les shaders en jeu avec K ; le
+            // réglage « Iris (shaders) » ne vaut donc plus que pour NyleRP.
             new Entry(
                 "iris-fabric-1.8.8+mc1.21.1.jar",
                 "https://cdn.modrinth.com/data/YL57xq9U/versions/zsoi0dso/iris-fabric-1.8.8%2Bmc1.21.1.jar",
                 "2e6ba2ffa1e1a6799288245a7e0ac68ee8df1d41b98362189df58f535cae34fa9277801e4136633467341b7dae5be0e5c698011b480b3d91b66d3dd4f7567aa6",
-                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons),
+                () -> Settings.get().optionalIris || Settings.get().optionalDistantHorizons
+                        || ModeDeJeu.courant() == ModeDeJeu.POKENYLE),
             // Punchy! 2.6.2 — animations à la première personne (mains visibles avec
             // l'objet tenu, animations de combat/mouvement/interaction, physique en main).
             // `environment: client` dans son fabric.mod.json et `server_side: unsupported`
@@ -86,7 +107,19 @@ public final class OptionalMods {
                 "punchy-2.6.2-fabric-1.21.1.jar",
                 "https://cdn.modrinth.com/data/8aoMKplv/versions/H45vu8VY/punchy-2.6.2-fabric-1.21.1.jar",
                 "2bcf8e68b0bbaeb8b9261bfe2e5cbd43e150e8dfcaa0424f84a7799b1dd2892a241bae43dc8dd64a8583d1d6ce5c1f9bc89fc484a8e5389ac8d5e2a63829729e",
-                () -> Settings.get().optionalPunchy)
+                () -> Settings.get().optionalPunchy),
+            // Controlify 3.0.1 (manettes) — quitte le pack pokényle le 15/10/2026 et devient
+            // optionnel, coupé par défaut : 2 113 classes, natifs SDL et 19 à-coups mesurés sur
+            // le fil de rendu chez des joueurs qui n'ont pas de manette. Fichier identique au
+            // jar du pack 181 (même SHA-512, version Modrinth y9bu5RxH). Sa seule dépendance hors
+            // Fabric est YACL (yet_another_config_lib_v3 ≥ 3.8.0), livré par le pack pokényle.
+            // POKÉNYLE SEULEMENT : en mode NyleRP l'entrée n'installe ni ne supprime rien.
+            new Entry(
+                "controlify-3.0.1+lts+1.21.1-fabric.jar",
+                "https://cdn.modrinth.com/data/DOUdJVEm/versions/y9bu5RxH/controlify-3.0.1%2Blts%2B1.21.1-fabric.jar",
+                "55fa83d2a332bd8d26624a95043bb38a28028154982ee4a7d7560df380582a68985c13c6c73e55f1047010d7be2c6bb38f1bb67fe5f4eddb2b6c99f04caf25c0",
+                () -> Settings.get().optionalControlify,
+                m -> m == ModeDeJeu.POKENYLE)
     );
 
     /** Filenames the launcher itself shipped as optional but that have been
@@ -121,6 +154,16 @@ public final class OptionalMods {
         return out;
     }
 
+    /** Comme {@link #filenames()}, limité aux entrées qui agissent dans {@code mode}. Dans un
+     *  mode où une entrée ne s'applique pas, son jar est un fichier ordinaire du pack : le
+     *  nettoyage de {@link ModpackUpdater} doit le traiter comme tel. */
+    public static List<String> filenames(ModeDeJeu mode) {
+        List<String> out = new ArrayList<>(ENTRIES.size() + DEPRECATED_FILENAMES.size());
+        for (Entry e : ENTRIES) if (e.appliesTo(mode)) out.add(e.fileName);
+        out.addAll(DEPRECATED_FILENAMES);
+        return out;
+    }
+
     /** Reconcile mods/ with current Settings:
      *  <ul>
      *    <li>flag ON + file missing → download + verify</li>
@@ -130,7 +173,16 @@ public final class OptionalMods {
      *  Errors are logged but never bubble up — a failed optional mod must not
      *  block launch. */
     public static void applyAll() {
-        Path modsDir = AppPaths.modsDir();
+        applyAll(AppPaths.modsDir(), ModeDeJeu.courant());
+        // Shaders par défaut du mode pokényle : le zip Complementary dans shaderpacks/. Les
+        // réglages Iris (une seule fois) sont posés plus tard, par MinecraftLauncher.
+        if (ModeDeJeu.courant() == ModeDeJeu.POKENYLE) {
+            ShaderDefaults.ensurePack(AppPaths.shaderPacks());
+        }
+    }
+
+    /** Cœur de {@link #applyAll()}, sur un dossier et un mode explicites (testable). */
+    static void applyAll(Path modsDir, ModeDeJeu mode) {
         // Always-clean step: jars that were optional in a previous launcher
         // version but have been retired. Run before applying current entries
         // so orphans are gone even if the registry shrinks further.
@@ -146,6 +198,7 @@ public final class OptionalMods {
             }
         }
         for (Entry e : ENTRIES) {
+            if (!e.appliesTo(mode)) continue;   // hors de son mode : ni installé, ni supprimé
             try {
                 applyOne(modsDir, e);
             } catch (Exception ex) {
@@ -175,7 +228,7 @@ public final class OptionalMods {
         }
     }
 
-    private static String sha512Hex(Path file) throws IOException {
+    static String sha512Hex(Path file) throws IOException {
         try {
             java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-512");
             try (var in = Files.newInputStream(file)) {

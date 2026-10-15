@@ -43,6 +43,11 @@ public class LauncherApp extends Application {
                     installedBs, fr.nylerp.launcher.update.BrokenBootstrapDialog.MIN_REQUIRED_BOOTSTRAP);
             return;
         }
+        // RAM du PC détectée en tâche de fond (sous Windows elle peut passer par PowerShell, ~1 s) :
+        // la section Mémoire des paramètres (mode Auto) lit ensuite la valeur en cache sans figer l'UI.
+        Thread ram = new Thread(fr.nylerp.launcher.util.SystemRam::totalMb, "nyle-ram-detect");
+        ram.setDaemon(true);
+        ram.start();
         // After JavaFX is up, surface any pending crash reports from previous runs.
         CrashReporter.promptIfPending();
         this.stage = stage;

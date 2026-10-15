@@ -161,12 +161,18 @@ public class SettingsView extends BorderPane {
         h.setFont(Fonts.bold(20));
         h.setTextFill(Color.web("#F4F4F7"));
 
-        Label p = new Label("Quantité de RAM allouée à Minecraft. 4 Go suffit à 95 % des joueurs.");
+        Label p = new Label("Quantité de RAM allouée à Minecraft. En automatique, le launcher la choisit selon la mémoire de ton PC.");
         p.setFont(Fonts.medium(13));
         p.setTextFill(Color.web("#A2A2AC"));
         p.setWrapText(true);
 
-        int startGb = Math.max(2, Math.min(16, Settings.get().ramMb / 1024));
+        // Mémoire « Auto » (15/10/2026) : le curseur affiche la valeur choisie pour ce PC ; le
+        // déplacer repasse en manuel et garde la valeur choisie.
+        long physMb = fr.nylerp.launcher.util.SystemRam.totalMb();
+        int autoMb = Settings.autoRamMb(physMb);
+        int autoGb = autoMb / 1024;
+        int startGb = Settings.get().ramAuto ? autoGb
+                : Math.max(2, Math.min(16, Settings.get().ramMb / 1024));
 
         // Floating number that tracks the thumb
         Label big = new Label(String.valueOf(startGb));
@@ -227,11 +233,37 @@ public class SettingsView extends BorderPane {
             if (laneW > 0) x = Math.max(0, Math.min(laneW - numW, x));
             numGroup.setTranslateX(x);
         };
+        // Ligne « Automatique » au style des options (pilule). Le drapeau évite qu'un déplacement
+        // du curseur PAR le code (retour en Auto) ne soit pris pour un choix du joueur.
+        final boolean[] programmatic = {false};
+        int autoEffGb = fr.nylerp.launcher.launch.MinecraftLauncher.clampHeapMb(autoMb, physMb) / 1024;
+        String autoDesc = physMb > 0
+                ? autoEffGb + " Go pour ce PC (" + Math.round(physMb / 1024.0) + " Go de RAM). Déplace le curseur pour choisir toi-même."
+                : autoEffGb + " Go (mémoire du PC non détectée). Déplace le curseur pour choisir toi-même.";
+        HBox autoRow = optionalModRow("Automatique", autoDesc, Settings.get().ramAuto, v -> {
+            Settings.get().ramAuto = v;
+            if (v) {
+                programmatic[0] = true;
+                slider.setValue(autoGb);
+                programmatic[0] = false;
+            } else {
+                // Sortie de l'Auto par la pilule : on garde ce que le curseur affiche.
+                Settings.get().ramMb = (int) Math.round(slider.getValue()) * 1024;
+            }
+            Settings.get().save();
+        });
+        CheckBox autoToggle = (CheckBox) autoRow.getChildren().get(1);   // info, puis la pilule
+
         slider.valueProperty().addListener((o, a, b) -> {
             int g = b.intValue();
             big.setText(String.valueOf(g));
-            Settings.get().ramMb = g * 1024;
-            Settings.get().save();
+            if (!programmatic[0]) {
+                // Le joueur choisit : on quitte l'Auto et on garde SA valeur.
+                Settings.get().ramAuto = false;
+                Settings.get().ramMb = g * 1024;
+                Settings.get().save();
+                if (autoToggle.isSelected()) autoToggle.setSelected(false);
+            }
             reposition.run();
         });
         slider.widthProperty().addListener((o, a, b) -> reposition.run());
@@ -251,7 +283,7 @@ public class SettingsView extends BorderPane {
             scale.getChildren().add(t);
         }
 
-        return new VBox(10, h, p, maxRow, numLane, sliderStack, scale);
+        return new VBox(10, h, p, autoRow, maxRow, numLane, sliderStack, scale);
     }
 
     // ── Captures d'écran ─────────────────────────────────────────────────────
@@ -557,11 +589,22 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalLitematica,
                 v -> { Settings.get().optionalLitematica = v; Settings.get().save(); });
 
-        HBox irisRow = optionalModRow(
-                "Iris (shaders)",
-                "Active le support des shader packs et le rendu compatible Iris. Recommandé GPU dédié.",
-                Settings.get().optionalIris,
-                v -> { Settings.get().optionalIris = v; Settings.get().save(); });
+        // Pokényle (15/10/2026) : Iris est toujours installé et Complementary actif par défaut
+        // (OptionalMods, ShaderDefaults) — la ligne est donc verrouillée sur « activé », et dit
+        // comment couper les shaders : en jeu, touche K.
+        boolean pokenyle = fr.nylerp.launcher.config.ModeDeJeu.courant()
+                == fr.nylerp.launcher.config.ModeDeJeu.POKENYLE;
+        HBox irisRow = pokenyle
+                ? optionalModRow(
+                        "Iris (shaders)",
+                        "Toujours installé sur pokényle, avec les shaders Complementary Reimagined. "
+                                + "Pour couper ou rallumer les shaders : touche K en jeu.",
+                        true, v -> { }, true)
+                : optionalModRow(
+                        "Iris (shaders)",
+                        "Active le support des shader packs et le rendu compatible Iris. Recommandé GPU dédié.",
+                        Settings.get().optionalIris,
+                        v -> { Settings.get().optionalIris = v; Settings.get().save(); });
 
         boolean dhMac = fr.nylerp.launcher.update.OptionalMods.isMac();
         HBox dhRow = optionalModRow(
@@ -584,7 +627,18 @@ public class SettingsView extends BorderPane {
         openModsRow.setAlignment(Pos.CENTER_LEFT);
         openModsRow.setPadding(new Insets(6, 0, 0, 0));
 
-        return new VBox(14, h, p, litematicaRow, irisRow, dhRow, punchyRow, openModsRow);
+        VBox box = new VBox(14, h, p, litematicaRow, irisRow, dhRow, punchyRow, openModsRow);
+        if (pokenyle) {
+            // Manette : optionnel du mode pokényle seulement (OptionalMods, Controlify).
+            HBox controlifyRow = optionalModRow(
+                    "Manette (Controlify)",
+                    "Permet de jouer à la manette. Laisse-le coupé si tu joues au clavier et à la souris : "
+                            + "il interroge les manettes en permanence et pèse sur la fluidité.",
+                    Settings.get().optionalControlify,
+                    v -> { Settings.get().optionalControlify = v; Settings.get().save(); });
+            box.getChildren().add(box.getChildren().indexOf(openModsRow), controlifyRow);
+        }
+        return box;
     }
 
     /** A single optional-mod row: title + description on the left, pill switch
@@ -614,7 +668,8 @@ public class SettingsView extends BorderPane {
 
         CheckBox toggle = new CheckBox();
         toggle.getStyleClass().add("pill-switch");
-        toggle.setSelected(initial && !disabled);
+        // Désactivée : affiche l'état imposé tel quel (DH sur Mac = coupé, Iris sur pokényle = activé).
+        toggle.setSelected(initial);
         if (disabled) {
             toggle.setDisable(true);
             toggle.setOpacity(0.4);
@@ -816,7 +871,14 @@ public class SettingsView extends BorderPane {
         g.add(kvColumn("SERVEUR", Constants.serverHost()), 2, 0);
         g.add(kvColumn("LOADER", "Fabric"), 3, 0);
         g.add(kvColumn("MC", Constants.MC_VERSION), 4, 0);
-        return new VBox(14, h, g);
+
+        // Crédit obligatoire (Complementary License Agreement 1.7, § 1.2.a) : le pack est actif
+        // par défaut en mode pokényle.
+        Label credit = new Label("Shaders : Complementary Reimagined par EminGT (complementary.dev), téléchargé depuis Modrinth");
+        credit.setFont(Fonts.regular(12));
+        credit.setTextFill(Color.web("#6A6A74"));
+        credit.setWrapText(true);
+        return new VBox(14, h, g, credit);
     }
 
     private VBox kvColumn(String k, String v) {
