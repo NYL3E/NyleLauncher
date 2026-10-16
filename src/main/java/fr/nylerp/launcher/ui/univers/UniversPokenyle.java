@@ -10,7 +10,6 @@ import fr.nylerp.launcher.ui.kit.BoutonPilule;
 import fr.nylerp.launcher.ui.kit.CarteVerre;
 import fr.nylerp.launcher.ui.kit.Jetons;
 import fr.nylerp.launcher.ui.kit.Polices;
-import fr.nylerp.launcher.ui.kit.TitreEclats;
 import fr.nylerp.launcher.univers.PreTelechargeur;
 import fr.nylerp.launcher.univers.Services;
 import fr.nylerp.launcher.univers.SourceEtatPokenyle;
@@ -40,7 +39,7 @@ import java.util.Optional;
 
 /**
  * L'UNIVERS POKÉNYLE — le haut de page du site : ciel animé (nuées et Ho-Oh), fond aux coffres-
- * Pokéballs, titre en Northura, gros bouton du kit.
+ * Pokéballs, gros logo officiel, gros bouton du kit.
  *
  * <p>Trois états, lus sur {@link Services#etatPokenyle} et {@link Services#preTelechargeur} (jamais une
  * implémentation) :
@@ -60,6 +59,7 @@ public final class UniversPokenyle extends StackPane {
     private final ImageView fond = new ImageView();
     private final CielPokenyle ciel;
     private final StackPane zoneAction = new StackPane();
+    private final LogoPokenyle logo;
     private final BlocLancement blocOuvert;
     private final Timeline seconde;
     private String etatAffiche = "";
@@ -102,21 +102,21 @@ public final class UniversPokenyle extends StackPane {
         voile.setMouseTransparent(true);
         voile.setStyle("-fx-background-color: linear-gradient(to right, rgba(30,80,150,0.30) 0%, rgba(30,80,150,0.0) 46%);");
 
-        // ── titre ──
-        TitreEclats titre = new TitreEclats("Pokényle", TitreEclats.Style.PRINCIPAL, Jetons.rem(3.6), null);
+        // ── logo (remplace le titre en texte) ──
+        logo = new LogoPokenyle();
 
         blocOuvert = new BlocLancement(lanceur, false, "POKÉNYLE", Pos.TOP_LEFT);
         zoneAction.setAlignment(Pos.TOP_LEFT);
         zoneAction.setPickOnBounds(false);
         zoneAction.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
-        VBox gauche = new VBox(Jetons.rem(0.4), titre, zoneAction);
+        VBox gauche = new VBox(Jetons.rem(0.4), logo, zoneAction);
         VBox.setMargin(zoneAction, new Insets(Jetons.rem(1.1), 0, 0, -Jetons.rem(0.6)));
         gauche.setAlignment(Pos.TOP_LEFT);
         gauche.setPickOnBounds(false);
         gauche.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         StackPane.setAlignment(gauche, Pos.TOP_LEFT);
-        StackPane.setMargin(gauche, new Insets(Jetons.rem(4.6), 0, 0, Jetons.rem(2.4)));
+        StackPane.setMargin(gauche, new Insets(Jetons.rem(3.3), 0, 0, Jetons.rem(2.4)));
 
         getChildren().addAll(fond, ciel, voile, gauche, ciel.avant());
 
@@ -134,6 +134,7 @@ public final class UniversPokenyle extends StackPane {
         if (!animationEnPause) ciel.demarrer();
         seconde.play();
         rafraichir();
+        logo.entrer();
     }
 
     /** L'univers est caché (autre univers, fenêtre rangée) : rien ne tourne. */
