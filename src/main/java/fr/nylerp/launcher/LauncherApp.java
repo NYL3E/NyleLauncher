@@ -67,6 +67,14 @@ public class LauncherApp extends Application {
             LOG.warn("Could not load app icon: {}", e.toString());
         }
 
+        // Mode fond (démarrage automatique) : icône de barre seulement, l'interface sera construite
+        // à la première ouverture. Sinon : démarrage habituel, inchangé.
+        if (fr.nylerp.launcher.fond.Fond.installer(stage, this::construireEtAfficher)) return;
+        construireEtAfficher();
+    }
+
+    /** Construit le premier écran (session reprise ou connexion) et montre la fenêtre. */
+    private void construireEtAfficher() {
         Account saved = AccountStore.active();
         if (saved != null) {
             LOG.info("Resuming saved session for {} ({})", saved.username(), saved.type());
