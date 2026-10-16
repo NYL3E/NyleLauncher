@@ -32,6 +32,10 @@ public final class MicrosoftAuth {
             try {
                 LOG.debug("Calling loginWithAsyncWebview()…");
                 MicrosoftAuthResult result = authenticator.loginWithAsyncWebview().get();
+                // OpenAuth rend un résultat nul quand le joueur ferme la fenêtre Microsoft : c'est une
+                // annulation, pas une panne (sinon getProfile() lève un NPE et l'écran affichait
+                // « Connexion Microsoft échouée »). Le mot « annulée » est reconnu par LoginView.
+                if (result == null) throw new IllegalStateException("Connexion Microsoft annulée (fenêtre fermée)");
                 MinecraftProfile profile = result.getProfile();
                 LOG.info("Microsoft login OK — {} ({})", profile.getName(), profile.getId());
                 return new Account(

@@ -3,24 +3,65 @@ package fr.nylerp.launcher.ui;
 import fr.nylerp.launcher.auth.Account;
 import fr.nylerp.launcher.auth.MicrosoftAuth;
 import fr.nylerp.launcher.auth.OfflineAuth;
+import fr.nylerp.launcher.ui.compte.Ajuste;
+import fr.nylerp.launcher.ui.compte.CarteChoix;
+import fr.nylerp.launcher.ui.compte.FondCiel;
+import fr.nylerp.launcher.ui.compte.VerifPseudo;
+import fr.nylerp.launcher.ui.kit.CarteVerre;
+import fr.nylerp.launcher.ui.kit.Jetons;
+import fr.nylerp.launcher.ui.kit.Polices;
+import fr.nylerp.launcher.ui.kit.TitreEclats;
+import javafx.animation.FadeTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.*;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
-import javafx.scene.text.TextFlow;
+import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
 import java.util.function.Consumer;
 
+/**
+ * Écran de connexion (refonte 2026-10, lot L4), au design du site Pokényle : le ciel aux trois
+ * coffres en fond, un titre Northura, et DEUX grandes cartes qui parlent la langue des joueurs :
+ * <ul>
+ *   <li>« J'ai acheté Minecraft » → la connexion Microsoft embarquée de toujours
+ *       ({@link MicrosoftAuth#loginWithWebview()}, inchangée) ;</li>
+ *   <li>« Je joue en crack » → une étape « Ton pseudo », validée comme avant par
+ *       {@link OfflineAuth#login(String)}, plus une vérification que le pseudo n'appartient pas à
+ *       un compte acheté (NyleAuth l'imposerait en premium et refuserait le joueur).</li>
+ * </ul>
+ * Mode « Ajouter un compte » (multicompte, 3 au plus — la limite est tenue par
+ * {@code LauncherApp.onAuthenticated} / {@code AccountStore}) quand {@code onBack} n'est pas nul :
+ * autre titre, rappel de la limite, bouton Retour vers l'accueil.
+ */
 public class LoginView extends StackPane {
+
+    private static final String MSG_ERREUR = "#d0475b";
+    private static final String MSG_ALERTE = "#b0661a";
+
+    private final Consumer<Account> onAuthenticated;
+    private final StackPane scene = new StackPane();
+    private final VBox etapeChoix;
+    private final VBox etapeCrack;
+    private final CarteChoix carteMicrosoft;
+    private final CarteChoix carteCrack;
+    private final TextField champPseudo = new TextField();
+    private final Label message = new Label();
+    private final Button validerCrack = new Button("Jouer en crack");
+    private boolean verificationEnCours;
 
     public LoginView(Consumer<Account> onAuthenticated) {
         this(onAuthenticated, null);
@@ -31,117 +72,154 @@ public class LoginView extends StackPane {
      *               title changes and a back button returns to the main view.
      */
     public LoginView(Consumer<Account> onAuthenticated, Runnable onBack) {
-        getStyleClass().add("login-root");
-
-        // Glass card centered — every dimension is the previous value × 0.85
-        VBox card = new VBox();
-        card.setAlignment(Pos.CENTER);
-        card.setMaxWidth(357);
-        card.setMaxHeight(Region.USE_PREF_SIZE);
-        card.getStyleClass().add("login-card");
-        card.setPadding(new Insets(37, 37, 31, 37));
-
-        NyleLogo logo = new NyleLogo(48, Color.WHITE);
+        Polices.charger();
+        this.onAuthenticated = onAuthenticated;
+        getStyleClass().add("compte-racine");
+        getStylesheets().add(LoginView.class.getResource("/css/kit.css").toExternalForm());
 
         boolean adding = onBack != null;
-        Text t1 = new Text(adding ? "Ajouter un\n" : "Bienvenue sur\n");
-        t1.getStyleClass().add("hd-title");
-        Text t2 = new Text(adding ? "compte." : "NyleRP.");
-        t2.getStyleClass().add("hd-title-em");
-        TextFlow title = new TextFlow(t1, t2);
-        title.setTextAlignment(TextAlignment.CENTER);
 
-        Label sub = new Label(adding
-                ? "3 comptes max \u00b7 Microsoft ou crack"
-                : "Serveur Minecraft roleplay \u00b7 saison 0");
-        sub.getStyleClass().add("hd-sub");
+        // ── titre ─────────────────────────────────────────────────────────────────────────────────
+        TitreEclats titre = new TitreEclats(adding ? "Ajouter un compte" : "Bienvenue",
+                TitreEclats.Style.PRINCIPAL, Jetons.rem(2.7), null);
+        Label sous = noteBlanche(adding ? "3 comptes max · Microsoft ou crack" : "Comment joues-tu à Minecraft ?",
+                Jetons.rem(1.0));
 
-        Button ms = new Button("Continuer avec Microsoft");
-        ms.getStyleClass().add("btn-ms");
-        ms.setPrefHeight(41);
-        ms.setMaxWidth(Double.MAX_VALUE);
-        ms.setGraphic(Icons.microsoftLogo(12));
-        ms.setGraphicTextGap(9);
-        ms.setOnAction(e -> doMicrosoftLogin(ms, onAuthenticated));
+        // ── étape 1 : les deux cartes ─────────────────────────────────────────────────────────────
+        carteMicrosoft = new CarteChoix(Icons.microsoftLogo(Jetons.rem(1.55)),
+                "J'ai acheté Minecraft", "Compte Microsoft, premium",
+                new String[]{"Tu te connectes sur la page officielle de Microsoft.",
+                        "Ton pseudo et ton skin sont repris automatiquement."},
+                "Se connecter avec Microsoft");
+        carteMicrosoft.setId("carte-microsoft");
+        carteMicrosoft.setSurChoix(this::connexionMicrosoft);
 
-        HBox divider = dividerWithLabel("OU");
+        carteCrack = new CarteChoix(silhouette(Jetons.rem(1.9)),
+                "Je joue en crack", "Gratuit, juste un pseudo, pas besoin d'acheter le jeu",
+                new String[]{"Pas de compte Microsoft : ton pseudo suffit.",
+                        "Il est protégé par un mot de passe que tu choisis en jeu."},
+                "Jouer en crack");
+        carteCrack.setId("carte-crack");
+        carteCrack.setSurChoix(() -> montrer(true));
 
-        Label pseudoLbl = new Label("PSEUDO");
-        pseudoLbl.getStyleClass().add("field-label");
+        HBox cartes = new HBox(Jetons.rem(1.6), carteMicrosoft, carteCrack);
+        cartes.setAlignment(Pos.CENTER);
+        // capsule claire (la .f-date du site) : posée sur l'herbe et les coffres, du texte blanc ne se lirait pas
+        Label aide = new Label("Pas sûr ? Tu as payé Minecraft Java : « J'ai acheté Minecraft ». Sinon : « Je joue en crack ».");
+        aide.getStyleClass().add("kit-capsule");
+        aide.setStyle("-fx-font-size: " + px(Jetons.rem(0.72)) + "; -fx-padding: " + px(Jetons.rem(0.3)) + " " + px(Jetons.rem(0.9)) + ";");
+        etapeChoix = new VBox(Jetons.rem(1.0), cartes, aide);
+        etapeChoix.setAlignment(Pos.CENTER);
 
-        TextField pseudo = new TextField();
-        pseudo.getStyleClass().add("field-input");
-        pseudo.setPromptText("Steve");
-        pseudo.setPrefHeight(41);
-        pseudo.setMaxWidth(Double.MAX_VALUE);
-        pseudo.setOnAction(e -> tryOffline(pseudo, onAuthenticated));
+        // ── étape 2 : le pseudo crack ─────────────────────────────────────────────────────────────
+        etapeCrack = construireEtapeCrack();
+        etapeCrack.setVisible(false);
+        etapeCrack.setManaged(false);
 
-        Button offline = new Button("Jouer en offline");
-        offline.getStyleClass().add("btn-ghost");
-        offline.setPrefHeight(41);
-        offline.setMaxWidth(Double.MAX_VALUE);
-        offline.setOnAction(e -> tryOffline(pseudo, onAuthenticated));
+        scene.getChildren().addAll(etapeChoix, etapeCrack);
+        VBox colonne = new VBox(Jetons.rem(0.45), titre, sous, espace(Jetons.rem(0.9)), scene);
+        colonne.setAlignment(Pos.CENTER);
+        colonne.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
-        VBox offlineBox = new VBox(5, pseudoLbl, pseudo);
-        VBox authBox = new VBox(15, ms, divider, offlineBox, offline);
-        authBox.setFillWidth(true);
+        // ── pied de page et retour ────────────────────────────────────────────────────────────────
+        Label footer = noteBlanche("NyleLauncher v" + fr.nylerp.launcher.update.SelfUpdater.installedVersion()
+                + "  ·  play.nylerp.fr", Jetons.rem(0.62));
+        footer.setOpacity(0.9);
+        StackPane.setAlignment(footer, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(footer, new Insets(0, 0, Jetons.rem(0.9), 0));
+
+        // la colonne se réduit si elle ne tient pas (fenêtre 1000 × 620, message d'erreur long…)
+        Ajuste ajuste = new Ajuste(colonne, new Insets(Jetons.rem(1.2), Jetons.rem(1.2), Jetons.rem(2.2), Jetons.rem(1.2)));
+        getChildren().addAll(new FondCiel(), ajuste, footer);
 
         if (adding) {
-            Button back = new Button("\u2190 Retour");
-            back.getStyleClass().add("btn-ghost");
-            back.setPrefHeight(36);
-            back.setMaxWidth(Double.MAX_VALUE);
+            Button back = new Button("← Retour");
+            back.getStyleClass().add("kit-sortir");
+            back.setId("retour-accueil");
             back.setOnAction(e -> onBack.run());
-            authBox.getChildren().add(back);
+            StackPane.setAlignment(back, Pos.TOP_LEFT);
+            StackPane.setMargin(back, new Insets(Jetons.rem(1.0), 0, 0, Jetons.rem(1.0)));
+            getChildren().add(back);
         }
-
-        card.getChildren().addAll(
-                logo,
-                spacer(24),
-                title,
-                spacer(7),
-                sub,
-                spacer(31),
-                authBox
-        );
-
-        Label footer = new Label("NyleLauncher v" + fr.nylerp.launcher.update.SelfUpdater.installedVersion() + "  ·  play.nylerp.fr");
-        footer.getStyleClass().add("foot-ver");
-        StackPane.setAlignment(footer, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(footer, new Insets(0, 0, 22, 0));
-
-        getChildren().addAll(card, footer);
-        setAlignment(card, Pos.CENTER);
 
         int i = 0;
-        for (Node n : card.getChildren()) {
-            if (n instanceof Region r && r.getMaxHeight() == 0) continue;
-            Animations.enter(n, Duration.millis(80 + (i++) * 50));
+        for (Node n : new Node[]{titre, sous, carteMicrosoft, carteCrack, aide}) {
+            Animations.enter(n, Duration.millis(80 + (i++) * 60));
         }
     }
 
-    private static Region spacer(double h) {
-        Region r = new Region();
-        r.setMinHeight(h); r.setPrefHeight(h); r.setMaxHeight(h);
-        return r;
+    // ── construction ──────────────────────────────────────────────────────────────────────────────
+
+    private VBox construireEtapeCrack() {
+        Button retour = new Button("← Changer de choix");
+        retour.getStyleClass().add("kit-lien");
+        retour.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-font-size: " + px(Jetons.rem(0.74)) + ";");
+        retour.setId("retour-choix");
+        retour.setOnAction(e -> montrer(false));
+
+        Label t = new Label("Ton pseudo");
+        t.setFont(Polices.noir(Jetons.rem(1.45)));
+        t.setTextFill(Jetons.ENCRE);
+        Label st = new Label("Le nom que les autres joueurs verront en jeu.");
+        st.setFont(Polices.gras(Jetons.rem(0.78)));
+        st.setTextFill(Jetons.ENCRE_2);
+
+        champPseudo.getStyleClass().add("kit-champ");
+        champPseudo.setId("champ-pseudo");
+        champPseudo.setPromptText("Steve");
+        champPseudo.setMaxWidth(Double.MAX_VALUE);
+        champPseudo.setOnAction(e -> validerCrack());
+        champPseudo.textProperty().addListener((o, a, b) -> cacherMessage());
+
+        Label regles = new Label("3 à 16 caractères : lettres, chiffres ou _");
+        regles.setFont(Polices.gras(Jetons.rem(0.66)));
+        regles.setTextFill(Jetons.ENCRE_3);
+
+        message.setFont(Polices.extra(Jetons.rem(0.7)));
+        message.setWrapText(true);
+        message.setId("message-pseudo");
+        message.setMaxWidth(Jetons.rem(19));
+        message.setMinHeight(Region.USE_PREF_SIZE);
+        cacherMessage();
+
+        validerCrack.getStyleClass().add("kit-valider");
+        validerCrack.setId("valider-crack");
+        validerCrack.setMaxWidth(Double.MAX_VALUE);
+        validerCrack.setOnAction(e -> validerCrack());
+
+        SVGPath cadenas = new SVGPath();
+        cadenas.setContent("M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1Zm2 0h6V7a3 3 0 0 0-6 0v3Z");
+        cadenas.setFill(Jetons.ACTIF);
+        cadenas.setScaleX(Jetons.rem(0.7) / 24);
+        cadenas.setScaleY(Jetons.rem(0.7) / 24);
+        Label securite = new Label("À ta première connexion au serveur, tu choisis un mot de passe : personne d'autre "
+                + "ne pourra jouer sous ton pseudo. Prends un pseudo qui n'est pas déjà celui d'un compte Minecraft acheté.");
+        securite.setFont(Polices.gras(Jetons.rem(0.64)));
+        securite.setTextFill(Jetons.ENCRE_2);
+        securite.setWrapText(true);
+        securite.setMaxWidth(Jetons.rem(17.4));
+        securite.setMinHeight(Region.USE_PREF_SIZE);
+        HBox ligneSecurite = new HBox(Jetons.rem(0.4), new StackPane(cadenas), securite);
+        ligneSecurite.setAlignment(Pos.TOP_LEFT);
+
+        VBox champ = new VBox(Jetons.rem(0.3), champPseudo, regles, message);
+        VBox contenu = new VBox(Jetons.rem(0.55), retour, espace(Jetons.rem(0.1)), t, st, espace(Jetons.rem(0.25)),
+                champ, validerCrack, espace(Jetons.rem(0.15)), ligneSecurite);
+        contenu.setFillWidth(true);
+        contenu.setPrefWidth(Jetons.rem(19));
+
+        CarteVerre carte = new CarteVerre(CarteVerre.Variante.OPAQUE, contenu);
+        carte.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        VBox etape = new VBox(carte);
+        etape.setAlignment(Pos.CENTER);
+        return etape;
     }
 
-    private HBox dividerWithLabel(String text) {
-        Region l1 = new Region(); l1.getStyleClass().add("divider-line");
-        l1.setMinHeight(1); l1.setPrefHeight(1); l1.setMaxHeight(1);
-        HBox.setHgrow(l1, Priority.ALWAYS);
-        Region l2 = new Region(); l2.getStyleClass().add("divider-line");
-        l2.setMinHeight(1); l2.setPrefHeight(1); l2.setMaxHeight(1);
-        HBox.setHgrow(l2, Priority.ALWAYS);
-        Label lab = new Label(text); lab.getStyleClass().add("divider-label");
-        HBox h = new HBox(12, l1, lab, l2);
-        h.setAlignment(Pos.CENTER);
-        return h;
-    }
+    // ── Microsoft : flux de toujours, inchangé ────────────────────────────────────────────────────
 
-    private void doMicrosoftLogin(Button btn, Consumer<Account> onAuthenticated) {
-        btn.setDisable(true);
-        btn.setText("Connexion Microsoft…");
+    private void connexionMicrosoft() {
+        carteMicrosoft.setOccupe(true, "Connexion Microsoft…");
+        carteCrack.setDisable(true);
 
         // Fenêtre de connexion Microsoft EMBARQUÉE (WebView OpenAuth) : l'utilisateur se
         // connecte entièrement dans la fenêtre (login + 2FA + compte famille gérés nativement
@@ -149,8 +227,8 @@ public class LoginView extends StackPane {
         // legacy — pas d'Azure, pas de device-code (qui échouait en invalid_grant pour les
         // comptes 2FA/famille). C'est le flux standard de MultiMC / Prism / HMCL.
         MicrosoftAuth.loginWithWebview().whenComplete((acc, err) -> Platform.runLater(() -> {
-            btn.setDisable(false);
-            btn.setText("Continuer avec Microsoft");
+            carteMicrosoft.setOccupe(false, null);
+            carteCrack.setDisable(false);
             if (err != null) {
                 Throwable c = err.getCause() != null ? err.getCause() : err;
                 String m = c.getMessage() != null ? c.getMessage() : c.toString();
@@ -170,116 +248,97 @@ public class LoginView extends StackPane {
         }));
     }
 
-    /**
-     * Pops a soft, screen-centered dialog with the Microsoft device code.
-     * Auto-closed when the background poller receives the token.
-     */
-    private javafx.stage.Stage showDeviceCodeDialog(String code, String uri) {
-        Label title = new Label("Connexion Microsoft");
-        title.setFont(Fonts.semi(16));
-        title.setTextFill(Color.web("#F4F4F7"));
+    // ── crack ─────────────────────────────────────────────────────────────────────────────────────
 
-        Label body = new Label("Colle ce code dans la page Microsoft qui vient de s'ouvrir (déjà copié).");
-        body.setFont(Fonts.medium(12));
-        body.setTextFill(Color.web("#A2A2AC"));
-        body.setWrapText(true);
-        body.setMaxWidth(320);
-        body.setStyle("-fx-text-alignment: center;");
-
-        Label codeLbl = new Label(code);
-        codeLbl.setFont(Fonts.medium(24));
-        codeLbl.setTextFill(Color.web("#F4F4F7"));
-        codeLbl.setStyle("-fx-letter-spacing: 0.22em;"
-                + "-fx-background-color: rgba(255,255,255,0.05);"
-                + "-fx-background-radius: 14;"
-                + "-fx-padding: 14 26 14 26;"
-                + "-fx-border-color: rgba(255,255,255,0.10);"
-                + "-fx-border-radius: 14; -fx-border-width: 1;");
-
-        Button copyBtn = new Button("Copier");
-        copyBtn.setFont(Fonts.medium(11));
-        copyBtn.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-text-fill: #A2A2AC;"
-                + "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 16 6 16;");
-        copyBtn.setOnAction(e -> {
-            javafx.scene.input.ClipboardContent cb = new javafx.scene.input.ClipboardContent();
-            cb.putString(code);
-            javafx.scene.input.Clipboard.getSystemClipboard().setContent(cb);
-        });
-
-        Button openBtn = new Button("Rouvrir la page");
-        openBtn.setFont(Fonts.medium(11));
-        openBtn.setStyle("-fx-background-color: rgba(255,255,255,0.06); -fx-text-fill: #A2A2AC;"
-                + "-fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 6 16 6 16;");
-        openBtn.setOnAction(e -> openBrowserUri(uri));
-
-        HBox actions = new HBox(8, copyBtn, openBtn);
-        actions.setAlignment(Pos.CENTER);
-
-        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
-        spinner.setMinSize(14, 14);
-        spinner.setMaxSize(14, 14);
-        spinner.setPrefSize(14, 14);
-        spinner.setStyle("-fx-progress-color: #FF8128;");
-
-        Label hint = new Label("En attente de validation…");
-        hint.setFont(Fonts.medium(10));
-        hint.setTextFill(Color.web("#8A8A94"));
-        HBox hintRow = new HBox(8, spinner, hint);
-        hintRow.setAlignment(Pos.CENTER);
-
-        VBox content = new VBox(16, title, body, codeLbl, actions, hintRow);
-        content.setAlignment(Pos.CENTER);
-        content.setPadding(new Insets(34, 40, 28, 40));
-        content.setStyle(
-                "-fx-background-color: linear-gradient(to bottom, rgba(32,26,52,0.96), rgba(20,16,36,0.96));"
-                        + "-fx-background-radius: 20;"
-                        + "-fx-border-color: rgba(255,255,255,0.12);"
-                        + "-fx-border-radius: 20; -fx-border-width: 1;"
-                        + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 32, 0.25, 0, 8);");
-
-        // Outer transparent pane so the drop-shadow has room to spread
-        StackPane wrapper = new StackPane(content);
-        wrapper.setPadding(new Insets(40));
-        wrapper.setStyle("-fx-background-color: transparent;");
-
-        javafx.scene.Scene scene = new javafx.scene.Scene(wrapper);
-        scene.setFill(Color.TRANSPARENT);
-        scene.getStylesheets().addAll(getScene().getStylesheets());
-
-        javafx.stage.Stage stg = new javafx.stage.Stage();
-        stg.initStyle(javafx.stage.StageStyle.TRANSPARENT);
-        stg.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-        stg.initOwner(getScene().getWindow());
-        stg.setScene(scene);
-        stg.setResizable(false);
-
-        // Center on the primary screen (works even when the launcher window
-        // is off-center), after layout so the stage's own size is known.
-        stg.setOnShown(e -> {
-            javafx.geometry.Rectangle2D screen = javafx.stage.Screen.getPrimary().getVisualBounds();
-            stg.setX(screen.getMinX() + (screen.getWidth()  - stg.getWidth())  / 2);
-            stg.setY(screen.getMinY() + (screen.getHeight() - stg.getHeight()) / 2);
-        });
-        stg.show();
-        return stg;
-    }
-
-    private void openBrowserUri(String uri) {
+    private void validerCrack() {
+        if (verificationEnCours) return;
+        Account compte;
         try {
-            if (java.awt.Desktop.isDesktopSupported()
-                    && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
-                java.awt.Desktop.getDesktop().browse(java.net.URI.create(uri));
+            compte = OfflineAuth.login(champPseudo.getText());
+        } catch (IllegalArgumentException ex) {
+            afficherMessage(ex.getMessage(), MSG_ERREUR);
+            return;
+        }
+        verificationEnCours = true;
+        validerCrack.setText("Vérification du pseudo…");
+        validerCrack.setDisable(true);
+        VerifPseudo.verifier(compte.username()).whenComplete((r, e) -> Platform.runLater(() -> {
+            verificationEnCours = false;
+            validerCrack.setText("Jouer en crack");
+            validerCrack.setDisable(false);
+            if (r == VerifPseudo.Resultat.ACHETE) {
+                afficherMessage("« " + compte.username() + " » est le pseudo d'un compte Minecraft acheté : sur nos serveurs, "
+                        + "il faut alors se connecter avec ce compte Microsoft. Choisis un autre pseudo pour jouer en crack.",
+                        MSG_ALERTE);
+                return;
             }
-        } catch (Exception ignored) {}
+            onAuthenticated.accept(compte);
+        }));
     }
 
-    private void tryOffline(TextField pseudo, Consumer<Account> onAuthenticated) {
-        try { onAuthenticated.accept(OfflineAuth.login(pseudo.getText())); }
-        catch (IllegalArgumentException ex) { showError("Pseudo invalide", ex.getMessage()); }
+    private void afficherMessage(String texte, String couleur) {
+        message.setText(texte);
+        message.setTextFill(Color.web(couleur));
+        message.setVisible(true);
+        message.setManaged(true);
     }
 
-    private static void showError(String title, String msg) {
-        // Plus jamais l'Alert système gris : toutes les erreurs passent par le dialog NyleRP.
-        NyleErrorDialog.show(title, msg);
+    private void cacherMessage() {
+        message.setText("");
+        message.setVisible(false);
+        message.setManaged(false);
     }
+
+    /** Bascule entre les deux cartes et l'étape « Ton pseudo », en fondu glissé. */
+    private void montrer(boolean crack) {
+        VBox entrant = crack ? etapeCrack : etapeChoix;
+        VBox sortant = crack ? etapeChoix : etapeCrack;
+        sortant.setVisible(false);
+        sortant.setManaged(false);
+        entrant.setManaged(true);
+        entrant.setVisible(true);
+        entrant.setOpacity(0);
+        entrant.setTranslateY(Jetons.rem(0.6));
+        FadeTransition f = new FadeTransition(Duration.millis(260), entrant);
+        f.setToValue(1);
+        TranslateTransition t = new TranslateTransition(Duration.millis(320), entrant);
+        t.setToY(0);
+        t.setInterpolator(Jetons.SORTIE);
+        new ParallelTransition(f, t).play();
+        if (crack) Platform.runLater(champPseudo::requestFocus);
+        else cacherMessage();
+    }
+
+    // ── petits outils ─────────────────────────────────────────────────────────────────────────────
+
+    /** Texte blanc posé sur le ciel (la .lanceur-note du site, en plus grand). */
+    private static Label noteBlanche(String texte, double taille) {
+        Label l = new Label(texte);
+        l.setFont(Polices.extra(taille));
+        l.setTextFill(Color.WHITE);
+        l.setWrapText(true);
+        l.setAlignment(Pos.CENTER);
+        l.setStyle("-fx-text-alignment: center;");
+        l.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(30, 70, 140, 0.65), taille * 0.6, 0.15, 0, taille * 0.08));
+        return l;
+    }
+
+    private static Node silhouette(double taille) {
+        SVGPath s = new SVGPath();
+        s.setContent("M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2Zm-7.4 7.6c.6-3.4 3.6-5.6 7.4-5.6s6.8 2.2 7.4 5.6c.1.6-.4 1.2-1 1.2H5.6c-.6 0-1.1-.6-1-1.2Z");
+        s.setFill(Jetons.ICONE);
+        s.setScaleX(taille / 24);
+        s.setScaleY(taille / 24);
+        return new StackPane(s);
+    }
+
+    private static Region espace(double h) {
+        Region r = new Region();
+        r.setMinHeight(h);
+        r.setPrefHeight(h);
+        r.setMaxHeight(h);
+        return r;
+    }
+
+    private static String px(double v) { return String.format(java.util.Locale.ROOT, "%.1fpx", v); }
 }
