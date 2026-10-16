@@ -626,6 +626,7 @@ public class MainView extends BorderPane {
         // ── Ambient audio — separate looping MediaPlayer at 30% by default; toggled
         //    via the mute button bottom-right of this panel. Created once for the
         //    lifetime of the launcher so the loop doesn't restart on view rebuild.
+        ancreAudio = stack;
         startAmbientAudio();
 
         // ── Header capsule overlay (no more black strip above the picture) ──
@@ -935,7 +936,11 @@ public class MainView extends BorderPane {
      *  at every cycle boundary, on the FX thread). */
     private MediaPlayer newBgPlayer(String resourcePath, MediaView attachedView) {
         try {
-            String url = getClass().getResource(resourcePath).toExternalForm();
+            // Refonte 2026-10 (L3) : une vidéo du paquet de médias distant remplace celle du jar ;
+            // sans paquet, c'est la vidéo du jar, exactement comme avant.
+            String url = fr.nylerp.launcher.update.Medias.urlOuClasspath(
+                    "nylerp/" + resourcePath.substring(resourcePath.lastIndexOf('/') + 1), resourcePath);
+            if (url == null) throw new IllegalStateException("vidéo introuvable : " + resourcePath);
             Media media = new Media(url);
             media.setOnError(() -> {
                 System.err.println("[MainView] media decode error (" + resourcePath + "): " + media.getError());
@@ -1085,9 +1090,19 @@ public class MainView extends BorderPane {
         // (e.g. UNKNOWN before READY fired, or STALLED during a buffer
         // underrun) the call silently no-op'd and the audio drifted out of
         // sync with the icon — the "sometimes doesn't toggle" bug.
-        if (ambientPlayer == null) {
+        // Refonte 2026-10 (L3) : musique et ambiance sont sorties du jar (18 Mo) et arrivent par le
+        // paquet de médias distant. Pas encore téléchargées (premier démarrage après la mise à jour,
+        // hors ligne) : l'accueil reste muet, et l'audio démarre tout seul dès la fin du
+        // téléchargement si la fenêtre est toujours affichée.
+        String urlAmbiance = fr.nylerp.launcher.update.Medias.urlOuClasspath(
+                fr.nylerp.launcher.update.CheminsMedias.NYLERP_AMBIANCE, "/media/ambient.mp3");
+        String urlMusique = fr.nylerp.launcher.update.Medias.urlOuClasspath(
+                fr.nylerp.launcher.update.CheminsMedias.NYLERP_MUSIQUE, "/media/music.mp3");
+        if (ambientPlayer == null && urlAmbiance == null) relancerAudioQuandPret(fr.nylerp.launcher.update.CheminsMedias.NYLERP_AMBIANCE);
+        if (musicPlayer == null && urlMusique == null) relancerAudioQuandPret(fr.nylerp.launcher.update.CheminsMedias.NYLERP_MUSIQUE);
+        if (ambientPlayer == null && urlAmbiance != null) {
             try {
-                String url = getClass().getResource("/media/ambient.mp3").toExternalForm();
+                String url = urlAmbiance;
                 Media media = new Media(url);
                 media.setOnError(() -> System.err.println("[MainView] ambient media error: " + media.getError()));
                 ambientPlayer = new MediaPlayer(media);
@@ -1100,9 +1115,9 @@ public class MainView extends BorderPane {
                 System.err.println("[MainView] ambient audio unavailable: " + t);
             }
         }
-        if (musicPlayer == null) {
+        if (musicPlayer == null && urlMusique != null) {
             try {
-                String url = getClass().getResource("/media/music.mp3").toExternalForm();
+                String url = urlMusique;
                 Media media = new Media(url);
                 media.setOnError(() -> System.err.println("[MainView] music media error: " + media.getError()));
                 musicPlayer = new MediaPlayer(media);
@@ -1115,6 +1130,33 @@ public class MainView extends BorderPane {
                 System.err.println("[MainView] music unavailable: " + t);
             }
         }
+    }
+
+    /** Nœud d'ancrage pour savoir si l'accueil est encore affiché quand un média audio arrive. */
+    private Node ancreAudio;
+    /** Le dernier accueil construit : c'est LUI qui joue l'audio quand le média arrive (les lecteurs
+     *  sont statiques ; un accueil reconstruit entre-temps ne doit pas rester muet). */
+    private static volatile MainView accueilAudio;
+    /** Un seul rappel par média en attente, quel que soit le nombre de reconstructions de l'accueil. */
+    private static final java.util.Set<String> audioEnAttente = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Rejoue {@link #startAmbientAudio} quand le média arrive — seulement si l'accueil est encore à
+     * l'écran : jamais de musique qui démarre fenêtre fermée ou jeu lancé.
+     */
+    private void relancerAudioQuandPret(String chemin) {
+        accueilAudio = this;
+        if (!audioEnAttente.add(chemin)) return;
+        fr.nylerp.launcher.update.Medias.quandDisponible(chemin, p -> Platform.runLater(() -> {
+            audioEnAttente.remove(chemin);
+            MainView v = accueilAudio;
+            Node a = v == null ? null : v.ancreAudio;
+            if (a != null && a.getScene() != null && a.getScene().getWindow() != null
+                    && a.getScene().getWindow().isShowing()) {
+                System.out.println("[MainView] média audio arrivé (" + chemin + ") : lecture");
+                v.startAmbientAudio();
+            }
+        }));
     }
 
     /** Round 44×44 button with a speaker SVG glyph. Toggling calls
