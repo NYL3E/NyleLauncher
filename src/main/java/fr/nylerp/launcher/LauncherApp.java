@@ -66,6 +66,14 @@ public class LauncherApp extends Application {
         // Médias distants (fond et oiseaux de Pokényle, musique de NyleRP) : téléchargés en fond dès
         // maintenant, pour que l'écran les ait au plus tôt.
         fr.nylerp.launcher.update.Medias.demarrer();
+        // Annonces et état distant de Pokényle (pose Services.etatPokenyle), puis pré-téléchargement
+        // (pose Services.preTelechargeur) : avant la coquille, qui lit ces deux services. Aussi en mode fond.
+        fr.nylerp.launcher.annonces.Annonces.demarrer();
+        fr.nylerp.launcher.update.pretelechargement.PreTelechargement.demarrer();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try { fr.nylerp.launcher.update.pretelechargement.PreTelechargement.arreter(); } catch (Throwable ignore) { }
+            try { fr.nylerp.launcher.annonces.Annonces.arreter(); } catch (Throwable ignore) { }
+        }, "nyle-arret-services"));
 
         this.stage = stage;
         stage.setTitle(Constants.APP_NAME);
@@ -96,6 +104,10 @@ public class LauncherApp extends Application {
         Fond.surAffichage(() -> { if (coquille != null && chromeMontre(coquille)) coquille.reprendre(); });
         Fond.surNavigation(cible -> {
             if ("reglages".equalsIgnoreCase(cible)) { if (account != null) showSettings(); return; }
+            if (fr.nylerp.launcher.annonces.Annonces.estUrl(cible)) {
+                fr.nylerp.launcher.annonces.Annonces.ouvrirUrl(cible);
+                return;
+            }
             if (coquille != null) {
                 if (!chromeMontre(coquille)) show(coquille);
                 coquille.naviguer(cible);
@@ -227,6 +239,27 @@ public class LauncherApp extends Application {
         if (coquille != null) coquille.liberer();
         coquille = new Coquille(echelle, compte, this::showSettings, this::onLogout,
                 this::switchAccount, this::showAddAccount);
+        // Boutique intégrée : la vraie page du site dans un WebView, sous l'en-tête, « Retour » la referme.
+        final Coquille c = coquille;
+        c.setSurBoutique((univers, pseudo) -> {
+            fr.nylerp.launcher.ui.boutique.BoutiqueView vue =
+                    fr.nylerp.launcher.ui.boutique.Boutique.ouvrir(univers, pseudo);
+            vue.setSurRetour(c::retour);
+            // Quand la vue quitte l'écran (retour de l'en-tête ou de la boutique), son WebView est libéré.
+            vue.parentProperty().addListener((o, avant, apres) -> { if (apres == null) vue.fermer(); });
+            c.afficherVue(vue);
+        });
+        if (!fr.nylerp.launcher.config.Settings.get().accueilVu) {
+            // Premier lancement après la mise à jour : l'écran « Nouveau launcher » explique le
+            // démarrage en fond et permet de le couper, puis on arrive dans les univers.
+            fr.nylerp.launcher.ui.Accueil accueil = new fr.nylerp.launcher.ui.Accueil(fr.nylerp.launcher.config.Settings.get());
+            accueil.setSurValider(reglages -> {
+                Fond.appliquerReglages();
+                show(c);
+            });
+            show(accueil);
+            return;
+        }
         show(coquille);
     }
 

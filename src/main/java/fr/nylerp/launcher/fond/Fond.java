@@ -106,7 +106,9 @@ public final class Fond {
         boolean barreVoulue = reglages.fondActif || lanceEnFond;
         if (barreVoulue) barre = Barre.installer(() -> afficher(null), Fond::quitter, Fond::sansBarre);
         appliquerFermeture();
-        DemarrageAuto.synchroniser(reglages.demarrageAuto);
+        // Le démarrage automatique n'est posé qu'une fois l'écran « Nouveau launcher » validé (il l'explique
+        // et permet de le couper) : jamais à l'insu d'un joueur qui vient de recevoir la mise à jour.
+        DemarrageAuto.synchroniser(reglages.demarrageAuto && reglages.accueilVu);
         if (Systeme.mac()) demarrerVeilleMac();
 
         String enAttente = ouvertureEnAttente;
@@ -201,7 +203,11 @@ public final class Fond {
      */
     public static void notifier(String titre, String texte, String cible) {
         if (!Settings.get().notifications) return;
-        surFx(() -> Toast.afficher(titre, texte, () -> afficher(cible)));
+        // Une annonce qui pointe vers un lien ouvre le navigateur sans sortir la fenêtre du launcher.
+        Runnable clic = fr.nylerp.launcher.annonces.Annonces.estUrl(cible)
+                ? () -> fr.nylerp.launcher.annonces.Annonces.ouvrirUrl(cible)
+                : () -> afficher(cible);
+        surFx(() -> Toast.afficher(titre, texte, clic));
     }
 
     // ── Réglages ─────────────────────────────────────────────────────────────
@@ -209,7 +215,7 @@ public final class Fond {
     /** Applique {@code demarrageAuto}, {@code fondActif} et l'icône après un changement de réglage. */
     public static void appliquerReglages() {
         Settings r = Settings.get();
-        DemarrageAuto.synchroniser(r.demarrageAuto);
+        DemarrageAuto.synchroniser(r.demarrageAuto && r.accueilVu);
         surFx(() -> {
             if (r.fondActif && barre == null && stage != null) {
                 barre = Barre.installer(() -> afficher(null), Fond::quitter, Fond::sansBarre);

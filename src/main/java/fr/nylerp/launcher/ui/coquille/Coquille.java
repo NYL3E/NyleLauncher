@@ -234,6 +234,7 @@ public final class Coquille extends StackPane {
         Settings s = Settings.get();
         s.universVu = m.id;
         s.save();
+        fr.nylerp.launcher.annonces.Annonces.universOuvert(m.id);
     }
 
     private void montrer(ModeDeJeu m, boolean anime) {

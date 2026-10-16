@@ -104,6 +104,7 @@ public final class LanceurJeu {
 
     /** Le clic sur le gros bouton : exactement l'aiguillage de l'ancien bouton JOUER. */
     public void jouer() {
+        fr.nylerp.launcher.annonces.Annonces.universOuvert(fr.nylerp.launcher.config.ModeDeJeu.courant().id);
         if (launcherUpdateUrl != null) {
             // Same auto-update flow as the small banner button — never open the browser
             performLauncherUpdateOnPlay(play);

@@ -544,11 +544,11 @@ public final class UniversNylerp extends StackPane {
         cover.setFitWidth(l);
         cover.setPreserveRatio(true);
         cover.setSmooth(true);
-        Label tag = etiquette("OUVERTURE");
-        Text t = new Text("Ouverture du serveur");
+        Label tag = etiquette("NOUVEAU");
+        Text t = new Text("Nouveau launcher");
         t.setFont(Polices.noir(Jetons.rem(0.72)));
         t.setFill(Jetons.ENCRE);
-        Text d = new Text("Rendez-vous le 8 juillet à 14h00 pour l'ouverture du serveur !");
+        Text d = new Text("Nouveau design, boutique intégrée et annonces dans la barre système.");
         d.setFont(Polices.gras(Jetons.rem(0.56)));
         d.setFill(Jetons.ENCRE_2);
         d.setWrappingWidth(l - Jetons.rem(1.2));
