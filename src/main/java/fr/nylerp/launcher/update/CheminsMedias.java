@@ -29,6 +29,9 @@ public final class CheminsMedias {
     public static final String POKENYLE_NUAGES_2X = "pokenyle/nuages@2x.png";
     public static final String POKENYLE_TRAJETS  = "pokenyle/trajets.json";
     public static final String POKENYLE_PLUME_2X = "pokenyle/particules/plume@2x.png";
+    /** Variantes de couleur des plumes de Ho-Oh (fournies par l'agent du site, 16/10). */
+    public static final String POKENYLE_PLUME_ROUGE_2X = "pokenyle/particules/plume-rouge@2x.png";
+    public static final String POKENYLE_PLUME_ARC_2X   = "pokenyle/particules/plume-arc@2x.png";
     public static final String POKENYLE_ECLAT_2X = "pokenyle/particules/eclat@2x.png";
 
     /** Noms des atlas de vol : {@code pokenyle/atlas/<nom>.png} + {@code pokenyle/atlas/<nom>.json}. */
@@ -43,11 +46,16 @@ public final class CheminsMedias {
     // ── Cartes d'univers et logos (réservé) ─────────────────────────────────────────────────
     public static final String CARTE_POKENYLE_2X = "univers/carte-pokenyle@2x.jpg";
     public static final String CARTE_NYLERP_2X   = "univers/carte-nylerp@2x.jpg";
-    /** Logos en 2x : en-tête (hauteur 2×44) et grand (hauteur 2×88). */
-    public static final String LOGO_POKENYLE_ENTETE_2X = "logos/pokenyle-entete@2x.png";
-    public static final String LOGO_POKENYLE_GRAND_2X  = "logos/pokenyle-grand@2x.png";
-    public static final String LOGO_NYLERP_ENTETE_2X   = "logos/nylerp-entete@2x.png";
-    public static final String LOGO_NYLERP_GRAND_2X    = "logos/nylerp-grand@2x.png";
+    /** Logos en 2x, aux noms livrés par l'agent du site (16/10) : texte en 44 et 88 px de haut (1x),
+     *  et le coffre seul (icône carrée) aux mêmes hauteurs. */
+    public static final String LOGO_POKENYLE_ENTETE_2X = "logos/logo-pokenyle-44@2x.png";
+    public static final String LOGO_POKENYLE_GRAND_2X  = "logos/logo-pokenyle-88@2x.png";
+    public static final String LOGO_NYLERP_ENTETE_2X   = "logos/logo-nylerp-44@2x.png";
+    public static final String LOGO_NYLERP_GRAND_2X    = "logos/logo-nylerp-88@2x.png";
+    public static final String COFFRE_POKENYLE_44_2X   = "logos/logo-pokenyle-coffre-44@2x.png";
+    public static final String COFFRE_POKENYLE_88_2X   = "logos/logo-pokenyle-coffre-88@2x.png";
+    public static final String COFFRE_NYLERP_44_2X     = "logos/logo-nylerp-coffre-44@2x.png";
+    public static final String COFFRE_NYLERP_88_2X     = "logos/logo-nylerp-coffre-88@2x.png";
 
     // ── Barre système (réservé — voir la note : à embarquer AUSSI dans le jar) ──────────────
     /** L'icône de barre système doit exister hors ligne à l'ouverture de session : le lot 1

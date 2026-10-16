@@ -1,0 +1,942 @@
+{
+ "source": "pokerayou.academy, accueil (dist/index.html), ordinateur 1440 px : feuilles de style réelles et styles calculés, relevé du 2026-10-16",
+ "unites": {
+  "rem": "rem du site : le héros fait 75 rem de large (1 rem = largeur du héros / 75)",
+  "px": "pixels 1x du launcher (fenêtre 1180 × 700), dans le repère de fond-pokenyle.jpg ; doubler pour le 2x",
+  "temps": "secondes"
+ },
+ "repere": {
+  "rem_en_px": 20.613580246913582,
+  "origine_heros_px": [
+   -92.87037037037037,
+   -61.45833333333333
+  ],
+  "formule": "x_px = origine_heros_px[0] + x_rem × rem_en_px ; y_px = origine_heros_px[1] + y_rem × rem_en_px",
+  "cadre_du_fond_dans_le_heros": [
+   272,
+   180,
+   3728,
+   2230
+  ]
+ },
+ "zone_ciel": {
+  "rem": {
+   "x": 0,
+   "y": 0,
+   "w": 75,
+   "h": 25.53
+  },
+  "px": {
+   "x": -92.87,
+   "y": -61.46,
+   "w": 1546.02,
+   "h": 526.26
+  },
+  "note": "le ciel coupe tout ce qui en sort (overflow hidden) ; au-dessus du fond, sous le logo et les boutons"
+ },
+ "regles_css": {
+  "groupe": "chaque groupe (.vol) est posé en (0, 0) du ciel ; son transform (translate, scale, rotate, dans cet ordre CSS) s’applique autour de origine_transform ; entre deux keyframes, interpolation selon la courbe de l’animation du groupe (linear) ; un délai négatif = l’animation a déjà commencé depuis |délai| au chargement",
+  "oiseau": "position et taille de l’oiseau dans son groupe ; plane = translate vertical de -0,25 rem à +0,25 rem, ease-in-out, alternate",
+  "battement": "les images de l’atlas défilent par crans (steps), une boucle entière d’atlas en duree_boucle_atlas_s ; délai négatif = décalage de phase",
+  "ho_oh": "animation de 150 s qui commence 8 s après l’affichage : la montée occupe 0 à 30 % (45 s), puis Ho-Oh reste hors champ jusqu’à la fin du cycle ; les plumes ne tombent que pendant les 45 s qui suivent chaque début de cycle (classe .passe posée par le JS)",
+  "mouvement_reduit": "si l’utilisateur demande moins d’animations, le site masque tout le ciel (fond fixe seul)"
+ },
+ "keyframes_css": {
+  "battre": [
+   {
+    "t": "100%",
+    "transform": "translate(-100%)",
+    "translate": null,
+    "opacity": null
+   }
+  ],
+  "plane": [
+   {
+    "t": "0%",
+    "transform": null,
+    "translate": "0px -0.25rem",
+    "opacity": null
+   },
+   {
+    "t": "100%",
+    "transform": null,
+    "translate": "0px 0.25rem",
+    "opacity": null
+   }
+  ],
+  "traverse-horde": [
+   {
+    "t": "0%",
+    "transform": "translate(-24rem, 12rem)",
+    "translate": null,
+    "opacity": null
+   },
+   {
+    "t": "100%",
+    "transform": "translate(80rem, 6.5rem)",
+    "translate": null,
+    "opacity": null
+   }
+  ],
+  "traverse-loin": [
+   {
+    "t": "0%",
+    "transform": "translate(-12rem, 8rem)",
+    "translate": null,
+    "opacity": null
+   },
+   {
+    "t": "100%",
+    "transform": "translate(78rem, 4.5rem)",
+    "translate": null,
+    "opacity": null
+   }
+  ],
+  "traverse-hooh": [
+   {
+    "t": "0%",
+    "transform": "translate(-16rem, 15rem) scale(0.8) rotate(-6deg)",
+    "translate": null,
+    "opacity": null
+   },
+   {
+    "t": "30%",
+    "transform": "translate(24rem, -12rem) scale(1.12) rotate(-14deg)",
+    "translate": null,
+    "opacity": null
+   },
+   {
+    "t": "30.01%, 100%",
+    "transform": "translate(24rem, -30rem) scale(1.12)",
+    "translate": null,
+    "opacity": null
+   }
+  ],
+  "plume": [
+   {
+    "t": "0%",
+    "transform": "translate(0) rotate(var(--r0, -20deg)) scale(.7)",
+    "translate": null,
+    "opacity": "0"
+   },
+   {
+    "t": "12%",
+    "transform": null,
+    "translate": null,
+    "opacity": "1"
+   },
+   {
+    "t": "45%",
+    "transform": "translate(calc(var(--dx) * .45),calc(var(--dy) * .35)) rotate(calc(var(--r0, -20deg) + var(--tour) * .5)) scale(var(--s))",
+    "translate": null,
+    "opacity": null
+   },
+   {
+    "t": "100%",
+    "transform": "translate(var(--dx),var(--dy)) rotate(calc(var(--r0, -20deg) + var(--tour))) scale(var(--s))",
+    "translate": null,
+    "opacity": "0"
+   }
+  ]
+ },
+ "groupes": [
+  {
+   "nom": "loin",
+   "classe": "vol--loin",
+   "largeur_rem": 10,
+   "hauteur_rem": 4,
+   "origine_transform_rem": [
+    5,
+    2
+   ],
+   "transform_au_repos": null,
+   "animation": {
+    "keyframes": "traverse-loin",
+    "duree_s": 70,
+    "delai_s": -33,
+    "courbe": "linear",
+    "repetition": "infinite",
+    "direction": "normal",
+    "remplissage": "none"
+   },
+   "oiseaux": [
+    {
+     "classe": "l1",
+     "atlas": "pidgeot-flou",
+     "x_rem": 4,
+     "y_rem": 1,
+     "largeur_rem": 1.5,
+     "hauteur_rem": 2.125,
+     "battement": {
+      "duree_s": 1.1,
+      "delai_s": 0,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": 0,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 82.45,
+     "y_px": 20.61,
+     "largeur_px": 30.92,
+     "hauteur_px": 43.8,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 2.2,
+     "note_atlas": "l’atlas du launcher a 48 images (cycle complet de 2 s) contre 24 sur le site : même cadence, boucle exacte"
+    },
+    {
+     "classe": "l2",
+     "atlas": "pidgeot-flou",
+     "x_rem": 2.4,
+     "y_rem": 0.2,
+     "largeur_rem": 1.2,
+     "hauteur_rem": 1.7,
+     "battement": {
+      "duree_s": 1,
+      "delai_s": -0.4,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -1,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 49.47,
+     "y_px": 4.12,
+     "largeur_px": 24.74,
+     "hauteur_px": 35.04,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 2,
+     "note_atlas": "l’atlas du launcher a 48 images (cycle complet de 2 s) contre 24 sur le site : même cadence, boucle exacte"
+    },
+    {
+     "classe": "l3",
+     "atlas": "pidgeot-flou",
+     "x_rem": 2,
+     "y_rem": 2,
+     "largeur_rem": 1.3,
+     "hauteur_rem": 1.842,
+     "battement": {
+      "duree_s": 1.15,
+      "delai_s": -0.7,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -2,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 41.23,
+     "y_px": 41.23,
+     "largeur_px": 26.8,
+     "hauteur_px": 37.97,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 2.3,
+     "note_atlas": "l’atlas du launcher a 48 images (cycle complet de 2 s) contre 24 sur le site : même cadence, boucle exacte"
+    },
+    {
+     "classe": "l4",
+     "atlas": "pidgeot-flou",
+     "x_rem": 0.4,
+     "y_rem": 1.1,
+     "largeur_rem": 1,
+     "hauteur_rem": 1.416,
+     "battement": {
+      "duree_s": 0.95,
+      "delai_s": -0.2,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -0.4,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 8.25,
+     "y_px": 22.67,
+     "largeur_px": 20.61,
+     "hauteur_px": 29.19,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 1.9,
+     "note_atlas": "l’atlas du launcher a 48 images (cycle complet de 2 s) contre 24 sur le site : même cadence, boucle exacte"
+    }
+   ],
+   "keyframes": [
+    {
+     "t": 0,
+     "translate_rem": [
+      -12,
+      8
+     ],
+     "scale": 1,
+     "rotate_deg": 0,
+     "translate_px": [
+      -247.36,
+      164.91
+     ]
+    },
+    {
+     "t": 1,
+     "translate_rem": [
+      78,
+      4.5
+     ],
+     "scale": 1,
+     "rotate_deg": 0,
+     "translate_px": [
+      1607.86,
+      92.76
+     ]
+    }
+   ],
+   "origine_transform_px": [
+    103.07,
+    41.23
+   ],
+   "largeur_px": 206.14,
+   "hauteur_px": 82.45
+  },
+  {
+   "nom": "horde",
+   "classe": "vol--horde",
+   "largeur_rem": 22,
+   "hauteur_rem": 9,
+   "origine_transform_rem": [
+    11,
+    4.5
+   ],
+   "transform_au_repos": null,
+   "animation": {
+    "keyframes": "traverse-horde",
+    "duree_s": 40,
+    "delai_s": -28,
+    "courbe": "linear",
+    "repetition": "infinite",
+    "direction": "normal",
+    "remplissage": "none"
+   },
+   "oiseaux": [
+    {
+     "classe": "h1",
+     "atlas": "pidgeot-net",
+     "x_rem": 9,
+     "y_rem": 2.6,
+     "largeur_rem": 4.4,
+     "hauteur_rem": 6.212,
+     "battement": {
+      "duree_s": 0.95,
+      "delai_s": 0,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": 0,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 185.52,
+     "y_px": 53.6,
+     "largeur_px": 90.7,
+     "hauteur_px": 128.05,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 1.9,
+     "note_atlas": "l’atlas du launcher a 48 images (cycle complet de 2 s) contre 24 sur le site : même cadence, boucle exacte"
+    },
+    {
+     "classe": "h2",
+     "atlas": "pidgeotto-flou",
+     "x_rem": 5.6,
+     "y_rem": 1.2,
+     "largeur_rem": 2.6,
+     "hauteur_rem": 4.178,
+     "battement": {
+      "duree_s": 1.3,
+      "delai_s": -0.3,
+      "courbe": "steps(36)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -0.8,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 115.44,
+     "y_px": 24.74,
+     "largeur_px": 53.6,
+     "hauteur_px": 86.12,
+     "atlas_images": 36,
+     "duree_boucle_atlas_s": 1.3
+    },
+    {
+     "classe": "h3",
+     "atlas": "pidgeot-net",
+     "x_rem": 4.6,
+     "y_rem": 4.6,
+     "largeur_rem": 3.6,
+     "hauteur_rem": 5.082,
+     "battement": {
+      "duree_s": 1,
+      "delai_s": -0.55,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -1.6,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 94.82,
+     "y_px": 94.82,
+     "largeur_px": 74.21,
+     "hauteur_px": 104.76,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 2,
+     "note_atlas": "l’atlas du launcher a 48 images (cycle complet de 2 s) contre 24 sur le site : même cadence, boucle exacte"
+    },
+    {
+     "classe": "h4",
+     "atlas": "pidgey-net",
+     "x_rem": 2.2,
+     "y_rem": 0.2,
+     "largeur_rem": 2.2,
+     "hauteur_rem": 2.794,
+     "battement": {
+      "duree_s": 3.6,
+      "delai_s": -0.15,
+      "courbe": "steps(48)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -2.2,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 45.35,
+     "y_px": 4.12,
+     "largeur_px": 45.35,
+     "hauteur_px": 57.59,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 3.6
+    },
+    {
+     "classe": "h5",
+     "atlas": "pidgeotto-flou",
+     "x_rem": 1,
+     "y_rem": 5.8,
+     "largeur_rem": 2.4,
+     "hauteur_rem": 3.857,
+     "battement": {
+      "duree_s": 1.25,
+      "delai_s": -0.7,
+      "courbe": "steps(36)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -1.2,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 20.61,
+     "y_px": 119.56,
+     "largeur_px": 49.47,
+     "hauteur_px": 79.51,
+     "atlas_images": 36,
+     "duree_boucle_atlas_s": 1.25
+    },
+    {
+     "classe": "h6",
+     "atlas": "pidgey-net",
+     "x_rem": 13.6,
+     "y_rem": 5.4,
+     "largeur_rem": 1.8,
+     "hauteur_rem": 2.286,
+     "battement": {
+      "duree_s": 3.2,
+      "delai_s": -1.1,
+      "courbe": "steps(48)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -0.5,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 280.34,
+     "y_px": 111.31,
+     "largeur_px": 37.1,
+     "hauteur_px": 47.12,
+     "atlas_images": 48,
+     "duree_boucle_atlas_s": 3.2
+    },
+    {
+     "classe": "h7",
+     "atlas": "pidgeotto-net",
+     "x_rem": 15,
+     "y_rem": 1,
+     "largeur_rem": 2.8,
+     "hauteur_rem": 4.48,
+     "battement": {
+      "duree_s": 1.2,
+      "delai_s": -0.4,
+      "courbe": "steps(36)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 3.2,
+      "delai_s": -1.9,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 309.2,
+     "y_px": 20.61,
+     "largeur_px": 57.72,
+     "hauteur_px": 92.35,
+     "atlas_images": 36,
+     "duree_boucle_atlas_s": 1.2
+    }
+   ],
+   "keyframes": [
+    {
+     "t": 0,
+     "translate_rem": [
+      -24,
+      12
+     ],
+     "scale": 1,
+     "rotate_deg": 0,
+     "translate_px": [
+      -494.73,
+      247.36
+     ]
+    },
+    {
+     "t": 1,
+     "translate_rem": [
+      80,
+      6.5
+     ],
+     "scale": 1,
+     "rotate_deg": 0,
+     "translate_px": [
+      1649.09,
+      133.99
+     ]
+    }
+   ],
+   "origine_transform_px": [
+    226.75,
+    92.76
+   ],
+   "largeur_px": 453.5,
+   "hauteur_px": 185.52
+  },
+  {
+   "nom": "hooh",
+   "classe": "vol--hooh",
+   "largeur_rem": 12,
+   "hauteur_rem": 9,
+   "origine_transform_rem": [
+    6,
+    4.5
+   ],
+   "transform_au_repos": null,
+   "animation": {
+    "keyframes": "traverse-hooh",
+    "duree_s": 150,
+    "delai_s": 8,
+    "courbe": "linear",
+    "repetition": "infinite",
+    "direction": "normal",
+    "remplissage": "both"
+   },
+   "oiseaux": [
+    {
+     "classe": "hooh",
+     "atlas": "ho_oh-net",
+     "x_rem": 0,
+     "y_rem": 0,
+     "largeur_rem": 11,
+     "hauteur_rem": 8.066,
+     "battement": {
+      "duree_s": 1.6,
+      "delai_s": 0,
+      "courbe": "steps(24)"
+     },
+     "plane": {
+      "keyframes": "plane",
+      "duree_s": 4.4,
+      "delai_s": 0,
+      "courbe": "ease-in-out",
+      "repetition": "infinite",
+      "direction": "alternate",
+      "remplissage": "none"
+     },
+     "x_px": 0,
+     "y_px": 0,
+     "largeur_px": 226.75,
+     "hauteur_px": 166.27,
+     "atlas_images": 24,
+     "duree_boucle_atlas_s": 1.6
+    }
+   ],
+   "keyframes": [
+    {
+     "t": 0,
+     "translate_rem": [
+      -16,
+      15
+     ],
+     "scale": 0.8,
+     "rotate_deg": -6,
+     "translate_px": [
+      -329.82,
+      309.2
+     ]
+    },
+    {
+     "t": 0.3,
+     "translate_rem": [
+      24,
+      -12
+     ],
+     "scale": 1.12,
+     "rotate_deg": -14,
+     "translate_px": [
+      494.73,
+      -247.36
+     ]
+    },
+    {
+     "t": 0.30010000000000003,
+     "translate_rem": [
+      24,
+      -30
+     ],
+     "scale": 1.12,
+     "rotate_deg": 0,
+     "translate_px": [
+      494.73,
+      -618.41
+     ]
+    },
+    {
+     "t": 1,
+     "translate_rem": [
+      24,
+      -30
+     ],
+     "scale": 1.12,
+     "rotate_deg": 0,
+     "translate_px": [
+      494.73,
+      -618.41
+     ]
+    }
+   ],
+   "origine_transform_px": [
+    123.68,
+    92.76
+   ],
+   "largeur_px": 247.36,
+   "hauteur_px": 185.52
+  }
+ ],
+ "plumes": {
+  "conteneur_rem": {
+   "x": 1.2,
+   "y": 4.4
+  },
+  "taille_rem": {
+   "w": 0.7,
+   "h": 2.1
+  },
+  "liste": [
+   {
+    "indice": 1,
+    "couleur": "or",
+    "dx_rem": -2.9,
+    "dy_rem": 5.8,
+    "tour_deg": 420,
+    "echelle": 1,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": 0,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 2,
+    "couleur": "rouge",
+    "dx_rem": -3.6,
+    "dy_rem": 8,
+    "tour_deg": -380,
+    "echelle": 0.8,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0.6,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -0.3,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 3,
+    "couleur": "arc",
+    "dx_rem": -2.5,
+    "dy_rem": 4.3,
+    "tour_deg": 520,
+    "echelle": 1.15,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": -0.4,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -0.6,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 4,
+    "couleur": "or",
+    "dx_rem": -3.8,
+    "dy_rem": 9.4,
+    "tour_deg": -460,
+    "echelle": 0.6,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0,
+    "flou_px_site": 1,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -0.9,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 5,
+    "couleur": "rouge",
+    "dx_rem": -3.1,
+    "dy_rem": 3.2,
+    "tour_deg": 340,
+    "echelle": 0.9,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0.9,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -1.2,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 6,
+    "couleur": "arc",
+    "dx_rem": -4.2,
+    "dy_rem": 10.2,
+    "tour_deg": 600,
+    "echelle": 0.5,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0,
+    "flou_px_site": 1.4,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -1.5,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 7,
+    "couleur": "or",
+    "dx_rem": -2.7,
+    "dy_rem": 7,
+    "tour_deg": -300,
+    "echelle": 1.05,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0.3,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -1.8,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 8,
+    "couleur": "rouge",
+    "dx_rem": -3.4,
+    "dy_rem": 5.2,
+    "tour_deg": 480,
+    "echelle": 0.75,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": -0.6,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -2.1,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 9,
+    "couleur": "arc",
+    "dx_rem": -4,
+    "dy_rem": 7.2,
+    "tour_deg": -540,
+    "echelle": 0.55,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0,
+    "flou_px_site": 1,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -2.4,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 10,
+    "couleur": "or",
+    "dx_rem": -2.9,
+    "dy_rem": 8.7,
+    "tour_deg": 400,
+    "echelle": 0.95,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 1.1,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -2.7,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 11,
+    "couleur": "rouge",
+    "dx_rem": -4.6,
+    "dy_rem": 6.4,
+    "tour_deg": -420,
+    "echelle": 0.45,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0,
+    "flou_px_site": 1.6,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -3,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   },
+   {
+    "indice": 12,
+    "couleur": "arc",
+    "dx_rem": -2.5,
+    "dy_rem": 4.1,
+    "tour_deg": 360,
+    "echelle": 1.1,
+    "rotation_depart_deg": -20,
+    "decalage_y_rem": 0.5,
+    "flou_px_site": 0,
+    "animation": {
+     "keyframes": "plume",
+     "duree_s": 3.6,
+     "delai_s": -3.3,
+     "courbe": "cubic-bezier(0.3, 0.2, 0.5, 1)",
+     "repetition": "infinite",
+     "direction": "normal",
+     "remplissage": "none"
+    }
+   }
+  ],
+  "conteneur_px": {
+   "x": 24.74,
+   "y": 90.7
+  },
+  "taille_px": {
+   "w": 14.43,
+   "h": 43.29
+  },
+  "image": "plume@2x.png (or) ; variantes plume-rouge@2x.png et plume-arc@2x.png : la plume n reprend la couleur indiquée",
+  "regle": "conteneur placé dans le groupe Ho-Oh (il suit Ho-Oh) ; chaque plume part de (0, decalage_y), keyframes « plume » : opacité 0 → 1 à 12 %, à 45 % translate(dx × 0,45, dy × 0,35) et rotation départ + tour × 0,5 à l’échelle « echelle », à 100 % translate(dx, dy), rotation départ + tour, opacité 0"
+ }
+}

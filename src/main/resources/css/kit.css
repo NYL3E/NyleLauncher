@@ -82,7 +82,9 @@
 .kit-sortir:hover { -fx-background-color: #e7eaf1; }
 
 /* ── défilement : fin, arrondi, bleu pâle ───────────────────────────────────────────────────────────── */
-.kit-defilement, .kit-defilement > .viewport { -fx-background-color: transparent; -fx-background: transparent; }
+/* PAS de -fx-background ici : Modena en déduit la couleur des textes, et une feuille d'auteur écrase les setTextFill
+   (tous les textes d'un défilement sortaient blancs — trouvé par L6). La transparence passe par -fx-background-color. */
+.kit-defilement, .kit-defilement > .viewport { -fx-background-color: transparent; }
 .kit-defilement .scroll-bar:vertical, .kit-defilement .scroll-bar:horizontal { -fx-background-color: transparent; -fx-padding: 2px; }
 .kit-defilement .scroll-bar .thumb { -fx-background-color: rgba(88, 121, 179, 0.35); -fx-background-radius: 99px; }
 .kit-defilement .scroll-bar .thumb:hover { -fx-background-color: rgba(16, 167, 230, 0.6); }
