@@ -133,9 +133,12 @@ class OptionalModsModeTest {
         String code = Files.readString(src);
         assertTrue(code.contains("\"Manette (Controlify)\""));
         assertTrue(code.contains("Settings.get().optionalControlify = v"));
-        assertTrue(code.contains("box.getChildren().add(box.getChildren().indexOf(openModsRow), controlifyRow)"),
-                "ligne Manette construite mais jamais ajoutée");
+        // Refonte L6 : les lignes de mods vont dans une liste passée à la carte de la section.
+        assertTrue(java.util.regex.Pattern.compile("lignes\\.add\\(optionalModRow\\(\\s*\"Manette \\(Controlify\\)\"")
+                        .matcher(code).find(), "ligne Manette construite mais jamais ajoutée");
+        assertTrue(code.contains("lignes.toArray(new javafx.scene.Node[0])"), "lignes de mods jamais affichées");
         assertTrue(code.contains("Shaders : Complementary Reimagined par EminGT (complementary.dev), téléchargé depuis Modrinth"));
-        assertTrue(code.contains("return new VBox(14, h, g, credit);"), "crédit construit mais jamais affiché");
+        assertTrue(code.contains("VBox credits = new VBox(credit);") && code.contains("Elements.carte(null, g, credits)"),
+                "crédit construit mais jamais affiché");
     }
 }
