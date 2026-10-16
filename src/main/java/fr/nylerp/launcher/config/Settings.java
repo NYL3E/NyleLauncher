@@ -102,6 +102,24 @@ public final class Settings {
     // strict-mode bump biting us. Remove after a few versions of grace.
     @SuppressWarnings("unused") public boolean optionalBobby = false;
 
+    // ---- Refonte 2026-10 : champs ajoutés d'un coup pour que les lots parallèles ne se
+    // marchent pas dessus. Gson ignore les champs inconnus dans les deux sens : un ancien
+    // payload relit ce fichier sans erreur.
+    /** Lance le launcher en fond (barre système) à l'ouverture de session. Désactivable. */
+    public boolean demarrageAuto            = true;
+    /** Affiche les annonces (ouverture, événements, nouveautés). Désactivable. */
+    public boolean notifications            = true;
+    /** Garde le launcher dans la barre système quand on ferme la fenêtre. */
+    public boolean fondActif                = true;
+    /** Télécharge en fond les mises à jour du pack des univers déjà joués. */
+    public boolean preTelechargement        = true;
+    /** Remplace le ciel animé par une image fixe (machines modestes, préférence). */
+    public boolean animationsReduites       = false;
+    /** L'écran « Nouveau launcher » a été vu (démarrage auto et annonces expliqués). */
+    public boolean accueilVu                = false;
+    /** Dernier univers ouvert dans la nouvelle interface ("pokenyle" ou "nylerp"), vide = jamais. */
+    public String universVu                 = "";
+
     private static Settings current;
 
     // ── Mémoire automatique ──────────────────────────────────────────────────────────────────
