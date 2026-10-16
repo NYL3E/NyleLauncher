@@ -60,6 +60,10 @@ processResources {
     filesMatching('channel.txt') {
         expand(channel: nyleChannel)
     }
+    // Refonte 2026-10 (L3) : icônes d'installeur jamais lues par le payload. Elles restent dans
+    // src/main/resources/images/ parce que bootstrap.yml et dev-launcher.yml les y prennent pour
+    // jpackage ; seul le jar du payload les perd (1,8 Mo par version téléchargée).
+    exclude 'images/app_icon.icns', 'images/app_icon.ico'
 }
 
 shadowJar {
