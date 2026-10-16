@@ -1,0 +1,103 @@
+/* Kit graphique « site Pokényle » du launcher (refonte 2026-10, lot L2).
+   Jetons et textes repris de ~/sites/pokenyle-v2/src/css/base.css. Les composants riches (pilules, halos, titres)
+   sont dessinés en Java (ui/kit/) : le CSS de JavaFX n'a ni ombres multiples, ni étalement négatif, ni texte en
+   dégradé à plusieurs calques. Ce fichier donne les jetons nommés, les textes et les contrôles standard (défilement,
+   champs, info-bulles) pour les écrans des lots L4, L5 et L6.
+   Polices : Polices.charger() les enregistre AVANT le chargement de ce fichier. */
+
+.root {
+    /* :root du site */
+    -kit-encre: #30384a;
+    -kit-encre-2: #4d6b84;
+    -kit-encre-3: #587a9a;
+    -kit-actif: #10a7e6;
+    -kit-actif-sombre: #73dbff;
+    -kit-ciel: #eaf7ff;
+    -kit-ciel-2: #dff4ff;
+    -kit-ardoise: #3d3d50;
+    -kit-icone: #5879b3;
+    -kit-focus: #4c8ff0;
+    -kit-nacre: linear-gradient(to right, #c1f1f0, #dbddf1, #a6dff8, #c9e3fc, #dfe2ff, #e2f8e3, #f3d4f3);
+
+    -fx-font-family: "Nunito Bold";
+    -fx-font-size: 14px;
+    -fx-text-fill: -kit-encre;
+    -fx-focus-color: -kit-focus;
+    -fx-faint-focus-color: transparent;
+    -fx-accent: -kit-actif;
+}
+
+/* ── textes ──────────────────────────────────────────────────────────────────────────────────────────── */
+/* corps : Nunito (le site écrit ses textes d'interface en --arrondi 700/800, ses longs textes en police système) */
+.kit-texte       { -fx-font-family: "Nunito Bold";      -fx-fill: -kit-encre;  -fx-text-fill: -kit-encre;  -fx-font-size: 14.4px; }
+.kit-texte-fort  { -fx-font-family: "Nunito ExtraBold"; -fx-fill: -kit-encre;  -fx-text-fill: -kit-encre;  -fx-font-size: 14.4px; }
+.kit-texte-noir  { -fx-font-family: "Nunito Black";     -fx-fill: -kit-encre;  -fx-text-fill: -kit-encre; }
+.kit-lecture     { -fx-font-family: "System";           -fx-fill: -kit-encre-2; -fx-text-fill: -kit-encre-2; -fx-font-size: 14.4px; }
+/* petit sur-titre en capitales espacées (.pied-titre du site) */
+.kit-surtitre    { -fx-font-family: "Nunito Black"; -fx-font-size: 10.75px; -fx-fill: #8fa1c2; -fx-text-fill: #8fa1c2; }
+/* note blanche posée sur une image (.lanceur-note) */
+.kit-note-image  { -fx-font-family: "Nunito Bold"; -fx-font-size: 9px; -fx-fill: white; -fx-text-fill: white;
+                   -fx-effect: dropshadow(gaussian, rgba(30, 70, 140, 0.65), 5, 0, 0, 1); }
+/* bandeau de note en capsule claire (.f-date, la phrase sous le logo du héros) */
+.kit-capsule     { -fx-background-color: rgba(255, 255, 255, 0.92); -fx-background-radius: 99px; -fx-padding: 4px 14px;
+                   -fx-font-family: "Nunito ExtraBold"; -fx-font-size: 12px; -fx-text-fill: #3d5a8a;
+                   -fx-effect: dropshadow(gaussian, rgba(40, 80, 150, 0.18), 8, 0, 0, 2); }
+/* lien : trait irisé qui se dessine sous le mot (géré en Java) ; ici la couleur */
+.kit-lien        { -fx-font-family: "Nunito ExtraBold"; -fx-text-fill: -kit-actif; -fx-fill: -kit-actif; -fx-cursor: hand; }
+.kit-lien:hover  { -fx-text-fill: #0b8cc4; -fx-fill: #0b8cc4; }
+
+/* ── champs (.fenetre-champ du site) ─────────────────────────────────────────────────────────────────── */
+.kit-champ, .text-field.kit-champ, .password-field.kit-champ {
+    -fx-background-color: #e3e5ec, #f6f7f9;
+    -fx-background-insets: 0, 1.15px;
+    -fx-background-radius: 9.6px, 8.5px;
+    -fx-pref-height: 44px;
+    -fx-padding: 0 15px;
+    -fx-font-family: "Nunito ExtraBold";
+    -fx-font-size: 15.4px;
+    -fx-text-fill: #2c3a52;
+    -fx-prompt-text-fill: #9aa3b5;
+    -fx-alignment: center;
+    -fx-highlight-fill: #bfe0ff;
+    -fx-highlight-text-fill: #2c3a52;
+}
+.kit-champ:hover { -fx-background-color: #bfe0ff, #f6f7f9; }
+.kit-champ:focused {
+    -fx-background-color: rgba(124, 134, 201, 0.2), #7c86c9, white;
+    -fx-background-insets: -2.3px, 0, 1.15px;
+    -fx-background-radius: 11.5px, 9.6px, 8.5px;
+}
+
+/* bouton plein sombre de la fenêtre de compte (.fenetre-valider) et bouton discret (.fenetre-sortir) */
+.kit-valider {
+    -fx-background-color: #3c3c50; -fx-background-radius: 9.6px; -fx-pref-height: 44px; -fx-padding: 0 20px;
+    -fx-font-family: "Nunito ExtraBold"; -fx-font-size: 13.8px; -fx-text-fill: white; -fx-cursor: hand;
+}
+.kit-valider:hover   { -fx-background-color: #4f4f66; -fx-translate-y: -1px; }
+.kit-valider:pressed { -fx-background-color: #33334a; -fx-translate-y: 0; }
+.kit-sortir {
+    -fx-background-color: #f1f3f7; -fx-background-radius: 9.6px; -fx-pref-height: 44px; -fx-padding: 0 17px;
+    -fx-font-family: "Nunito Bold"; -fx-font-size: 11.9px; -fx-text-fill: #5b6476; -fx-cursor: hand;
+}
+.kit-sortir:hover { -fx-background-color: #e7eaf1; }
+
+/* ── défilement : fin, arrondi, bleu pâle ───────────────────────────────────────────────────────────── */
+.kit-defilement, .kit-defilement > .viewport { -fx-background-color: transparent; -fx-background: transparent; }
+.kit-defilement .scroll-bar:vertical, .kit-defilement .scroll-bar:horizontal { -fx-background-color: transparent; -fx-padding: 2px; }
+.kit-defilement .scroll-bar .thumb { -fx-background-color: rgba(88, 121, 179, 0.35); -fx-background-radius: 99px; }
+.kit-defilement .scroll-bar .thumb:hover { -fx-background-color: rgba(16, 167, 230, 0.6); }
+.kit-defilement .scroll-bar .track, .kit-defilement .scroll-bar .track-background { -fx-background-color: transparent; }
+.kit-defilement .scroll-bar .increment-button, .kit-defilement .scroll-bar .decrement-button,
+.kit-defilement .scroll-bar .increment-arrow, .kit-defilement .scroll-bar .decrement-arrow { -fx-padding: 0; -fx-shape: ""; }
+.kit-defilement .corner { -fx-background-color: transparent; }
+
+/* ── info-bulle (le petit menu ardoise du site, .menu-plus) ─────────────────────────────────────────── */
+.tooltip {
+    -fx-background-color: rgba(48, 56, 74, 0.92);
+    -fx-background-radius: 6.7px;
+    -fx-padding: 6px 12px;
+    -fx-font-family: "Nunito Bold";
+    -fx-font-size: 11px;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(40, 60, 100, 0.25), 18, 0, 0, 7);
+}
