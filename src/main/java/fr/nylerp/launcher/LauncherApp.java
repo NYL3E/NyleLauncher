@@ -3,38 +3,52 @@ package fr.nylerp.launcher;
 import fr.nylerp.launcher.auth.Account;
 import fr.nylerp.launcher.auth.AccountStore;
 import fr.nylerp.launcher.config.Constants;
+import fr.nylerp.launcher.fond.Fond;
 import fr.nylerp.launcher.ui.LoginView;
-import fr.nylerp.launcher.ui.MainView;
 import fr.nylerp.launcher.ui.SettingsView;
+import fr.nylerp.launcher.ui.coquille.Coquille;
+import fr.nylerp.launcher.ui.kit.ChromeFenetre;
+import fr.nylerp.launcher.ui.kit.Jetons;
+import fr.nylerp.launcher.ui.kit.Polices;
 import fr.nylerp.launcher.util.CrashReporter;
 import javafx.application.Application;
-import javafx.scene.Scene;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.Parent;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * L'application. Refonte 2026-10 (lot L5) : une seule fenêtre sans bordure ({@link ChromeFenetre} du
+ * kit, coins arrondis), dont la zone de contenu accueille tour à tour la connexion, la coquille
+ * (univers Pokényle / NyleRP) et les paramètres. La croix, Cmd+W et Alt+F4 passent par
+ * {@link Fond} : la fenêtre se range dans la barre système (ou le launcher quitte si l'icône n'existe pas).
+ */
 public class LauncherApp extends Application {
 
     private static final Logger LOG = LoggerFactory.getLogger(LauncherApp.class);
 
+    /** Taille de référence de la fenêtre (contenu) ; réduite si l'écran est plus petit. */
+    public static final double LARGEUR = 1180, HAUTEUR = 700;
+    /** Rapport entre le rem du site (19,2 px à 1440) et celui du haut de page dans la fenêtre 1180 × 700
+     *  (20,61 px, relevé par l'agent du site) : les composants du kit gardent leurs proportions face au fond. */
+    private static final double REM_FENETRE = 20.6136 / 19.2;
+
     private Stage stage;
+    private ChromeFenetre chrome;
+    private double echelle = 1;
     private Account account;
-    /** Cached MainView instance — reused across {@code Home → Settings → Home}
-     *  navigation so the background MediaPlayers stay alive (and frame 0 of
-     *  videolauncher1 is already decoded + rendering by the time the scene
-     *  reattaches). Without this, every {@code show(new MainView(...))} call
-     *  built fresh players whose first decoded frame arrived ~50–200 ms
-     *  AFTER the scene was visible — that's the gap where the legacy
-     *  fond-launcher.png used to flash through (now removed; the gap itself
-     *  is closed by this cache). Rebuilt only on a fresh login. */
-    private MainView mainView;
+    /** La coquille est gardée d'une page à l'autre (paramètres → retour) : ses vidéos, sa musique et
+     *  son ciel ne redémarrent pas. Reconstruite seulement quand le compte change. */
+    private Coquille coquille;
+    private boolean fermetureEnCours;
 
     @Override
     public void start(Stage stage) {
         loadFonts();
-        // Hard-stop screen for users running a bootstrap that's too old. Returns true
-        // when the dialog was shown, in which case we skip the rest of the start-up so
-        // the user can't bypass the redownload by interacting with a half-initialised UI.
+        Polices.charger();
         String installedBs = fr.nylerp.launcher.update.SelfUpdater.installedVersion();
         LOG.info("Bootstrap version detected: {} (min required: {})",
                 installedBs, fr.nylerp.launcher.update.BrokenBootstrapDialog.MIN_REQUIRED_BOOTSTRAP);
@@ -48,29 +62,61 @@ public class LauncherApp extends Application {
         Thread ram = new Thread(fr.nylerp.launcher.util.SystemRam::totalMb, "nyle-ram-detect");
         ram.setDaemon(true);
         ram.start();
-        // After JavaFX is up, surface any pending crash reports from previous runs.
         CrashReporter.promptIfPending();
+        // Médias distants (fond et oiseaux de Pokényle, musique de NyleRP) : téléchargés en fond dès
+        // maintenant, pour que l'écran les ait au plus tôt.
+        fr.nylerp.launcher.update.Medias.demarrer();
+
         this.stage = stage;
         stage.setTitle(Constants.APP_NAME);
-        stage.setResizable(false);
-        // The window CONTENT (scene) is pinned to exactly 1000 × (BODY_HEIGHT + 64-px bottom bar) in show().
-        // We must NOT hardcode the titlebar height here: the old "+ 28" was the macOS chrome, but the Windows
-        // chrome (titlebar + borders, DPI-scaled at 125 %/150 %) is taller, so the client area came out too
-        // short and the 64-px bottom bar (the black rectangle behind the loading bar + Play button) overflowed
-        // the bottom and wrapped back to the top. Instead, stage.sizeToScene() (just before show(), below) sizes
-        // the window to the scene + the OS's OWN chrome → correct on Windows AND macOS, no crop, no top slack.
-        // MainView.BODY_HEIGHT (= 1000 × 1080/1942 = 556.13 px) is the source of truth for the body height.
         try {
-            stage.getIcons().add(new javafx.scene.image.Image(
-                    getClass().getResourceAsStream("/images/app_icon.png")));
+            stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/app_icon.png")));
         } catch (Exception e) {
             LOG.warn("Could not load app icon: {}", e.toString());
         }
 
+        // Fenêtre : 1180 × 700, réduite d'un bloc (et tout le kit avec elle) si l'écran est plus petit.
+        echelle = calculerEchelle();
+        Jetons.setEchelle(echelle * REM_FENETRE);
+        LOG.info("Fenêtre : échelle {} ({} × {})", String.format("%.3f", echelle),
+                Math.round(LARGEUR * echelle), Math.round(HAUTEUR * echelle));
+        chrome = ChromeFenetre.installer(stage, null, LARGEUR * echelle, HAUTEUR * echelle);
+        var styleHistorique = getClass().getResource("/css/style.css");
+        if (styleHistorique != null) stage.getScene().getStylesheets().add(0, styleHistorique.toExternalForm());
+        // La croix et Cmd+W demandent la fermeture comme le ferait le système : c'est Fond qui décide
+        // (ranger dans la barre système, ou quitter sans icône).
+        chrome.setSurFermer(() -> {
+            if (fermetureEnCours) return;
+            fermetureEnCours = true;
+            try { stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST)); }
+            finally { fermetureEnCours = false; }
+        });
+
+        Fond.surMasquage(() -> { if (coquille != null) coquille.suspendre(); });
+        Fond.surAffichage(() -> { if (coquille != null && chromeMontre(coquille)) coquille.reprendre(); });
+        Fond.surNavigation(cible -> {
+            if ("reglages".equalsIgnoreCase(cible)) { if (account != null) showSettings(); return; }
+            if (coquille != null) {
+                if (!chromeMontre(coquille)) show(coquille);
+                coquille.naviguer(cible);
+            }
+        });
+
         // Mode fond (démarrage automatique) : icône de barre seulement, l'interface sera construite
-        // à la première ouverture. Sinon : démarrage habituel, inchangé.
-        if (fr.nylerp.launcher.fond.Fond.installer(stage, this::construireEtAfficher)) return;
+        // à la première ouverture. Sinon : démarrage habituel.
+        if (Fond.installer(stage, this::construireEtAfficher)) return;
         construireEtAfficher();
+    }
+
+    /** L'échelle qui fait tenir la fenêtre (ombre comprise) dans l'écran principal, sans jamais agrandir. */
+    private static double calculerEchelle() {
+        try {
+            Rectangle2D vb = Screen.getPrimary().getVisualBounds();
+            double marge = 2 * ChromeFenetre.MARGE + 24;
+            return Math.max(0.6, Math.min(1.0, Math.min((vb.getWidth() - marge) / LARGEUR, (vb.getHeight() - marge) / HAUTEUR)));
+        } catch (Throwable t) {
+            return 1.0;
+        }
     }
 
     /** Construit le premier écran (session reprise ou connexion) et montre la fenêtre. */
@@ -78,22 +124,13 @@ public class LauncherApp extends Application {
         Account saved = AccountStore.active();
         if (saved != null) {
             LOG.info("Resuming saved session for {} ({})", saved.username(), saved.type());
-            // Show the main view immediately with the saved Account, then
-            // silently refresh the MS access token in the background so the
-            // user never has to re-login unless the refresh token is revoked.
             onAuthenticated(saved);
             silentRefresh(saved);
         } else {
             showLogin();
         }
-        stage.sizeToScene();   // window = scene content (1000 × BODY_HEIGHT+64) + the platform's OWN chrome
-        // Écran d'ouverture « terminal » — canal DEV UNIQUEMENT. Posé après sizeToScene (pour ne
-        // pas peser sur le calcul de taille) et avant show(), pour que la toute première image
-        // affichée soit le terminal et non l'interface qu'il est censé masquer.
-        if (fr.nylerp.launcher.config.Constants.DEV) {
-            fr.nylerp.launcher.ui.terminal.TerminalBoot.playOn(scene);
-        }
         stage.show();
+        stage.centerOnScreen();
     }
 
     /** Background MS token refresh for the given account (no-op for offline).
@@ -108,7 +145,6 @@ public class LauncherApp extends Application {
                         if (msg.contains("invalid_grant") || msg.contains("expired")
                                 || msg.contains("revoked")) {
                             LOG.warn("MS refresh token rejected — removing account: {}", msg);
-                            // Only drop it if it's still the active account.
                             if (account != null && !account.isOffline()
                                     && acc.uuid() != null && acc.uuid().equals(account.uuid())) {
                                 onLogout();
@@ -131,15 +167,13 @@ public class LauncherApp extends Application {
     /** "Ajouter un compte" — login screen with a back arrow to the main view. */
     public void showAddAccount() {
         show(new LoginView(this::onAuthenticated, () -> {
-            if (account != null && mainView != null) show(mainView);
+            if (account != null && coquille != null) show(coquille);
             else showLogin();
         }));
     }
 
     public void onAuthenticated(Account account) {
         if (!AccountStore.addAndActivate(account)) {
-            // Roster full of OTHER accounts — the UI normally prevents this
-            // (the "add" entry is disabled at 3/3), this is just a backstop.
             javafx.scene.control.Alert a = new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.WARNING,
                     "Tu as déjà 3 comptes enregistrés. Retire un compte (bouton "
@@ -150,36 +184,23 @@ public class LauncherApp extends Application {
             return;
         }
         this.account = account;
-        // Fresh login → fresh MainView (drops any previously cached instance
-        // so a different account doesn't see the previous user's media
-        // players or auth-derived state).
-        mainView = new MainView(account, this::onLogout, this::showSettings,
-                                this::switchAccount, this::showAddAccount);
-        show(mainView);
+        nouvelleCoquille(account);
     }
 
-    /** Switches to another roster account from the header capsule menu. */
+    /** Switches to another roster account from the account menu. */
     public void switchAccount(Account target) {
         AccountStore.setActive(target);
         this.account = AccountStore.active();
-        mainView = new MainView(this.account, this::onLogout, this::showSettings,
-                                this::switchAccount, this::showAddAccount);
-        show(mainView);
+        nouvelleCoquille(this.account);
         silentRefresh(this.account);
     }
 
     public void showSettings() {
+        if (coquille != null) coquille.enArrierePlan();
         show(new SettingsView(() -> {
             if (account != null) {
-                // Re-use the cached MainView so its background MediaPlayers
-                // keep playing through the navigation — frame 0 of video1 is
-                // already on the MediaView when the scene attaches, so the
-                // user sees video1 immediately with no decode flash.
-                if (mainView == null) {
-                    mainView = new MainView(account, this::onLogout, this::showSettings,
-                                            this::switchAccount, this::showAddAccount);
-                }
-                show(mainView);
+                if (coquille == null) nouvelleCoquille(account);
+                else { show(coquille); coquille.reprendre(); }
             } else {
                 showLogin();
             }
@@ -191,54 +212,41 @@ public class LauncherApp extends Application {
     public void onLogout() {
         AccountStore.removeActive();
         Account next = AccountStore.active();
-        mainView = null;       // drop the cached players too
         if (next != null) {
             this.account = next;
-            mainView = new MainView(next, this::onLogout, this::showSettings,
-                                    this::switchAccount, this::showAddAccount);
-            show(mainView);
+            nouvelleCoquille(next);
         } else {
             this.account = null;
+            if (coquille != null) { coquille.liberer(); coquille = null; }
             showLogin();
         }
     }
 
-    /** Single Scene reused for the whole app lifetime. Earlier versions
-     *  built a fresh Scene on every navigation, which crashed with
-     *  "MainView is already set as root of another scene" the moment we
-     *  started caching MainView (1.0.54): JavaFX does NOT auto-detach a
-     *  Parent from its previous Scene when you call {@code new Scene(parent)},
-     *  it throws IllegalArgumentException. Reusing one Scene + swapping
-     *  via {@link Scene#setRoot} is the canonical fix and also avoids
-     *  re-loading stylesheets on every nav. */
-    private Scene scene;
+    /** Un compte = une coquille (son lanceur, ses univers) : la précédente rend ses vidéos et son ciel. */
+    private void nouvelleCoquille(Account compte) {
+        if (coquille != null) coquille.liberer();
+        coquille = new Coquille(echelle, compte, this::showSettings, this::onLogout,
+                this::switchAccount, this::showAddAccount);
+        show(coquille);
+    }
 
-    private void show(javafx.scene.Parent root) {
-        if (scene == null) {
-            scene = new Scene(root, 1000, fr.nylerp.launcher.ui.MainView.BODY_HEIGHT + 64.0);
-            // Paint the Scene background the app dark (= bottom-bar #08080B). Without this, sizeToScene's
-            // sub-pixel rounding can leave a ~1px sliver of the Scene's DEFAULT WHITE showing under the
-            // bottom bar on macOS (the thin white line). Dark fill = no white can ever show; no layout impact.
-            scene.setFill(javafx.scene.paint.Color.web(
-                    fr.nylerp.launcher.config.Channel.isDev() ? "#05070A" : "#08080B"));
-            scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
-            // Thème terminal (build DEV uniquement) : chargé APRÈS style.css → surcharge la palette.
-            if (fr.nylerp.launcher.config.Channel.isDev())
-                scene.getStylesheets().add(getClass().getResource("/css/terminal.css").toExternalForm());
-            stage.setScene(scene);
-        } else {
-            scene.setRoot(root);
-        }
-        // Canal DEV : filtre « phosphore » (désaturation + multiplication par un vert unique) posé
-        // sur la racine de CHAQUE écran. C'est ce qui tient la consigne « vert et noir uniquement »
-        // sans repeindre à la main les dizaines de couleurs écrites en dur dans les vues — y
-        // compris les images, qu'aucune feuille de style n'aurait pu atteindre.
-        // En production : rien, pas même un appel — l'interface est strictement celle d'avant.
-        if (fr.nylerp.launcher.config.Constants.DEV) {
-            root.setEffect(fr.nylerp.launcher.ui.terminal.TerminalTheme.phosphore(
-                    scene.getWidth() > 0 ? scene.getWidth() : 1000,
-                    scene.getHeight() > 0 ? scene.getHeight()
-                            : fr.nylerp.launcher.ui.MainView.BODY_HEIGHT + 64.0));
+    private boolean chromeMontre(Parent root) {
+        return chrome != null && root != null && root.getParent() == chrome.getCarte();
+    }
+
+    /** Remplace l'écran ; l'en-tête de la coquille ne vit dans la barre que quand la coquille est affichée. */
+    private void show(Parent root) {
+        var barre = chrome.getBarre().getChildren();
+        barre.removeIf(n -> n.getProperties().containsKey("coquille"));
+        chrome.setContenu(root);
+        if (root instanceof Coquille c) {
+            var g = c.elementsGauche();
+            var d = c.elementsDroite();
+            g.getProperties().put("coquille", true);
+            d.getProperties().put("coquille", true);
+            barre.add(0, g);
+            // juste après la poignée, avant réduire / fermer
+            barre.add(barre.size() - 2, d);
         }
     }
 
