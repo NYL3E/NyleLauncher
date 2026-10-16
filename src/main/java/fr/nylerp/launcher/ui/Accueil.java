@@ -27,9 +27,9 @@ import java.util.function.Consumer;
 
 /**
  * Écran « Nouveau launcher », montré une fois au premier lancement après la mise à jour de la
- * refonte ({@link Settings#accueilVu} faux). Il dit honnêtement ce qui change — le launcher se
- * lance avec l'ordinateur, discrètement dans la barre système, pour prévenir des ouvertures et des
- * événements — et laisse le joueur couper les deux réglages d'un clic avant de commencer.
+ * refonte ({@link Settings#accueilVu} faux) : un titre, deux interrupteurs (« Lancer au démarrage »,
+ * « Notifications », activés par défaut, coupables d'un clic) et un bouton — pas de paragraphe
+ * (owner, 16/10 : « simplifie au max »).
  *
  * <p>« C'est parti » écrit {@code demarrageAuto}, {@code notifications} et {@code accueilVu=true},
  * enregistre les réglages, puis appelle le rappel de {@link #setSurValider} : l'intégration (lot
@@ -50,28 +50,16 @@ public class Accueil extends StackPane {
         getStylesheets().add(Accueil.class.getResource("/css/kit.css").toExternalForm());
 
         TitreEclats titre = new TitreEclats("Nouveau launcher", TitreEclats.Style.PRINCIPAL, Jetons.rem(2.5), null);
-        Label chapeau = new Label("Plus clair, plus beau, et toujours à portée de main.");
-        chapeau.setFont(Polices.extra(Jetons.rem(0.95)));
-        chapeau.setTextFill(Color.WHITE);
-        chapeau.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(30, 70, 140, 0.65), Jetons.rem(0.6), 0.15, 0, Jetons.rem(0.08)));
-
-        Label explication = new Label("Le launcher se lance avec ton ordinateur, discrètement dans la barre système, "
-                + "pour te prévenir des ouvertures et des événements. Tu peux couper ça tout de suite, ou plus tard dans les paramètres.");
-        explication.setFont(Polices.gras(Jetons.rem(0.8)));
-        explication.setTextFill(Jetons.ENCRE_2);
-        explication.setWrapText(true);
-        explication.setMinHeight(Region.USE_PREF_SIZE);
 
         demarrage = new Interrupteur(reglages.demarrageAuto);
         demarrage.setId("inter-demarrage");
         notifications = new Interrupteur(reglages.notifications);
         notifications.setId("inter-notifications");
 
-        VBox contenu = new VBox(Jetons.rem(0.85),
-                explication,
-                ligne(demarrage, "Lancer au démarrage", "Le launcher s'ouvre en arrière-plan quand tu allumes ton ordinateur, sans fenêtre."),
-                ligne(notifications, "Notifications", "Ouvertures, événements et nouveautés des serveurs, dans une petite carte discrète."));
-        contenu.setPrefWidth(Jetons.rem(21));
+        VBox contenu = new VBox(Jetons.rem(0.7),
+                ligne(demarrage, "Lancer au démarrage"),
+                ligne(notifications, "Notifications"));
+        contenu.setPrefWidth(Jetons.rem(17));
 
         BoutonJouer partir = new BoutonJouer("C'est parti");
         partir.setId("accueil-valider");
@@ -85,35 +73,30 @@ public class Accueil extends StackPane {
         carte.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         carte.setPadding(new Insets(Jetons.rem(1.5), Jetons.rem(1.8), Jetons.rem(1.4), Jetons.rem(1.8)));
 
-        VBox colonne = new VBox(Jetons.rem(0.45), titre, chapeau, espace(Jetons.rem(0.9)), carte);
+        VBox colonne = new VBox(Jetons.rem(1.8), titre, carte);
         colonne.setAlignment(Pos.CENTER);
         colonne.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         getChildren().addAll(new FondCiel(), new Ajuste(colonne, new Insets(Jetons.rem(1.2))));
 
         int i = 0;
-        for (Node n : new Node[]{titre, chapeau, carte}) Animations.enter(n, Duration.millis(80 + (i++) * 70));
+        for (Node n : new Node[]{titre, carte}) Animations.enter(n, Duration.millis(80 + (i++) * 70));
     }
 
-    private static HBox ligne(Interrupteur inter, String titre, String detail) {
+    private static HBox ligne(Interrupteur inter, String titre) {
         Label t = new Label(titre);
-        t.setFont(Polices.noir(Jetons.rem(0.95)));
+        t.setFont(Polices.noir(Jetons.rem(1.0)));
         t.setTextFill(Jetons.ENCRE);
-        Label d = new Label(detail);
-        d.setFont(Polices.gras(Jetons.rem(0.7)));
-        d.setTextFill(Jetons.ENCRE_3);
-        d.setWrapText(true);
-        d.setMinHeight(Region.USE_PREF_SIZE);
-        VBox textes = new VBox(Jetons.rem(0.12), t, d);
-        HBox.setHgrow(textes, Priority.ALWAYS);
+        HBox.setHgrow(t, Priority.ALWAYS);
+        t.setMaxWidth(Double.MAX_VALUE);
         // toute la ligne bascule l'interrupteur, pas seulement le petit rail
-        HBox h = new HBox(Jetons.rem(0.9), textes, inter);
+        HBox h = new HBox(Jetons.rem(0.9), t, inter);
         h.setAlignment(Pos.CENTER_LEFT);
-        h.setPadding(new Insets(Jetons.rem(0.65), Jetons.rem(0.8), Jetons.rem(0.65), Jetons.rem(0.9)));
-        h.setStyle("-fx-background-color: rgba(255,255,255,0.7); -fx-background-radius: " + Jetons.rem(0.7)
+        h.setPadding(new Insets(Jetons.rem(0.8), Jetons.rem(0.9), Jetons.rem(0.8), Jetons.rem(1.0)));
+        h.setStyle("-fx-background-color: rgba(255,255,255,0.85); -fx-background-radius: " + Jetons.rem(0.7)
                 + "px; -fx-border-color: rgba(255,255,255,0.95); -fx-border-radius: " + Jetons.rem(0.7) + "px;");
-        textes.setOnMouseClicked(e -> inter.setActif(!inter.isActif()));
-        textes.setCursor(fr.nylerp.launcher.ui.kit.Curseurs.main());
+        t.setOnMouseClicked(e -> inter.setActif(!inter.isActif()));
+        t.setCursor(fr.nylerp.launcher.ui.kit.Curseurs.main());
         return h;
     }
 
@@ -127,12 +110,4 @@ public class Accueil extends StackPane {
 
     /** Appelé après l'enregistrement des réglages, avec ces réglages. */
     public void setSurValider(Consumer<Settings> rappel) { this.surValider = rappel; }
-
-    private static Region espace(double h) {
-        Region r = new Region();
-        r.setMinHeight(h);
-        r.setPrefHeight(h);
-        r.setMaxHeight(h);
-        return r;
-    }
 }

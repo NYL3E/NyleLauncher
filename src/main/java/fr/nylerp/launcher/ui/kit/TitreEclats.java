@@ -20,10 +20,7 @@ import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Paint;
 import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
-import javafx.scene.shape.Line;
-import javafx.scene.shape.PathElement;
 import javafx.scene.shape.Polygon;
-import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
@@ -38,9 +35,9 @@ import java.util.Map;
  * <ul>
  *   <li>{@link Style#SECONDAIRE} (sections, classement, panneaux) : lettres blanches à peine teintées d'un dégradé pastel
  *       (rose, lilas, jaune pâle, bleu glacier), léger biseau bleuté en bas, ombre bleutée douce ;</li>
- *   <li>{@link Style#PRINCIPAL} (gros titres : le nom de l'univers…) : même police, plus grande, en capitales, lettres
- *       blanches, reflets irisés rose → lilas → cyan sur la première lettre et cyan sur la dernière, halo blanc et petits
- *       traits d'éclaboussure autour du début et de la fin.</li>
+ *   <li>{@link Style#PRINCIPAL} (gros titres : le nom de l'univers…) : même police, plus grande, en capitales, blanc
+ *       uniforme avec au plus un reflet pastel très léger sur tout le mot, et un halo doux. Pas de lettre colorée ni de
+ *       traits d'éclaboussure (owner, 16/10 : à ne remettre que s'ils valent les traits courbes et effilés d'Aniimo).</li>
  * </ul>
  * Le remplissage est une texture peinte une fois (Canvas) et posée sur UN seul nœud texte : le crénage de la police est
  * conservé. En option, les éclats du site ({@link #MOTIFS}, un motif par titre) peuvent accompagner un titre.
@@ -80,7 +77,6 @@ public class TitreEclats extends Pane {
     private final Style style;
     private final Text texte = new Text();
     private final Group eclats = new Group();
-    private final Group eclaboussures = new Group();
     private final double taille;
 
     public TitreEclats(String libelle, Style style) {
@@ -102,7 +98,7 @@ public class TitreEclats extends Pane {
         texte.setTextOrigin(VPos.TOP);
         texte.setTextAlignment(TextAlignment.CENTER);
         texte.setBoundsType(javafx.scene.text.TextBoundsType.LOGICAL);
-        getChildren().addAll(eclaboussures, texte, eclats);
+        getChildren().addAll(texte, eclats);
         setTexte(libelle, motif);
     }
 
@@ -112,8 +108,6 @@ public class TitreEclats extends Pane {
         double l = b.getWidth(), h = b.getHeight();
         texte.setFill(texture(l, h));
         texte.setEffect(ombre());
-        eclaboussures.getChildren().clear();
-        if (style == Style.PRINCIPAL) dessinerEclaboussures();
         eclats.getChildren().clear();
         if (motif != null && MOTIFS.containsKey(motif)) poserEclats(MOTIFS.get(motif), l, h);
         setPrefSize(l, h);
@@ -146,48 +140,20 @@ public class TitreEclats extends Pane {
                     new Stop(0, Color.rgb(255, 255, 255, 0)), new Stop(0.62, Color.rgb(255, 255, 255, 0)), new Stop(1, Color.rgb(196, 214, 244, 0.85))));
             g.fillRect(0, 0, l, h);
         } else {
-            g.setFill(new LinearGradient(0, 0, 0, h, false, CycleMethod.NO_CYCLE,
-                    new Stop(0, Color.rgb(255, 255, 255, 0)), new Stop(0.7, Color.rgb(255, 255, 255, 0)), new Stop(1, Color.rgb(222, 234, 252, 0.8))));
+            // couleur UNIFORME (owner, 16/10 : plus de première ni de dernière lettre colorée) : blanc, un reflet
+            // pastel à peine perceptible en travers de tout le mot, et un léger bleuté au pied des lettres
+            g.setFill(new LinearGradient(0, 0, l, 0, false, CycleMethod.NO_CYCLE,
+                    new Stop(0, Color.rgb(255, 232, 246, 0.35)), new Stop(0.5, Color.rgb(255, 255, 255, 0)), new Stop(1, Color.rgb(222, 244, 255, 0.35))));
             g.fillRect(0, 0, l, h);
-            Bounds premiere = boiteLettre(true), derniere = boiteLettre(false);
-            if (premiere != null) irisPremiere(g, premiere);
-            if (derniere != null) irisDerniere(g, derniere);
+            g.setFill(new LinearGradient(0, 0, 0, h, false, CycleMethod.NO_CYCLE,
+                    new Stop(0, Color.rgb(255, 255, 255, 0)), new Stop(0.7, Color.rgb(255, 255, 255, 0)), new Stop(1, Color.rgb(222, 234, 252, 0.6))));
+            g.fillRect(0, 0, l, h);
         }
         SnapshotParameters p = new SnapshotParameters();
         p.setFill(Color.TRANSPARENT);
         WritableImage img = c.snapshot(p, null);
         Bounds b = texte.getLayoutBounds();
         return new ImagePattern(img, b.getMinX(), b.getMinY(), l, h, false);
-    }
-
-    /** Reflet holographique de la première lettre : rose en haut à gauche, lilas, cyan en bas, point de lumière blanc. */
-    private void irisPremiere(GraphicsContext g, Bounds r) {
-        g.setFill(new LinearGradient(r.getMinX(), r.getMinY(), r.getMaxX(), r.getMaxY(), false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.web("#ffc2e4")), new Stop(0.42, Color.web("#ffb0d8")), new Stop(0.7, Color.web("#d7c6ff")), new Stop(1, Color.web("#a9ecff"))));
-        g.fillRect(r.getMinX(), r.getMinY(), r.getWidth(), r.getHeight());
-        g.setFill(new RadialGradient(0, 0, r.getMinX() + r.getWidth() * 0.35, r.getMinY() + r.getHeight() * 0.3, r.getWidth() * 0.45, false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.rgb(255, 255, 255, 0.85)), new Stop(1, Color.rgb(255, 255, 255, 0))));
-        g.fillRect(r.getMinX(), r.getMinY(), r.getWidth(), r.getHeight());
-    }
-
-    /** Reflet de la dernière lettre : blanc en haut, cyan glacier puis cyan franc en bas, une touche rose. */
-    private void irisDerniere(GraphicsContext g, Bounds r) {
-        g.setFill(new LinearGradient(r.getMinX(), r.getMinY(), r.getMaxX() * 0.98, r.getMaxY(), false, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.web("#f4feff")), new Stop(0.35, Color.web("#c6f6ff")), new Stop(0.75, Color.web("#8fe7ff")), new Stop(1, Color.web("#ffc8ec"))));
-        g.fillRect(r.getMinX(), r.getMinY(), r.getWidth(), r.getHeight());
-    }
-
-    /** Boîte de la première (ou dernière) lettre visible, dans le repère du texte. */
-    private Bounds boiteLettre(boolean premiere) {
-        String s = texte.getText();
-        int i = -1;
-        if (premiere) { for (int k = 0; k < s.length(); k++) if (!Character.isWhitespace(s.charAt(k))) { i = k; break; } }
-        else { for (int k = s.length() - 1; k >= 0; k--) if (!Character.isWhitespace(s.charAt(k))) { i = k; break; } }
-        if (i < 0) return null;
-        PathElement[] forme = texte.rangeShape(i, i + 1);
-        if (forme == null || forme.length == 0) return null;
-        javafx.scene.shape.Path p = new javafx.scene.shape.Path(forme);
-        return p.getLayoutBounds();
     }
 
     // ── ombres et halo ────────────────────────────────────────────────────────────────────────────────
@@ -203,39 +169,6 @@ public class TitreEclats extends Pane {
         DropShadow bleue = new DropShadow(BlurType.GAUSSIAN, Color.rgb(40, 96, 190, 0.35), em * 0.2, 0, 0, em * 0.05);
         bleue.setInput(halo);
         return bleue;
-    }
-
-    /** Petits traits arrondis qui jaillissent du début (en haut à gauche) et de la fin (à droite) — titres principaux Aniimo. */
-    private void dessinerEclaboussures() {
-        Bounds p = boiteLettre(true), d = boiteLettre(false);
-        double em = taille, ep = Math.max(2, em * 0.075);
-        if (p != null) {
-            // trois tirets qui rayonnent du coin haut-gauche de la première lettre, avec un vide au centre
-            double cx = p.getMinX() + em * 0.04, cy = p.getMinY() + em * 0.16;
-            trait(cx, cy, 172, em * 0.17, em * 0.17, ep, Color.WHITE);
-            trait(cx, cy, 134, em * 0.19, em * 0.19, ep, Color.WHITE);
-            trait(cx, cy, 98, em * 0.20, em * 0.13, ep * 0.85, Color.web("#ffd3ec"));
-        }
-        if (d != null) {
-            // deux tirets à droite de la dernière lettre et une goutte en dessous
-            double cx = d.getMaxX() - em * 0.02, cy = d.getMinY() + d.getHeight() * 0.42;
-            trait(cx, cy, 24, em * 0.16, em * 0.17, ep, Color.WHITE);
-            trait(cx, cy, -12, em * 0.18, em * 0.15, ep, Color.web("#a8f0ff"));
-            double a = Math.toRadians(-46);
-            javafx.scene.shape.Circle goutte = new javafx.scene.shape.Circle(cx + Math.cos(a) * em * 0.28, cy - Math.sin(a) * em * 0.28, ep * 0.62, Color.web("#a8f0ff"));
-            eclaboussures.getChildren().add(goutte);
-        }
-        eclaboussures.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(40, 96, 190, 0.3), em * 0.12, 0, 0, em * 0.03));
-    }
-
-    private void trait(double cx, double cy, double angleDeg, double depart, double longueur, double epaisseur, Color c) {
-        double a = Math.toRadians(angleDeg);
-        Line l = new Line(cx + Math.cos(a) * depart, cy - Math.sin(a) * depart,
-                cx + Math.cos(a) * (depart + longueur), cy - Math.sin(a) * (depart + longueur));
-        l.setStroke(c);
-        l.setStrokeWidth(epaisseur);
-        l.setStrokeLineCap(StrokeLineCap.ROUND);
-        eclaboussures.getChildren().add(l);
     }
 
     // ── éclats du site ────────────────────────────────────────────────────────────────────────────────

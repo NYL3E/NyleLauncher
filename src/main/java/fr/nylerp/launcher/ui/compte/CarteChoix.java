@@ -24,8 +24,6 @@ import javafx.scene.layout.BorderStroke;
 import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.BorderWidths;
 import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -34,129 +32,80 @@ import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.SVGPath;
 import javafx.util.Duration;
 
 /**
- * Une des deux grandes cartes de l'écran de connexion (« J'ai acheté Minecraft » / « Je joue en
- * crack ») : verre clair du site, pastille d'icône nacrée, titre, sous-titre, deux lignes
- * d'explication et un appel à l'action en bas. Toute la carte est cliquable (souris, Entrée,
- * Espace). Au survol : la carte monte, son ombre s'élargit, le lisere devient irisé et la flèche de
- * l'appel glisse — mêmes courbes que le site ({@link Jetons#SORTIE}).
+ * Une des deux grandes cartes de l'écran de connexion : l'icône dans une pastille nacrée, un titre
+ * et UNE ligne courte, rien d'autre (owner, 16/10 : « on comprend en une seconde et on a envie de
+ * cliquer »). Toute la carte est le bouton (souris, Entrée, Espace). Au survol elle monte, son
+ * ombre s'élargit, son liseré devient irisé et la pastille grossit un peu — courbes du site
+ * ({@link Jetons#SORTIE}).
  */
 public final class CarteChoix extends StackPane implements Etat.Apercu {
 
     private final DoubleProperty survol = new SimpleDoubleProperty(0);
     private final Region plaque = new Region();
     private final Region lisere = new Region();
-    private final Label appel;
-    private final Node fleche;
+    private final StackPane pastille;
+    private final Label ligne;
+    private final String libelleLigne;
     private final DropShadow ombre;
     private Timeline anim;
     private Runnable surChoix;
     private boolean occupe;
-    private final String libelleAppel;
 
     /**
-     * @param icone   le dessin de la pastille (déjà dimensionné, ~1,5 rem)
-     * @param titre   ex. « J'ai acheté Minecraft »
-     * @param soustitre ex. « Compte Microsoft, premium »
-     * @param lignes  une ou deux phrases courtes d'explication
-     * @param appel   libellé du bas, ex. « Se connecter avec Microsoft »
+     * @param icone le dessin de la pastille (déjà dimensionné, ~2 rem)
+     * @param titre ex. « J'ai acheté Minecraft »
+     * @param ligne une seule ligne courte, ex. « Compte Microsoft »
      */
-    public CarteChoix(Node icone, String titre, String soustitre, String[] lignes, String appel) {
+    public CarteChoix(Node icone, String titre, String ligne) {
         Polices.charger();
-        this.libelleAppel = appel;
+        this.libelleLigne = ligne;
         getStyleClass().add("compte-carte-choix");
         setFocusTraversable(true);
         setCursor(Curseurs.main());
-        double l = Jetons.rem(17.6), h = Jetons.rem(19.2);
-        double utile = l - Jetons.rem(2.4);
+        double l = Jetons.rem(16.2), h = Jetons.rem(14.2);
         setPrefSize(l, h);
         setMinSize(l, h);
         setMaxSize(l, h);
 
-        CornerRadii r = new CornerRadii(Jetons.rem(1.15));
+        CornerRadii r = new CornerRadii(Jetons.rem(1.3));
         plaque.setBackground(new Background(new BackgroundFill(new LinearGradient(0, 0, 0, 1, true, CycleMethod.NO_CYCLE,
-                new Stop(0, Color.rgb(255, 255, 255, 0.86)), new Stop(1, Color.rgb(240, 248, 255, 0.78))), r, Insets.EMPTY)));
+                new Stop(0, Color.rgb(255, 255, 255, 0.92)), new Stop(1, Color.rgb(242, 249, 255, 0.86))), r, Insets.EMPTY)));
         plaque.setBorder(new Border(new BorderStroke(Color.rgb(255, 255, 255, 0.95), BorderStrokeStyle.SOLID, r, new BorderWidths(Jetons.rem(0.09)))));
         ombre = new DropShadow(BlurType.GAUSSIAN, Color.rgb(50, 110, 190, 0.22), Calques.flou(Jetons.rem(1.6)), 0, 0, Jetons.rem(0.6));
         plaque.setEffect(ombre);
-        // lisere irisé, visible au survol seulement
-        lisere.setBorder(new Border(new BorderStroke(Jetons.lisereIrise(), BorderStrokeStyle.SOLID, r, new BorderWidths(Jetons.rem(0.14)))));
+        lisere.setBorder(new Border(new BorderStroke(Jetons.lisereIrise(), BorderStrokeStyle.SOLID, r, new BorderWidths(Jetons.rem(0.16)))));
         lisere.setOpacity(0);
         lisere.setMouseTransparent(true);
 
-        // pastille d'icône : disque nacré, lisere irisé, ombre douce
-        double d = Jetons.rem(3.6);
+        double d = Jetons.rem(4.4);
         Circle disque = new Circle(d / 2);
         disque.setFill(Jetons.nacre());
         disque.setStroke(Jetons.lisereIrise());
         disque.setStrokeWidth(Jetons.rem(0.1));
         disque.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(60, 120, 200, 0.25), Calques.flou(Jetons.rem(0.8)), 0, 0, Jetons.rem(0.25)));
-        StackPane pastille = new StackPane(disque, icone);
+        pastille = new StackPane(disque, icone);
         pastille.setMaxSize(d, d);
 
         Label t = new Label(titre);
-        t.setFont(Polices.noir(Jetons.rem(1.32)));
+        t.setFont(Polices.noir(Jetons.rem(1.4)));
         t.setTextFill(Jetons.ENCRE);
-        t.setWrapText(true);
-        t.setAlignment(Pos.CENTER);
-        t.setStyle("-fx-text-alignment: center;");
-        t.setMaxWidth(utile);
-        t.setMinHeight(Region.USE_PREF_SIZE);
 
-        Label st = new Label(soustitre);
-        st.setFont(Polices.extra(Jetons.rem(0.86)));
-        st.setTextFill(Jetons.ACTIF);
-        st.setWrapText(true);
-        st.setStyle("-fx-text-alignment: center;");
-        st.setAlignment(Pos.CENTER);
-        st.setMaxWidth(utile);
-        st.setMinHeight(Region.USE_PREF_SIZE);
+        this.ligne = new Label(ligne);
+        this.ligne.setFont(Polices.extra(Jetons.rem(0.9)));
+        this.ligne.setTextFill(Jetons.ACTIF);
 
-        VBox explications = new VBox(Jetons.rem(0.35));
-        explications.setAlignment(Pos.TOP_CENTER);
-        for (String s : lignes) {
-            Label li = new Label(s);
-            li.setFont(Polices.gras(Jetons.rem(0.74)));
-            li.setTextFill(Jetons.ENCRE_2);
-            li.setWrapText(true);
-            li.setAlignment(Pos.CENTER);
-            li.setStyle("-fx-text-alignment: center; -fx-line-spacing: 1px;");
-            li.setMaxWidth(utile);
-            li.setMinHeight(Region.USE_PREF_SIZE);
-            explications.getChildren().add(li);
-        }
-
-        // appel du bas : pilule ardoise (le bouton plein de la fenêtre de compte du site), flèche qui glisse
-        this.appel = new Label(appel);
-        this.appel.setFont(Polices.extra(Jetons.rem(0.8)));
-        this.appel.setTextFill(Color.WHITE);
-        SVGPath f = new SVGPath();
-        f.setContent("M1 6h9.2L6.6 2.4 8 1l6 6-6 6-1.4-1.4L10.2 8H1z");
-        f.setFill(Color.WHITE);
-        f.setScaleX(Jetons.rem(0.62) / 14);
-        f.setScaleY(Jetons.rem(0.62) / 14);
-        fleche = new StackPane(f);
-        HBox pilule = new HBox(Jetons.rem(0.45), this.appel, fleche);
-        pilule.setAlignment(Pos.CENTER);
-        pilule.setPadding(new Insets(Jetons.rem(0.55), Jetons.rem(1.1), Jetons.rem(0.55), Jetons.rem(1.1)));
-        pilule.setBackground(new Background(new BackgroundFill(Color.web("#3c3c50"), new CornerRadii(Jetons.rem(0.5)), Insets.EMPTY)));
-        pilule.setMaxWidth(Region.USE_PREF_SIZE);
-
-        Region ressort = new Region();
-        VBox.setVgrow(ressort, Priority.ALWAYS);
-        VBox contenu = new VBox(Jetons.rem(0.5), pastille, espace(Jetons.rem(0.2)), t, st, espace(Jetons.rem(0.3)), explications, ressort, pilule);
-        contenu.setAlignment(Pos.TOP_CENTER);
-        contenu.setPadding(new Insets(Jetons.rem(1.6), Jetons.rem(1.2), Jetons.rem(1.35), Jetons.rem(1.2)));
+        VBox contenu = new VBox(Jetons.rem(0.45), pastille, espace(Jetons.rem(0.7)), t, this.ligne);
+        contenu.setAlignment(Pos.CENTER);
         contenu.setMouseTransparent(true);
 
         getChildren().addAll(plaque, lisere, contenu);
 
         survol.addListener((o, a, b) -> appliquer(b.doubleValue()));
-        hoverProperty().addListener((o, a, b) -> viser(b ? 1 : 0));
-        focusedProperty().addListener((o, a, b) -> viser(b || isHover() ? 1 : 0));
+        hoverProperty().addListener((o, a, b) -> viser(b || isFocusVisible() ? 1 : 0));
+        focusVisibleProperty().addListener((o, a, b) -> viser(b || isHover() ? 1 : 0));   // clavier seulement : pas de carte « survolée » au repos
         setOnMousePressed(e -> { setScaleX(0.985); setScaleY(0.985); });
         setOnMouseReleased(e -> { setScaleX(1); setScaleY(1); });
         setOnMouseClicked(e -> declencher());
@@ -177,12 +126,13 @@ public final class CarteChoix extends StackPane implements Etat.Apercu {
     }
 
     private void appliquer(double k) {
-        setTranslateY(-Jetons.rem(0.32) * k);
+        setTranslateY(-Jetons.rem(0.4) * k);
         lisere.setOpacity(k);
+        pastille.setScaleX(1 + 0.06 * k);
+        pastille.setScaleY(1 + 0.06 * k);
         ombre.setColor(Color.rgb(50, 110, 190, 0.22 + 0.14 * k));
         ombre.setRadius(Calques.flou(Jetons.rem(1.6 + 1.0 * k)));
         ombre.setOffsetY(Jetons.rem(0.6 + 0.4 * k));
-        fleche.setTranslateX(Jetons.rem(0.22) * k);
     }
 
     private void declencher() {
@@ -195,12 +145,10 @@ public final class CarteChoix extends StackPane implements Etat.Apercu {
     /** Même effet qu'un clic (clavier, essais automatisés). */
     public void choisir() { declencher(); }
 
-    /** Pendant une connexion : l'appel devient {@code texte} et la carte ne répond plus aux clics. */
+    /** Pendant une connexion : la ligne devient {@code texte} et la carte ne répond plus aux clics. */
     public void setOccupe(boolean occupe, String texte) {
         this.occupe = occupe;
-        appel.setText(occupe && texte != null ? texte : libelleAppel);
-        fleche.setVisible(!occupe);
-        fleche.setManaged(!occupe);
+        ligne.setText(occupe && texte != null ? texte : libelleLigne);
         setCursor(occupe ? javafx.scene.Cursor.WAIT : Curseurs.main());
     }
 
@@ -217,5 +165,4 @@ public final class CarteChoix extends StackPane implements Etat.Apercu {
         }
         appliquer(survol.get());
     }
-
 }
