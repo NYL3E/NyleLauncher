@@ -1,0 +1,126 @@
+/* Réglages du launcher dans le design du site Pokényle (refonte 2026-10, lot L6).
+   Le ciel bleu porte les titres Northura blancs (style Aniimo) ; le contenu vit dans des cartes de verre
+   claires (CarteVerre du kit). Les tailles de texte sont posées en Java (Jetons.rem) pour suivre l'échelle
+   de la coquille ; ici : couleurs, rayons, ombres. Feuille ajoutée par SettingsView elle-même, après kit.css. */
+
+/* ── fond : le ciel du site, éclairci par deux halos blancs ─────────────────────────────────────────── */
+.reglages-racine {
+    -fx-background-color:
+        radial-gradient(center 12% -6%, radius 48%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
+        radial-gradient(center 92% 4%, radius 42%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0)),
+        radial-gradient(center 70% 110%, radius 60%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+        linear-gradient(to bottom, #5eaae8 0%, #86c6f2 48%, #b8e0fa 100%);
+}
+
+/* ── défilement : la barre fine du kit, en blanc sur le ciel ───────────────────────────────────────── */
+/* Surtout PAS de « -fx-background » ici : Modena en dérive la couleur des textes (ladder) et une valeur posée par
+   une feuille d'auteur l'emporte sur les setTextFill du code : tous les textes passaient en blanc. */
+.reglages-defilement, .reglages-defilement > .viewport { -fx-background-color: transparent; }
+.reglages-defilement > .scroll-bar:vertical { -fx-background-color: transparent; -fx-padding: 3px; }
+.reglages-defilement > .scroll-bar:horizontal { -fx-pref-height: 0; visibility: hidden; }
+.reglages-defilement .scroll-bar .thumb { -fx-background-color: rgba(255, 255, 255, 0.55); -fx-background-radius: 99px; }
+.reglages-defilement .scroll-bar .thumb:hover { -fx-background-color: rgba(255, 255, 255, 0.85); }
+.reglages-defilement .scroll-bar .track, .reglages-defilement .scroll-bar .track-background { -fx-background-color: transparent; }
+.reglages-defilement .scroll-bar .increment-button, .reglages-defilement .scroll-bar .decrement-button,
+.reglages-defilement .scroll-bar .increment-arrow, .reglages-defilement .scroll-bar .decrement-arrow { -fx-padding: 0; -fx-shape: ""; }
+.reglages-defilement .corner { -fx-background-color: transparent; }
+
+/* ── bouton retour : pastille de verre ─────────────────────────────────────────────────────────────── */
+.reglages-retour {
+    -fx-background-color: rgba(255, 255, 255, 0.72);
+    -fx-background-radius: 99px;
+    -fx-border-color: rgba(255, 255, 255, 0.95);
+    -fx-border-radius: 99px;
+    -fx-border-width: 1.5px;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(40, 80, 150, 0.22), 10, 0, 0, 3);
+}
+.reglages-retour:hover { -fx-background-color: white; -fx-translate-y: -1px; }
+.reglages-retour:pressed { -fx-translate-y: 0; -fx-background-color: rgba(255, 255, 255, 0.9); }
+
+/* ── rail de navigation : pilules du site (choisie = ardoise et bleu ciel, comme les onglets) ──────── */
+.reglages-nav {
+    -fx-background-color: rgba(255, 255, 255, 0.58);
+    -fx-background-radius: 99px;
+    -fx-border-color: rgba(255, 255, 255, 0.7);
+    -fx-border-radius: 99px;
+    -fx-border-width: 1px;
+    -fx-text-fill: #30384a;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(40, 80, 150, 0.12), 6, 0, 0, 1.5);
+}
+.reglages-nav:hover { -fx-background-color: rgba(255, 255, 255, 0.88); }
+.reglages-nav.actif {
+    -fx-background-color: #3d3d50;
+    -fx-border-color: #3d3d50;
+    -fx-text-fill: #a5e1ff;
+    -fx-effect: dropshadow(gaussian, rgba(30, 40, 70, 0.28), 8, 0, 0, 2);
+}
+
+/* ── curseurs (RAM, volumes) : rail ardoise très léger, partie remplie nacrée, pastille blanche ───── */
+.reglages-curseur .track { -fx-background-color: transparent; -fx-padding: 0; }
+.reglages-curseur .thumb {
+    -fx-background-color: white;
+    -fx-background-radius: 99px;
+    -fx-padding: 9px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(40, 80, 150, 0.34), 7, 0, 0, 1.5);
+}
+.reglages-curseur:hover .thumb { -fx-effect: dropshadow(gaussian, rgba(16, 167, 230, 0.5), 10, 0.1, 0, 1.5); }
+.reglages-curseur:focused .thumb {
+    -fx-background-color: #4c8ff0, white;
+    -fx-background-insets: -2px, 0;
+}
+.reglages-rail {
+    -fx-background-color: rgba(48, 56, 74, 0.10);
+    -fx-background-radius: 99px;
+}
+.reglages-rail-plein {
+    -fx-background-color: linear-gradient(to right, #a6dff8 0%, #c9e3fc 40%, #dfe2ff 70%, #f3d4f3 100%);
+    -fx-background-radius: 99px;
+    -fx-border-color: linear-gradient(to right, #7fc4ee 0%, #9fc9f5 50%, #e2a9e2 100%);
+    -fx-border-radius: 99px;
+    -fx-border-width: 1px;
+}
+
+/* ── bouton d'action irréversible ──────────────────────────────────────────────────────────────────── */
+.reglages-danger {
+    -fx-background-color: #fff1f1;
+    -fx-background-radius: 9.6px;
+    -fx-border-color: rgba(206, 64, 64, 0.45);
+    -fx-border-radius: 9.6px;
+    -fx-border-width: 1.15px;
+    -fx-pref-height: 44px;
+    -fx-padding: 0 18px;
+    -fx-font-family: "Nunito ExtraBold";
+    -fx-font-size: 13.4px;
+    -fx-text-fill: #c33b3b;
+    -fx-cursor: hand;
+}
+.reglages-danger:hover { -fx-background-color: #ffe4e4; }
+.reglages-danger.arme {
+    -fx-background-color: #c33b3b;
+    -fx-border-color: #c33b3b;
+    -fx-text-fill: white;
+}
+.reglages-danger.arme:hover { -fx-background-color: #d14545; }
+
+/* ── captures : vignettes à coins ronds, état vide en pointillés ──────────────────────────────────── */
+.reglages-vignette {
+    -fx-background-color: rgba(48, 56, 74, 0.08);
+    -fx-background-radius: 12px;
+    -fx-cursor: hand;
+}
+.reglages-vide {
+    -fx-border-color: rgba(88, 121, 179, 0.35);
+    -fx-border-style: segments(6, 6);
+    -fx-border-radius: 12px;
+    -fx-border-width: 1.3px;
+    -fx-background-color: rgba(255, 255, 255, 0.35);
+    -fx-background-radius: 12px;
+}
+
+/* ── voiles : agrandissement d'une capture, confirmation ──────────────────────────────────────────── */
+.reglages-voile-photo { -fx-background-color: rgba(14, 22, 40, 0.86); }
+.reglages-voile-modal { -fx-background-color: rgba(20, 32, 60, 0.45); }

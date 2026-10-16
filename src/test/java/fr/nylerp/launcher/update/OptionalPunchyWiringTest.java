@@ -202,7 +202,8 @@ class OptionalPunchyWiringTest {
 
         // La VBox de modsSection() est celle qui liste litematicaRow : c'est la seule de la classe.
         String vbox = code.lines()
-                .filter(l -> l.contains("new VBox(") && l.contains("litematicaRow"))
+                // Refonte L6 : la liste des lignes passée à la carte de la section (avant : un new VBox).
+                .filter(l -> (l.contains("new VBox(") || l.contains("List.of(")) && l.contains("litematicaRow"))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError(
                         "VBox de modsSection() introuvable — le test doit être remis à jour"));
