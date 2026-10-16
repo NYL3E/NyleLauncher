@@ -8,6 +8,8 @@ public final class Main {
     public static void main(String[] args) {
         // Install crash handler FIRST so any exception from JavaFX setup, font loading, etc. is captured.
         CrashReporter.install();
+        // Repli de la refonte 2026-10 : retire l'entrée de démarrage automatique qu'elle a pu poser.
+        fr.nylerp.launcher.util.RetraitDemarrageAuto.executer();
         // Installs older than bootstrap 0.3.20 froze -Xmx256m in their jpackage .cfg — not
         // enough for the Microsoft-login WebView (OOM crash loop). If we woke up in such a
         // cramped JVM, hand over to a relaunched 1 GB JVM BEFORE touching JavaFX. Anti-loop
