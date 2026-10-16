@@ -27,7 +27,7 @@ public final class EssaiReelPreTelechargement {
         if (ModeDeJeu.courant() != PlanPack.mode(univers)) {
             throw new IllegalStateException("la synchro de référence tourne sur le mode courant (" + ModeDeJeu.courant() + ")");
         }
-        PreTelechargeurPack pack = new PreTelechargeurPack(Conditions.systeme(), 0);
+        PreTelechargeurPack pack = new PreTelechargeurPack(Conditions.systeme(), 0, () -> true);
         long t0 = System.nanoTime();
         pack.demarrer(univers);
         while (pack.etat(univers) == Etat.EN_COURS || pack.etat(univers) == Etat.AUCUN && pack.octetsTotal(univers) < 0) {

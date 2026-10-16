@@ -198,6 +198,7 @@ public class LauncherApp extends Application {
         this.account = account;
         nouvelleCoquille(account);
         fr.nylerp.launcher.annonces.Annonces.compteChange();
+        fr.nylerp.launcher.update.pretelechargement.PreTelechargement.reverifierAcces();
     }
 
     /** Switches to another roster account from the account menu. */
@@ -206,6 +207,7 @@ public class LauncherApp extends Application {
         this.account = AccountStore.active();
         nouvelleCoquille(this.account);
         fr.nylerp.launcher.annonces.Annonces.compteChange();
+        fr.nylerp.launcher.update.pretelechargement.PreTelechargement.reverifierAcces();
         silentRefresh(this.account);
     }
 
@@ -226,6 +228,7 @@ public class LauncherApp extends Application {
     public void onLogout() {
         AccountStore.removeActive();
         Account next = AccountStore.active();
+        fr.nylerp.launcher.update.pretelechargement.PreTelechargement.reverifierAcces();
         if (next != null) {
             this.account = next;
             nouvelleCoquille(next);

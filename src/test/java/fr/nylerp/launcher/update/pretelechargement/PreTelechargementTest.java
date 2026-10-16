@@ -221,7 +221,7 @@ class PreTelechargementTest {
         Map<String, Object> manifeste = Map.of("version", "v1", "files", List.of(Map.of(
                 "path", "mods/d.jar", "sha256", "1".repeat(64), "size", contenu.length, "url", base + "f/d")));
         fichiers.put("/" + ModeDeJeu.POKENYLE.packTag + "/manifest.json", GSON.toJson(manifeste).getBytes());
-        pack = new PreTelechargeurPack(Conditions.jamais(), 0);
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, () -> true);
 
         pack.demarrer("pokenyle");
         attendre(() -> pack.etat("pokenyle") == Etat.ERREUR, 10_000);
@@ -235,7 +235,7 @@ class PreTelechargementTest {
         contenu.put("mods/gros.jar", aleatoire(2_000_000, 5));
         publier(ModeDeJeu.POKENYLE, contenu, "v1");
         pauseParBlocMs = 40;  // ~800 Ko/s : le temps d'annuler en route
-        pack = new PreTelechargeurPack(Conditions.jamais(), 0);
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, () -> true);
 
         pack.demarrer("pokenyle");
         attendre(() -> pack.progression("pokenyle") > 0.1, 10_000);
@@ -284,7 +284,7 @@ class PreTelechargementTest {
         publier(ModeDeJeu.NYLERP, contenu, "v1");
         pauseParBlocMs = 40;
         AtomicBoolean jeu = new AtomicBoolean(false);
-        pack = new PreTelechargeurPack(new Conditions(jeu::get, () -> false, () -> false), 0);
+        pack = new PreTelechargeurPack(new Conditions(jeu::get, () -> false, () -> false), 0, () -> true);
 
         pack.demarrerAuto("nylerp");
         attendre(() -> pack.progression("nylerp") > 0.05, 10_000);
@@ -310,7 +310,7 @@ class PreTelechargementTest {
         contenu.put("config/gamma.toml", "cle = 1\n".getBytes());
         contenu.put("config/gamma.toml.bak", "cle = 1\n".getBytes());  // même contenu, deux places
         publier(ModeDeJeu.NYLERP, contenu, "v-pre");
-        pack = new PreTelechargeurPack(Conditions.jamais(), 0);
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, () -> true);
 
         pack.demarrer("nylerp");
         attendre(() -> pack.etat("nylerp") == Etat.PRET, 15_000);
@@ -417,5 +417,97 @@ class PreTelechargementTest {
         } catch (Exception e) {
             throw new AssertionError(e);
         }
+    }
+
+    // ---- Pokényle avant l'ouverture : réservé à ceux qui peuvent déjà jouer (L13) ------------------
+
+    @Test
+    @Timeout(30)
+    void nonTesteurNePeutPasPreTelechargerPokenyle() throws Exception {
+        Map<String, byte[]> contenu = new LinkedHashMap<>();
+        contenu.put("mods/gros.jar", aleatoire(500_000, 21));
+        publier(ModeDeJeu.POKENYLE, contenu, "v1");
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, () -> false);
+
+        pack.demarrer("pokenyle");
+        assertNull(pack.demarrerAuto("pokenyle"), "le fond non plus ne peut pas le lancer");
+        Thread.sleep(400);
+        assertEquals(Etat.AUCUN, pack.etat("pokenyle"), "état inchangé, sans erreur affichée");
+        assertNull(pack.erreur("pokenyle"));
+        assertEquals(0, requetesSur("/f/pokenyle/mods_gros.jar"), "aucun octet du pack n'est demandé");
+        assertEquals(0, octetsServis.get());
+    }
+
+    @Test
+    @Timeout(30)
+    void nonTesteurPeutQuandMemePreTelechargerNylerp() throws Exception {
+        assertEquals(ModeDeJeu.NYLERP, ModeDeJeu.courant());
+        Map<String, byte[]> contenu = new LinkedHashMap<>();
+        contenu.put("mods/x.jar", aleatoire(200_000, 22));
+        publier(ModeDeJeu.NYLERP, contenu, "v1");
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, () -> false);
+
+        pack.demarrer("nylerp");
+        attendre(() -> pack.etat("nylerp") == Etat.PRET, 15_000);
+    }
+
+    @Test
+    @Timeout(30)
+    void testeurPeutPreTelechargerPokenyle() throws Exception {
+        Map<String, byte[]> contenu = new LinkedHashMap<>();
+        contenu.put("mods/gros.jar", aleatoire(300_000, 23));
+        publier(ModeDeJeu.POKENYLE, contenu, "v1");
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, () -> true);
+
+        pack.demarrer("pokenyle");
+        attendre(() -> pack.etat("pokenyle") == Etat.PRET, 15_000);
+        assertTrue(Reserve.contient(Hashing.sha256(contenu.get("mods/gros.jar"))));
+    }
+
+    @Test
+    @Timeout(40)
+    void changementDeCompteTesteurVersNonTesteurAnnuleLeTelechargement() throws Exception {
+        Map<String, byte[]> contenu = new LinkedHashMap<>();
+        contenu.put("mods/gros.jar", aleatoire(2_000_000, 24));
+        publier(ModeDeJeu.POKENYLE, contenu, "v1");
+        pauseParBlocMs = 40;
+        java.util.concurrent.atomic.AtomicBoolean testeur = new java.util.concurrent.atomic.AtomicBoolean(true);
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, testeur::get);
+
+        pack.demarrer("pokenyle");
+        attendre(() -> pack.progression("pokenyle") > 0.1, 10_000);
+        testeur.set(false);              // le joueur bascule sur un compte qui n'est pas testeur
+        pack.reverifierAcces();
+        attendre(() -> pack.etat("pokenyle") == Etat.AUCUN, 10_000);
+        String sha = Hashing.sha256(contenu.get("mods/gros.jar"));
+        assertTrue(Files.size(Reserve.partiel(sha)) > 0, "le partiel est gardé");
+        Thread.sleep(500);               // le serveur finit d'écouler ce qu'il avait déjà dans les tuyaux
+        long figes = octetsServis.get();
+        Thread.sleep(400);
+        assertEquals(figes, octetsServis.get(), "plus aucun octet n'arrive");
+
+        // et il ne peut plus le relancer
+        pauseParBlocMs = 0;
+        pack.demarrer("pokenyle");
+        Thread.sleep(300);
+        assertEquals(Etat.AUCUN, pack.etat("pokenyle"));
+        assertEquals(figes, octetsServis.get());
+    }
+
+    @Test
+    @Timeout(40)
+    void ouvertureGeneraleRedonneLeDroitATous() throws Exception {
+        Map<String, byte[]> contenu = new LinkedHashMap<>();
+        contenu.put("mods/gros.jar", aleatoire(200_000, 25));
+        publier(ModeDeJeu.POKENYLE, contenu, "v1");
+        java.util.concurrent.atomic.AtomicBoolean ouvert = new java.util.concurrent.atomic.AtomicBoolean(false);
+        pack = new PreTelechargeurPack(Conditions.jamais(), 0, ouvert::get);
+
+        pack.demarrer("pokenyle");
+        Thread.sleep(300);
+        assertEquals(Etat.AUCUN, pack.etat("pokenyle"));
+        ouvert.set(true);                // pokenyleOuvert = true dans la config du Studio
+        pack.demarrer("pokenyle");
+        attendre(() -> pack.etat("pokenyle") == Etat.PRET, 15_000);
     }
 }

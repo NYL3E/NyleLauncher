@@ -9,7 +9,7 @@ import fr.nylerp.launcher.ui.kit.BoutonJouer;
 import fr.nylerp.launcher.ui.kit.BoutonPilule;
 import fr.nylerp.launcher.ui.kit.Jetons;
 import fr.nylerp.launcher.ui.kit.Polices;
-import fr.nylerp.launcher.univers.PreTelechargeur;
+import fr.nylerp.launcher.univers.AccesPokenyle;
 import fr.nylerp.launcher.univers.Services;
 import fr.nylerp.launcher.univers.SourceEtatPokenyle;
 import fr.nylerp.launcher.update.CheminsMedias;
@@ -39,13 +39,13 @@ import java.util.Optional;
  * L'UNIVERS POKÉNYLE — le haut de page du site : ciel animé (nuées et Ho-Oh), fond aux coffres-
  * Pokéballs, gros logo officiel, gros bouton du kit.
  *
- * <p>Deux états, lus sur {@link Services#etatPokenyle} et {@link Services#preTelechargeur} (jamais une
- * implémentation) :
+ * <p>Deux états, lus sur {@link Services#etatPokenyle} (jamais une implémentation) :
  * <ul>
  *   <li><b>ouvert pour ce joueur</b> (ouverture générale, testeur distant, ou testeur historique de
  *       {@link SelecteurMode}) : « Jouer », branché sur le {@link LanceurJeu} ;</li>
- *   <li><b>pas encore ouvert</b> : compte à rebours (date connue) ou libellé (« mi-décembre »),
- *       pré-téléchargement du pack s'il existe, « Me prévenir », liste d'attente si Discord est actif.</li>
+ *   <li><b>pas encore ouvert</b> : compte à rebours (date connue) ou libellé (« mi-décembre »), « Me prévenir »,
+ *       liste d'attente si Discord est actif. AUCUN pré-téléchargement : il est réservé à ceux qui peuvent déjà
+ *       jouer (décision de l'owner, 16/10/2026).</li>
  * </ul>
  * Aucune variante selon le type de compte : un compte crack voit EXACTEMENT les mêmes états qu'un premium. C'est
  * le serveur qui décide qui peut entrer, pas le launcher (décision de l'owner, 16/10/2026).
@@ -149,7 +149,6 @@ public final class UniversPokenyle extends StackPane {
         seconde = new Timeline(new KeyFrame(Duration.seconds(1), e -> majCompteur()));
         seconde.setCycleCount(Timeline.INDEFINITE);
         Services.etatPokenyle.surChangement(() -> Platform.runLater(this::rafraichir));
-        Services.preTelechargeur.surChangement(() -> Platform.runLater(this::rafraichir));
         rafraichir();
     }
 
@@ -184,8 +183,7 @@ public final class UniversPokenyle extends StackPane {
 
     /** Vrai si ce joueur peut lancer Pokényle maintenant. */
     public static boolean ouvertPour(Account compte) {
-        String pseudo = compte == null ? null : compte.username();
-        return Services.etatPokenyle.ouvertPour(pseudo) || SelecteurMode.estAutorise(compte);
+        return AccesPokenyle.autorise(compte);
     }
 
 
@@ -204,20 +202,17 @@ public final class UniversPokenyle extends StackPane {
     /** Reconstruit la zone d'action si l'état a changé (sinon, seul le compteur bouge). */
     public void rafraichir() {
         SourceEtatPokenyle s = Services.etatPokenyle;
-        PreTelechargeur pt = Services.preTelechargeur;
         String cle;
         if (ouvertPour(compte)) cle = "ouvert";
-        else cle = "attente|" + s.ouverture().isPresent() + "|" + s.libelleOuverture() + "|" + s.discordActif()
-                + "|" + (pt == PreTelechargeur.AUCUN ? "-" : pt.etat("pokenyle").name());
+        else cle = "attente|" + s.ouverture().isPresent() + "|" + s.libelleOuverture() + "|" + s.discordActif();
         if (cle.equals(etatAffiche)) {
             majCompteur();
-            majPreTelechargement();
             return;
         }
         etatAffiche = cle;
         Node contenu;
         if (cle.equals("ouvert")) contenu = blocOuvert;
-        else contenu = vueAttente(s, pt);
+        else contenu = vueAttente(s);
         if (cle.equals("ouvert")) zoneEtat.getChildren().clear();
         zoneAction.getChildren().setAll(contenu);
         poserPied(contenu);
@@ -228,7 +223,7 @@ public final class UniversPokenyle extends StackPane {
         majCompteur();
     }
 
-    private Node vueAttente(SourceEtatPokenyle s, PreTelechargeur pt) {
+    private Node vueAttente(SourceEtatPokenyle s) {
         // compte à rebours (date connue) ou libellé
         Text quand = new Text(s.ouverture().isPresent() ? "Ouverture dans" : "Ouverture");
         quand.setFont(Polices.extra(Jetons.rem(0.62)));
@@ -248,26 +243,15 @@ public final class UniversPokenyle extends StackPane {
         VBox v = new VBox(Jetons.rem(0.35));
         v.setAlignment(Pos.TOP_LEFT);
 
-        boolean preDispo = pt != PreTelechargeur.AUCUN;
-        BoutonJouer principal = new BoutonJouer(preDispo ? libellePreTelechargement(pt) : "Me prévenir");
+        BoutonJouer principal = new BoutonJouer("Me prévenir");
         principal.setFiligrane("POKÉNYLE");
         principal.setParticules(true);
         principal.setId("principal");
-        if (preDispo) {
-            PreTelechargeur.Etat e = pt.etat("pokenyle");
-            principal.setDisable(e == PreTelechargeur.Etat.PRET);
-            principal.setOnAction(ev -> {
-                PreTelechargeur.Etat et = pt.etat("pokenyle");
-                if (et == PreTelechargeur.Etat.EN_COURS) pt.annuler("pokenyle");
-                else if (et != PreTelechargeur.Etat.PRET) pt.demarrer("pokenyle");
-            });
-        } else {
-            principal.setOnAction(ev -> mePrevenir());
-        }
+        principal.setOnAction(ev -> mePrevenir());
         v.getChildren().add(principal);
 
 
-        HBox secondaire = rangeeSecondaire(s, preDispo);
+        HBox secondaire = rangeeSecondaire(s);
         if (!secondaire.getChildren().isEmpty()) {
             VBox.setMargin(secondaire, new Insets(Jetons.rem(0.3), 0, 0, Jetons.rem(0.6)));
             v.getChildren().add(secondaire);
@@ -275,16 +259,11 @@ public final class UniversPokenyle extends StackPane {
         return v;
     }
 
-    /** « Me prévenir » (si le bouton principal sert déjà au pré-téléchargement) et liste d'attente. */
-    private HBox rangeeSecondaire(SourceEtatPokenyle s, boolean avecPrevenir) {
+    /** Liste d'attente (si Discord est actif). */
+    private HBox rangeeSecondaire(SourceEtatPokenyle s) {
         HBox h = new HBox(Jetons.rem(0.5));
         h.setAlignment(Pos.CENTER_LEFT);
         h.setPickOnBounds(false);
-        if (avecPrevenir) {
-            HBox prevenir = Pilules.claire("Me prévenir", Pilules.SVG_CLOCHE);
-            prevenir.setOnMouseClicked(e -> mePrevenir());
-            h.getChildren().add(prevenir);
-        }
         if (s.discordActif()) {
             BoutonPilule discord = new BoutonPilule("Liste d'attente", BoutonPilule.Variante.DISCORD);
             discord.setOnAction(e -> UniversNylerp.ouvrirNavigateur(s.discordUrl()));
@@ -314,21 +293,5 @@ public final class UniversPokenyle extends StackPane {
         long j = s / 86400, h = (s % 86400) / 3600, m = (s % 3600) / 60, sec = s % 60;
         compteur.setText(j > 0 ? String.format("%d J  %02d H  %02d MIN  %02d S", j, h, m, sec)
                 : String.format("%02d H  %02d MIN  %02d S", h, m, sec));
-    }
-
-    private void majPreTelechargement() {
-        PreTelechargeur pt = Services.preTelechargeur;
-        if (pt == PreTelechargeur.AUCUN || !etatAffiche.startsWith("attente")) return;
-        Node n = zoneAction.lookup("#principal");
-        if (n instanceof BoutonJouer b) b.setTexte(libellePreTelechargement(pt));
-    }
-
-    private static String libellePreTelechargement(PreTelechargeur pt) {
-        return switch (pt.etat("pokenyle")) {
-            case EN_COURS -> "Téléchargement " + Math.round(pt.progression("pokenyle") * 100) + " %";
-            case PRET -> "Prêt pour l'ouverture";
-            case ERREUR -> "Réessayer le téléchargement";
-            default -> "Pré-télécharger (≈ 1 Go)";
-        };
     }
 }

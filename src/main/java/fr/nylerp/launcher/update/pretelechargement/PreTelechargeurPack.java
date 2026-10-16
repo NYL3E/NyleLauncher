@@ -18,6 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 
 /**
  * Le pré-téléchargement des packs « pokenyle » et « nylerp » dans la {@link Reserve}, pour que le
@@ -35,6 +36,12 @@ import java.util.concurrent.atomic.AtomicReference;
  *       connexion est facturée ; ce qui est arrivé est gardé et reprend au passage suivant.</li>
  * </ul>
  * Une demande au premier plan suspend un téléchargement de fond en cours sur l'autre univers.
+ *
+ * <h2>Pokényle avant l'ouverture : réservé à ceux qui peuvent déjà jouer</h2>
+ * Le pack de Pokényle n'est téléchargé, au premier plan comme en fond, que si le compte actif y a accès
+ * ({@link fr.nylerp.launcher.univers.AccesPokenyle} : ouverture générale, testeur distant ou historique). Les autres
+ * joueurs sont seulement prévenus de l'ouverture (décision de l'owner, 16/10/2026). Le refus est silencieux (journal,
+ * état inchangé), et {@link #reverifierAcces()} annule ce qui tourne quand le compte ou la config distante change.
  */
 public final class PreTelechargeurPack implements PreTelechargeur {
 
@@ -88,14 +95,44 @@ public final class PreTelechargeurPack implements PreTelechargeur {
     });
     private final Conditions conditions;
     private final long plafondFond;
+    private final BooleanSupplier pokenylePermis;
     private volatile long dernierAvis;
 
     /**
      * @param plafondFond débit maximal du fond en octets/s ; 0 = 50 % de la bande mesurée
      */
     PreTelechargeurPack(Conditions conditions, long plafondFond) {
+        this(conditions, plafondFond, fr.nylerp.launcher.univers.AccesPokenyle::compteActifAutorise);
+    }
+
+    /**
+     * @param pokenylePermis le compte actif peut-il télécharger le pack Pokényle ? (refus par défaut : voir
+     *                       {@link fr.nylerp.launcher.univers.AccesPokenyle#compteActifAutorise()})
+     */
+    PreTelechargeurPack(Conditions conditions, long plafondFond, BooleanSupplier pokenylePermis) {
         this.conditions = conditions;
         this.plafondFond = Math.max(0, plafondFond);
+        this.pokenylePermis = pokenylePermis;
+    }
+
+    /** Vrai si ce téléchargement est permis pour le compte actif (seul Pokényle est conditionné). */
+    boolean permis(String univers) {
+        return !"pokenyle".equals(univers) || pokenylePermis.getAsBoolean();
+    }
+
+    /**
+     * À appeler quand le compte actif change ou que la config distante change : un téléchargement Pokényle en cours
+     * pour un compte qui n'y a pas (ou plus) accès est annulé proprement. Le partiel en réserve est gardé, il n'est
+     * simplement plus actif.
+     */
+    public void reverifierAcces() {
+        EtatUnivers e = etatOuNull("pokenyle");
+        if (e == null) return;
+        Tache t = e.tache;
+        if (t != null && !t.arretee() && !permis("pokenyle")) {
+            LOG.info("Pré-téléchargement pokenyle annulé : le compte actif n'y a pas accès");
+            t.annulee = true;
+        }
     }
 
     // ---- Contrat PreTelechargeur (lu par l'interface) --------------------------------------
@@ -186,6 +223,10 @@ public final class PreTelechargeurPack implements PreTelechargeur {
     }
 
     private Future<?> lancer(String univers, Priorite priorite) {
+        if (!permis(univers)) {
+            LOG.info("Pré-téléchargement {} refusé : le compte actif n'y a pas accès (il est seulement prévenu)", univers);
+            return null;
+        }
         EtatUnivers e = etatDe(univers);
         Tache t;
         synchronized (e) {
@@ -213,7 +254,7 @@ public final class PreTelechargeurPack implements PreTelechargeur {
     }
 
     private void executer(EtatUnivers e, Tache t) {
-        if (t.arretee()) {
+        if (t.arretee() || !permis(t.univers)) {
             terminer(e, t, Etat.AUCUN, null);
             return;
         }

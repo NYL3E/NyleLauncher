@@ -58,8 +58,15 @@ public final class PreTelechargement {
         minuterie.schedule(() -> evaluerTout(p), premiereEvaluation.toMillis(), TimeUnit.MILLISECONDS);
         minuterie.scheduleWithFixedDelay(() -> cycle(p), premierPassage.toMillis(), intervalle.toMillis(),
                 TimeUnit.MILLISECONDS);
+        // la config distante change (testeur retiré, ouverture générale…) : un téléchargement Pokényle devenu interdit s'arrête
+        Services.etatPokenyle.surChangement(p::reverifierAcces);
         LOG.info("Pré-téléchargement démarré (passage toutes les {} h)", intervalle.toHours());
         return instance;
+    }
+
+    /** À appeler au changement de compte actif (connexion, bascule, déconnexion) : annule ce qui n'est plus permis. */
+    public static synchronized void reverifierAcces() {
+        if (instance != null) instance.reverifierAcces();
     }
 
     /** Arrête tout (tests, et « Quitter »). Les partiels restent pour la reprise. */
@@ -82,7 +89,7 @@ public final class PreTelechargement {
             List<Future<?>> taches = new ArrayList<>();
             boolean complet = true;
             for (String u : PreTelechargeurPack.UNIVERS) {
-                Future<?> f = actif && new PlanPack(u).dejaJoue() ? p.demarrerAuto(u) : p.evaluer(u);
+                Future<?> f = actif && p.permis(u) && new PlanPack(u).dejaJoue() ? p.demarrerAuto(u) : p.evaluer(u);
                 if (f == null) complet = false;  // une tâche (premier plan) tourne déjà : ménage plus tard
                 else taches.add(f);
             }
