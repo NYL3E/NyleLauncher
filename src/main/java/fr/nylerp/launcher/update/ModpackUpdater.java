@@ -126,6 +126,9 @@ public final class ModpackUpdater {
     private static final java.util.concurrent.atomic.AtomicBoolean SYNCING =
             new java.util.concurrent.atomic.AtomicBoolean(false);
 
+    /** Une synchronisation tourne-t-elle ? Lu par le pré-téléchargement de fond pour lui céder la place. */
+    public static boolean syncEnCours() { return SYNCING.get(); }
+
     public void sync() throws IOException {
         if (!SYNCING.compareAndSet(false, true)) {
             LOG.info("sync() ignored — another modpack sync is already running");
@@ -326,7 +329,12 @@ public final class ModpackUpdater {
                 fin.submit(() -> {
                     Path local = gameDir.resolve(e.path);
                     status("↓ " + e.path);
-                    Downloader.toFile(e.url, local, null);
+                    // Pré-téléchargé en fond ? Le fichier est pris dans la réserve au lieu d'être
+                    // retéléchargé ; l'empreinte est revérifiée juste en dessous comme pour un
+                    // téléchargement.
+                    if (!fr.nylerp.launcher.update.pretelechargement.Reserve.adopter(e.sha256, local)) {
+                        Downloader.toFile(e.url, local, null);
+                    }
                     String apres = Hashing.sha256(local);
                     if (e.sha256 != null && !e.sha256.equalsIgnoreCase(apres)) {
                         throw new IOException("Checksum KO pour " + e.path);
