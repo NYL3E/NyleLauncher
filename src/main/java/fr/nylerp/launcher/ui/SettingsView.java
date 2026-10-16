@@ -2,11 +2,18 @@ package fr.nylerp.launcher.ui;
 
 import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.config.Settings;
+import fr.nylerp.launcher.fond.DemarrageAuto;
+import fr.nylerp.launcher.fond.Fond;
+import fr.nylerp.launcher.ui.kit.CarteVerre;
+import fr.nylerp.launcher.ui.kit.Interrupteur;
+import fr.nylerp.launcher.ui.kit.Jetons;
+import fr.nylerp.launcher.ui.kit.Polices;
+import fr.nylerp.launcher.ui.kit.TitreEclats;
+import fr.nylerp.launcher.ui.reglages.Elements;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
@@ -15,157 +22,151 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
+/**
+ * Paramètres du launcher, refaits dans le design du site Pokényle (refonte 2026-10, lot L6).
+ *
+ * <p>Même organisation que la version du 16/07 validée par l'owner : UNE page défilable, catégories à
+ * gauche qui servent d'ancres (clic = défilement doux, la catégorie active suit le défilement), tout
+ * reste visible en défilant. Les titres de section sont en Northura blanc au style Aniimo, posés sur
+ * le ciel ; le contenu est dans des cartes de verre claires. Toutes les options d'avant sont gardées
+ * avec le même comportement ; s'y ajoutent « Démarrage et notifications », « Téléchargements » et
+ * « Animations ».
+ *
+ * <p>Point d'entrée inchangé : {@code new SettingsView(onBack)}, {@code onBack} étant appelé par le
+ * bouton retour. La vue apporte ses propres feuilles ({@code kit.css} puis {@link Elements#CSS}) :
+ * elle se rend correctement quelle que soit la scène qui l'accueille.
+ */
 public class SettingsView extends BorderPane {
 
-    private static final int THUMB_W = 212, THUMB_H = 119; // vignette 16:9 (3 colonnes dans le contenu 678 px)
-
-    private StackPane contentHost;
-    private StackPane bodyStack;                            // hôte plein-écran pour la lightbox d'aperçu
+    private StackPane bodyStack;                            // hôte plein-corps pour l'agrandissement et la confirmation
     private FlowPane shotGrid;                              // grille de vignettes (re-scannée à l'ouverture)
     private Button shotSortBtn;
     private boolean shotsNewestFirst = true;
 
     public SettingsView(Runnable onBack) {
-        getStyleClass().add("main-root");
+        Polices.charger();
+        getStylesheets().add(SettingsView.class.getResource("/css/kit.css").toExternalForm());
+        getStylesheets().add(SettingsView.class.getResource(Elements.CSS).toExternalForm());
+        getStyleClass().add("reglages-racine");
         setTop(buildTopBar(onBack));
         setCenter(buildBody());
     }
 
+    private static double rem(double r) { return Jetons.rem(r); }
+
     private Region buildTopBar(Runnable onBack) {
         Button back = new Button();
-        back.getStyleClass().add("icon-btn");
-        back.setGraphic(Icons.arrowLeft(18, Color.web("#F4F4F7")));
+        back.getStyleClass().add("reglages-retour");
+        back.setGraphic(Icons.arrowLeft(rem(0.85), Jetons.ENCRE));
+        double d = rem(2.05);
+        back.setMinSize(d, d);
+        back.setPrefSize(d, d);
+        back.setMaxSize(d, d);
         back.setOnAction(e -> onBack.run());
+        back.setId("reglages-retour");
 
-        Label title = new Label("PARAMÈTRES");
-        title.setFont(Fonts.black(12));
-        title.setTextFill(Color.web("#F4F4F7"));
-        title.setStyle("-fx-letter-spacing: 0.22em;");
+        TitreEclats title = new TitreEclats("Paramètres", TitreEclats.Style.SECONDAIRE, rem(1.6), null);
 
-        HBox bar = new HBox(14, back, title);
+        HBox bar = new HBox(rem(0.85), back, title);
         bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setPadding(new Insets(0, 24, 0, 20));
-        bar.setPrefHeight(56);
-        bar.getStyleClass().add("top-bar");
+        bar.setPadding(new Insets(rem(0.9), rem(1.4), rem(0.5), rem(1.2)));
         return bar;
     }
 
-    /** UNE PAGE défilable + CATÉGORIES À GAUCHE (owner 2026-07-16 v2) : le rail est conservé mais
-     *  devient une navigation par ANCRES — cliquer une catégorie fait défiler la page en douceur
-     *  jusqu'à sa section, et la catégorie active suit le scroll. Tout reste visible en défilant :
-     *  rien n'est caché derrière un onglet. MAINTENANCE (Réparer/Désinstaller) puis À PROPOS en bas. */
+    /** UNE PAGE défilable + CATÉGORIES À GAUCHE : le rail est une navigation par ANCRES — cliquer une
+     *  catégorie fait défiler la page en douceur jusqu'à sa section, et la catégorie active suit le
+     *  défilement. Rien n'est caché derrière un onglet. MAINTENANCE puis À PROPOS en bas. */
     private Region buildBody() {
-        String[] names = {"Mémoire", "Audio", "Lancement", "Mods optionnels",
-                "Captures d'écran", "Maintenance", "À propos"};
-        Region[] secs = { memorySection(), audioSection(), launchSection(), modsSection(),
-                screenshotsSection(), maintenanceSection(), aboutSection() };
+        String[] names = {"Mémoire", "Audio", "Lancement", "Démarrage", "Téléchargements", "Animations",
+                "Mods optionnels", "Captures d'écran", "Maintenance", "À propos"};
+        Region[] secs = { memorySection(), audioSection(), launchSection(), startupSection(), downloadsSection(),
+                animationsSection(), modsSection(), screenshotsSection(), maintenanceSection(), aboutSection() };
 
-        VBox page = new VBox(0);
-        page.setPadding(new Insets(30, 56, 56, 46));
-        page.setMaxWidth(820);
-        for (int i = 0; i < secs.length; i++) {
-            if (i > 0) page.getChildren().add(pageBreak());
-            page.getChildren().add(secs[i]);
-        }
+        VBox page = new VBox(rem(1.9));
+        page.setId("reglages-page");
+        page.setPadding(new Insets(rem(0.6), rem(2.2), rem(2.6), rem(1.2)));
+        page.setMaxWidth(rem(54));
+        page.getChildren().addAll(secs);
         reloadScreenshots();   // une page = re-scan des captures à chaque ouverture des paramètres
 
-        contentHost = new StackPane(page);
+        StackPane contentHost = new StackPane(page);
         contentHost.setAlignment(Pos.TOP_LEFT);
 
         ScrollPane sp = new ScrollPane(contentHost);
         sp.setFitToWidth(true);
         sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        sp.getStyleClass().add("settings-scroll");
+        sp.getStyleClass().add("reglages-defilement");
         sp.setPannable(true);
         HBox.setHgrow(sp, Priority.ALWAYS);
 
-        // Rail gauche : ancres de défilement + surlignage qui SUIT le scroll.
-        VBox nav = new VBox(4);
-        nav.getStyleClass().add("settings-nav");
-        nav.setPadding(new Insets(30, 14, 30, 22));
-        nav.setMinWidth(214);
-        nav.setPrefWidth(214);
+        // Rail gauche : ancres de défilement + surlignage qui SUIT le défilement.
+        VBox nav = new VBox(rem(0.32));
+        nav.setPadding(new Insets(rem(0.7), rem(0.6), rem(1.4), rem(1.2)));
+        double navW = rem(10.4);
+        nav.setMinWidth(navW);
+        nav.setPrefWidth(navW);
         java.util.List<Button> items = new java.util.ArrayList<>();
         for (int i = 0; i < names.length; i++) {
             final int idx = i;
             Button it = new Button(names[i]);
-            it.getStyleClass().add("settings-nav-item");
+            it.getStyleClass().add("reglages-nav");
             it.setMaxWidth(Double.MAX_VALUE);
             it.setAlignment(Pos.CENTER_LEFT);
-            it.setFont(Fonts.semi(14));
+            it.setFont(Polices.extra(rem(0.7)));
+            it.setPadding(new Insets(rem(0.42), rem(0.9), rem(0.42), rem(0.9)));
             it.setOnAction(e -> scrollToSection(sp, page, secs[idx]));
             items.add(it);
             nav.getChildren().add(it);
         }
-        items.get(0).getStyleClass().add("active");
+        items.get(0).getStyleClass().add("actif");
 
-        // Le rail suit la position de scroll : la section la plus haute visible est « active ».
+        // Le rail suit la position de défilement : la section la plus haute visible est « active ».
         sp.vvalueProperty().addListener((obs, o, v) -> {
             double contentH = page.getBoundsInLocal().getHeight();
             double viewH = sp.getViewportBounds().getHeight();
-            double offset = v.doubleValue() * Math.max(0, contentH - viewH) + 60;
+            double offset = v.doubleValue() * Math.max(0, contentH - viewH) + rem(3);
             int active = 0;
             for (int i = 0; i < secs.length; i++)
                 if (secs[i].getBoundsInParent().getMinY() <= offset) active = i;
             for (int i = 0; i < items.size(); i++) {
-                items.get(i).getStyleClass().remove("active");
-                if (i == active) items.get(i).getStyleClass().add("active");
+                items.get(i).getStyleClass().remove("actif");
+                if (i == active) items.get(i).getStyleClass().add("actif");
             }
         });
 
-        Region divider = new Region();
-        divider.getStyleClass().add("settings-nav-divider");
-        divider.setMinWidth(1);
-        divider.setMaxWidth(1);
+        HBox body = new HBox(nav, sp);
 
-        HBox body = new HBox(nav, divider, sp);
-        body.getStyleClass().add("settings-body");
-
-        // Hôte qui empile le corps + une éventuelle lightbox/confirmation par-dessus.
+        // Hôte qui empile le corps + une éventuelle photo agrandie ou confirmation par-dessus.
         bodyStack = new StackPane(body);
         return bodyStack;
     }
 
-    /** Défilement doux (260 ms, ease-out) jusqu'au haut de la section cible. */
+    /** Défilement doux (260 ms) jusqu'au haut de la section ; immédiat en « animations réduites ». */
     private void scrollToSection(ScrollPane sp, Region page, Region target) {
         double contentH = page.getBoundsInLocal().getHeight();
         double viewH = sp.getViewportBounds().getHeight();
         double denom = Math.max(1, contentH - viewH);
-        double v = Math.max(0, Math.min(1, (target.getBoundsInParent().getMinY() - 12) / denom));
+        double v = Math.max(0, Math.min(1, (target.getBoundsInParent().getMinY() - rem(0.6)) / denom));
+        if (Settings.get().animationsReduites) { sp.setVvalue(v); return; }
         javafx.animation.Timeline tl = new javafx.animation.Timeline(
                 new javafx.animation.KeyFrame(javafx.util.Duration.millis(260),
-                        new javafx.animation.KeyValue(sp.vvalueProperty(), v,
-                                javafx.animation.Interpolator.EASE_OUT)));
+                        new javafx.animation.KeyValue(sp.vvalueProperty(), v, Jetons.SORTIE)));
         tl.play();
     }
 
-    /** Espace + filet + espace entre deux sections de la page unique. */
-    private Region pageBreak() {
-        Region line = new Region();
-        line.setMinHeight(1);
-        line.setMaxHeight(1);
-        line.setStyle("-fx-background-color: rgba(255,255,255,0.07);");
-        VBox box = new VBox(line);
-        box.setPadding(new Insets(30, 0, 30, 0));
-        return box;
+    /** Une section : titre Northura sur le ciel, puis son contenu. */
+    private VBox section(String titre, javafx.scene.Node... contenu) {
+        VBox v = new VBox(rem(0.75));
+        v.getChildren().add(Elements.titreSection(titre));
+        v.getChildren().addAll(contenu);
+        return v;
     }
 
     // ── Mémoire ─────────────────────────────────────────────────────────────
 
     private VBox memorySection() {
-        Label h = new Label("Mémoire");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-
-        Label p = new Label("Quantité de RAM allouée à Minecraft. En automatique, le launcher la choisit selon la mémoire de ton PC.");
-        p.setFont(Fonts.medium(13));
-        p.setTextFill(Color.web("#A2A2AC"));
-        p.setWrapText(true);
-
         // Mémoire « Auto » (15/10/2026) : le curseur affiche la valeur choisie pour ce PC ; le
         // déplacer repasse en manuel et garde la valeur choisie.
         long physMb = fr.nylerp.launcher.util.SystemRam.totalMb();
@@ -174,23 +175,21 @@ public class SettingsView extends BorderPane {
         int startGb = Settings.get().ramAuto ? autoGb
                 : Math.max(2, Math.min(16, Settings.get().ramMb / 1024));
 
-        // Floating number that tracks the thumb
+        // Nombre flottant qui suit la pastille.
         Label big = new Label(String.valueOf(startGb));
-        big.setFont(Fonts.black(64));
-        big.setTextFill(Color.web("#F4F4F7"));
+        big.setFont(Polices.noir(rem(2.6)));
+        big.setTextFill(Jetons.ENCRE);
         Label unit = new Label("Go");
-        unit.setFont(Fonts.medium(18));
-        unit.setTextFill(Color.web("#A2A2AC"));
-        HBox numGroup = new HBox(6, big, unit);
+        unit.setFont(Polices.extra(rem(0.95)));
+        unit.setTextFill(Jetons.ENCRE_2);
+        HBox numGroup = new HBox(rem(0.3), big, unit);
         numGroup.setAlignment(Pos.BASELINE_LEFT);
 
         Pane numLane = new Pane(numGroup);
-        numLane.setMinHeight(78);
-        numLane.setPrefHeight(78);
+        numLane.setMinHeight(rem(3.4));
+        numLane.setPrefHeight(rem(3.4));
 
-        Label max = new Label("Max : 16 Go");
-        max.setFont(Fonts.semi(11));
-        max.setTextFill(Color.web("#6A6A74"));
+        Label max = Elements.note("Max : 16 Go");
         HBox maxRow = new HBox(max);
         maxRow.setAlignment(Pos.TOP_RIGHT);
 
@@ -199,21 +198,20 @@ public class SettingsView extends BorderPane {
         slider.setMajorTickUnit(2);
         slider.setMinorTickCount(0);
         slider.setSnapToTicks(true);
-        slider.getStyleClass().add("ram-slider-big");
+        slider.getStyleClass().add("reglages-curseur");
         slider.setPrefHeight(22);
         slider.setMaxWidth(Double.MAX_VALUE);
 
-        final double THUMB_R = 11; // thumb is 22px
+        final double THUMB_R = 9; // pastille de 18 px (reglages.css)
 
-        // Le Slider JavaFX n'a pas de portion « remplie ». On peint nous-mêmes une barre de
-        // progression orange : un rail gris pleine largeur + un rail accent dont la largeur suit
-        // le pouce. Bien plus lisible qu'une simple ligne grise. Le pouce natif reste par-dessus.
+        // Le Slider JavaFX n'a pas de portion « remplie » : un rail pleine largeur + un rail nacré dont
+        // la largeur suit la pastille. La pastille native reste par-dessus.
         Region trackBg = new Region();
-        trackBg.getStyleClass().add("ram-track-bg");
-        trackBg.setMinHeight(6); trackBg.setPrefHeight(6); trackBg.setMaxHeight(6);
+        trackBg.getStyleClass().add("reglages-rail");
+        trackBg.setMinHeight(7); trackBg.setPrefHeight(7); trackBg.setMaxHeight(7);
         Region trackFill = new Region();
-        trackFill.getStyleClass().add("ram-track-fill");
-        trackFill.setMinHeight(6); trackFill.setPrefHeight(6); trackFill.setMaxHeight(6);
+        trackFill.getStyleClass().add("reglages-rail-plein");
+        trackFill.setMinHeight(7); trackFill.setPrefHeight(7); trackFill.setMaxHeight(7);
         StackPane.setAlignment(trackBg, Pos.CENTER);
         StackPane.setAlignment(trackFill, Pos.CENTER_LEFT);
         StackPane sliderStack = new StackPane(trackBg, trackFill, slider);
@@ -224,35 +222,34 @@ public class SettingsView extends BorderPane {
             if (sliderW <= 0) return;
             double numW = numGroup.getWidth();
             double ratio = (slider.getValue() - 2) / 14.0;
-            // Thumb center travels from THUMB_R to sliderW - THUMB_R
+            // Le centre de la pastille va de THUMB_R à sliderW - THUMB_R.
             double thumbX = THUMB_R + ratio * (sliderW - 2 * THUMB_R);
-            // La barre orange court du bord gauche jusqu'au centre du pouce.
             trackFill.setMinWidth(thumbX); trackFill.setPrefWidth(thumbX); trackFill.setMaxWidth(thumbX);
             double x = thumbX - numW / 2;
             double laneW = numLane.getWidth();
             if (laneW > 0) x = Math.max(0, Math.min(laneW - numW, x));
             numGroup.setTranslateX(x);
         };
-        // Ligne « Automatique » au style des options (pilule). Le drapeau évite qu'un déplacement
-        // du curseur PAR le code (retour en Auto) ne soit pris pour un choix du joueur.
+        // Ligne « Automatique ». Le drapeau évite qu'un déplacement du curseur PAR le code (retour en
+        // Auto) ne soit pris pour un choix du joueur.
         final boolean[] programmatic = {false};
         int autoEffGb = fr.nylerp.launcher.launch.MinecraftLauncher.clampHeapMb(autoMb, physMb) / 1024;
         String autoDesc = physMb > 0
                 ? autoEffGb + " Go pour ce PC (" + Math.round(physMb / 1024.0) + " Go de RAM). Déplace le curseur pour choisir toi-même."
                 : autoEffGb + " Go (mémoire du PC non détectée). Déplace le curseur pour choisir toi-même.";
-        HBox autoRow = optionalModRow("Automatique", autoDesc, Settings.get().ramAuto, v -> {
+        Interrupteur autoToggle = Elements.interrupteur(Settings.get().ramAuto, v -> {
             Settings.get().ramAuto = v;
             if (v) {
                 programmatic[0] = true;
                 slider.setValue(autoGb);
                 programmatic[0] = false;
             } else {
-                // Sortie de l'Auto par la pilule : on garde ce que le curseur affiche.
+                // Sortie de l'Auto par l'interrupteur : on garde ce que le curseur affiche.
                 Settings.get().ramMb = (int) Math.round(slider.getValue()) * 1024;
             }
             Settings.get().save();
-        });
-        CheckBox autoToggle = (CheckBox) autoRow.getChildren().get(1);   // info, puis la pilule
+        }, false);
+        HBox autoRow = Elements.ligne("Automatique", autoDesc, autoToggle, false);
 
         slider.valueProperty().addListener((o, a, b) -> {
             int g = b.intValue();
@@ -262,7 +259,7 @@ public class SettingsView extends BorderPane {
                 Settings.get().ramAuto = false;
                 Settings.get().ramMb = g * 1024;
                 Settings.get().save();
-                if (autoToggle.isSelected()) autoToggle.setSelected(false);
+                if (autoToggle.isActif()) autoToggle.setActif(false);
             }
             reposition.run();
         });
@@ -275,15 +272,20 @@ public class SettingsView extends BorderPane {
         scale.setAlignment(Pos.CENTER);
         for (int v = 2; v <= 16; v += 2) {
             Label t = new Label(String.valueOf(v));
-            t.setFont(Fonts.medium(10));
-            t.setTextFill(Color.web("#3E3E48"));
+            t.setFont(Polices.gras(rem(0.52)));
+            t.setTextFill(Jetons.ENCRE_3);
             HBox.setHgrow(t, Priority.ALWAYS);
             t.setMaxWidth(Double.MAX_VALUE);
             t.setAlignment(Pos.CENTER);
             scale.getChildren().add(t);
         }
 
-        return new VBox(10, h, p, autoRow, maxRow, numLane, sliderStack, scale);
+        VBox curseur = new VBox(rem(0.4), maxRow, numLane, sliderStack, scale);
+        curseur.setPadding(new Insets(rem(0.4), 0, rem(0.3), 0));
+        CarteVerre carte = Elements.carte(
+                "Quantité de RAM allouée à Minecraft. En automatique, le launcher la choisit selon la mémoire de ton PC.",
+                autoRow, curseur);
+        return section("Mémoire", carte);
     }
 
     // ── Captures d'écran ─────────────────────────────────────────────────────
@@ -292,39 +294,28 @@ public class SettingsView extends BorderPane {
         return fr.nylerp.launcher.config.AppPaths.gameDir().resolve("screenshots");
     }
 
+    private double thumbW() { return rem(11); }
+    private double thumbH() { return rem(11) * 9 / 16; }   // vignette 16:9
+
     private VBox screenshotsSection() {
-        Label h = new Label("Captures d'écran");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-
-        Label p = new Label("Toutes les images prises en jeu (touche F2). Clique sur une vignette pour l'agrandir.");
-        p.setFont(Fonts.medium(13));
-        p.setTextFill(Color.web("#A2A2AC"));
-        p.setWrapText(true);
-
-        shotSortBtn = new Button();
-        shotSortBtn.getStyleClass().add("btn-ghost");
-        shotSortBtn.setFont(Fonts.semi(13));
+        shotSortBtn = Elements.boutonClair("", null);
         shotSortBtn.setOnAction(e -> { shotsNewestFirst = !shotsNewestFirst; reloadScreenshots(); });
 
-        Button openShots = new Button("Ouvrir le dossier");
-        openShots.getStyleClass().add("btn-ghost");
-        openShots.setFont(Fonts.semi(13));
-        openShots.setGraphic(Icons.folder(14, Color.web("#F4F4F7")));
-        openShots.setGraphicTextGap(8);
+        Button openShots = Elements.boutonClair("Ouvrir le dossier", Icons.folder(14, Jetons.ENCRE_2));
         openShots.setOnAction(e -> openInExplorer(screenshotsDir().toFile()));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox actions = new HBox(10, shotSortBtn, spacer, openShots);
+        HBox actions = new HBox(rem(0.5), shotSortBtn, spacer, openShots);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        shotGrid = new FlowPane(14, 14);
-        shotGrid.getStyleClass().add("shot-grid");
+        shotGrid = new FlowPane(rem(0.75), rem(0.75));
 
-        VBox box = new VBox(14, h, p, actions, shotGrid);
+        VBox contenu = new VBox(rem(0.8), actions, shotGrid);
+        contenu.setPadding(new Insets(rem(0.3), 0, rem(0.3), 0));
         reloadScreenshots();
-        return box;
+        return section("Captures d'écran", Elements.carte(
+                "Toutes les images prises en jeu (touche F2). Clique sur une vignette pour l'agrandir.", contenu));
     }
 
     /** Re-scanne le dossier screenshots et reconstruit la grille. Les images sont chargées en
@@ -349,40 +340,37 @@ public class SettingsView extends BorderPane {
     }
 
     private Region emptyShots() {
-        Label l = new Label("Aucune capture pour l'instant.\nAppuie sur F2 en jeu pour en prendre une — elles apparaîtront ici.");
-        l.setFont(Fonts.medium(13));
-        l.setTextFill(Color.web("#8A8A94"));
-        l.setWrapText(true);
+        Label l = Elements.texteLigne("Aucune capture pour l'instant.\nAppuie sur F2 en jeu pour en prendre une : elles apparaîtront ici.");
         VBox v = new VBox(l);
-        v.getStyleClass().add("shot-empty");
-        v.setPadding(new Insets(26, 22, 26, 22));
+        v.getStyleClass().add("reglages-vide");
+        v.setPadding(new Insets(rem(1.2), rem(1.1), rem(1.2), rem(1.1)));
         v.setMaxWidth(Double.MAX_VALUE);
+        v.setPrefWidth(rem(34));
         return v;
     }
 
     private Region shotTile(java.io.File f) {
+        double w = thumbW(), h = thumbH();
         Image img = new Image(f.toURI().toString(), 0, 240, true, true, true); // sous-échantillonné, async
         ImageView iv = new ImageView(img);
-        iv.setFitWidth(THUMB_W);
-        iv.setFitHeight(THUMB_H);
+        iv.setFitWidth(w);
+        iv.setFitHeight(h);
         iv.setPreserveRatio(true);
         iv.setSmooth(true);
 
         StackPane card = new StackPane(iv);
-        card.getStyleClass().add("shot-card");
-        card.setMinSize(THUMB_W, THUMB_H);
-        card.setPrefSize(THUMB_W, THUMB_H);
-        card.setMaxSize(THUMB_W, THUMB_H);
-        Rectangle clip = new Rectangle(THUMB_W, THUMB_H);
-        clip.setArcWidth(20); clip.setArcHeight(20);
+        card.getStyleClass().add("reglages-vignette");
+        card.setMinSize(w, h);
+        card.setPrefSize(w, h);
+        card.setMaxSize(w, h);
+        Rectangle clip = new Rectangle(w, h);
+        clip.setArcWidth(rem(1.2)); clip.setArcHeight(rem(1.2));
         card.setClip(clip);
         card.setOnMouseClicked(e -> openShotPreview(f));
+        card.setOnMouseEntered(e -> { card.setScaleX(1.025); card.setScaleY(1.025); });
+        card.setOnMouseExited(e -> { card.setScaleX(1); card.setScaleY(1); });
 
-        Label date = new Label(shotDate(f));
-        date.setFont(Fonts.medium(11));
-        date.setTextFill(Color.web("#8A8A94"));
-
-        return new VBox(6, card, date);
+        return new VBox(rem(0.3), card, Elements.note(shotDate(f)));
     }
 
     private String shotDate(java.io.File f) {
@@ -392,8 +380,7 @@ public class SettingsView extends BorderPane {
         } catch (Throwable t) { return ""; }
     }
 
-    /** Lightbox plein-corps : agrandit la capture par-dessus toute la page paramètres.
-     *  Clic n'importe où = fermeture. */
+    /** Agrandit la capture par-dessus toute la page des paramètres. Clic n'importe où = fermeture. */
     private void openShotPreview(java.io.File f) {
         if (bodyStack == null) return;
         Image full = new Image(f.toURI().toString(), 0, 1600, true, true, true);
@@ -403,22 +390,22 @@ public class SettingsView extends BorderPane {
         iv.fitWidthProperty().bind(bodyStack.widthProperty().subtract(140));
         iv.fitHeightProperty().bind(bodyStack.heightProperty().subtract(150));
 
-        Label caption = new Label(f.getName() + "   —   " + shotDate(f));
-        caption.setFont(Fonts.medium(12));
-        caption.setTextFill(Color.web("#C9C9D2"));
+        Label caption = new Label(f.getName() + "   ·   " + shotDate(f));
+        caption.setFont(Polices.extra(rem(0.62)));
+        caption.setTextFill(Color.rgb(255, 255, 255, 0.92));
         Label hint = new Label("Clique n'importe où pour fermer");
-        hint.setFont(Fonts.medium(11));
-        hint.setTextFill(Color.web("#7A7A84"));
+        hint.setFont(Polices.gras(rem(0.56)));
+        hint.setTextFill(Color.rgb(255, 255, 255, 0.6));
 
-        VBox content = new VBox(14, iv, caption, hint);
+        VBox content = new VBox(rem(0.7), iv, caption, hint);
         content.setAlignment(Pos.CENTER);
 
         StackPane overlay = new StackPane(content);
-        overlay.getStyleClass().add("shot-preview-overlay");
+        overlay.getStyleClass().add("reglages-voile-photo");
         overlay.setOnMouseClicked(e -> bodyStack.getChildren().remove(overlay));
-        overlay.setOpacity(0);
         bodyStack.getChildren().add(overlay);
-
+        if (Settings.get().animationsReduites) return;
+        overlay.setOpacity(0);
         javafx.animation.FadeTransition ft =
                 new javafx.animation.FadeTransition(javafx.util.Duration.millis(140), overlay);
         ft.setFromValue(0); ft.setToValue(1); ft.play();
@@ -427,17 +414,8 @@ public class SettingsView extends BorderPane {
     // ── Audio ───────────────────────────────────────────────────────────────
 
     private VBox audioSection() {
-        Label h = new Label("Audio du launcher");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-
-        Label p = new Label("Volume de la musique et de l'ambiance crépitement de feu jouées sur l'écran d'accueil.");
-        p.setFont(Fonts.medium(13));
-        p.setTextFill(Color.web("#A2A2AC"));
-        p.setWrapText(true);
-
         Region ambientRow = volumeRow(
-                "Ambiance — Feu de camp",
+                "Ambiance · feu de camp",
                 "Crépitement de feu en boucle. Couche sub-musique discrète.",
                 Settings.get().ambientVolume,
                 v -> {
@@ -456,93 +434,157 @@ public class SettingsView extends BorderPane {
                     MainView.setLiveMusicVolume(v);
                 });
 
-        return new VBox(14, h, p, ambientRow, musicRow);
+        return section("Audio du launcher", Elements.carte(
+                "Volume de la musique et de l'ambiance jouées sur l'écran d'accueil.", ambientRow, musicRow));
     }
 
-    /** A single volume row: title + description + Slider 0..100 + live %.
-     *  Visually paired with the optionalModRow / memorySection styling. */
+    /** Une ligne de volume : intitulé + explication + curseur 0..100 + pourcentage en direct. */
     private Region volumeRow(String title, String desc, double initial,
                              java.util.function.Consumer<Double> onChange) {
-        Label modTitle = new Label(title);
-        modTitle.setFont(Fonts.semi(14));
-        modTitle.setTextFill(Color.web("#F4F4F7"));
-
-        Label modDesc = new Label(desc);
-        modDesc.setFont(Fonts.medium(12));
-        modDesc.setTextFill(Color.web("#A2A2AC"));
-        modDesc.setWrapText(true);
-
-        Label pct = new Label(String.format("%.0f%%", initial * 100.0));
-        pct.setFont(Fonts.bold(16));
-        pct.setTextFill(Color.web("#F4F4F7"));
-        pct.setMinWidth(56);
+        Label pct = new Label(String.format("%.0f %%", initial * 100.0));
+        pct.setFont(Polices.extra(rem(0.82)));
+        pct.setTextFill(Jetons.ENCRE);
+        pct.setMinWidth(rem(3));
         pct.setAlignment(Pos.CENTER_RIGHT);
 
         Slider slider = new Slider(0, 100, initial * 100.0);
         slider.setBlockIncrement(1);
-        slider.getStyleClass().add("audio-slider");
-        slider.setPrefHeight(20);
-        HBox.setHgrow(slider, Priority.ALWAYS);
+        slider.getStyleClass().add("reglages-curseur");
+        slider.setPrefHeight(22);
+        slider.setMaxWidth(Double.MAX_VALUE);
+
+        final double THUMB_R = 9;
+        Region trackBg = new Region();
+        trackBg.getStyleClass().add("reglages-rail");
+        trackBg.setMinHeight(7); trackBg.setPrefHeight(7); trackBg.setMaxHeight(7);
+        Region trackFill = new Region();
+        trackFill.getStyleClass().add("reglages-rail-plein");
+        trackFill.setMinHeight(7); trackFill.setPrefHeight(7); trackFill.setMaxHeight(7);
+        StackPane.setAlignment(trackBg, Pos.CENTER);
+        StackPane.setAlignment(trackFill, Pos.CENTER_LEFT);
+        StackPane sliderStack = new StackPane(trackBg, trackFill, slider);
+        HBox.setHgrow(sliderStack, Priority.ALWAYS);
+        Runnable remplir = () -> {
+            double sw = slider.getWidth();
+            if (sw <= 0) return;
+            double x = THUMB_R + (slider.getValue() / 100.0) * (sw - 2 * THUMB_R);
+            trackFill.setMinWidth(x); trackFill.setPrefWidth(x); trackFill.setMaxWidth(x);
+        };
 
         slider.valueProperty().addListener((obs, a, b) -> {
             double v = b.doubleValue() / 100.0;
-            pct.setText(String.format("%.0f%%", b.doubleValue()));
+            pct.setText(String.format("%.0f %%", b.doubleValue()));
             onChange.accept(v);
+            remplir.run();
         });
+        slider.widthProperty().addListener((o, a, b) -> remplir.run());
+        Platform.runLater(remplir);
 
-        HBox sliderRow = new HBox(16, slider, pct);
+        HBox sliderRow = new HBox(rem(0.8), sliderStack, pct);
         sliderRow.setAlignment(Pos.CENTER_LEFT);
 
-        VBox body = new VBox(10, modTitle, modDesc, sliderRow);
-        body.setPadding(new Insets(16, 20, 16, 20));
-        body.getStyleClass().add("mod-row");
+        VBox body = new VBox(rem(0.25), Elements.titreLigne(title, false), Elements.texteLigne(desc), sliderRow);
+        body.setPadding(new Insets(rem(0.6), 0, rem(0.6), 0));
+        VBox.setMargin(sliderRow, new Insets(rem(0.35), 0, 0, 0));
         return body;
     }
 
     // ── Lancement ───────────────────────────────────────────────────────────
 
     private VBox launchSection() {
-        Label h = new Label("Lancement");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-
-        Label p = new Label("Comportement au démarrage du jeu et accès rapide à tes fichiers.");
-        p.setFont(Fonts.medium(13));
-        p.setTextFill(Color.web("#A2A2AC"));
-        p.setWrapText(true);
-
-        // Toggle « fermer le launcher au lancement » — même style pilule que les mods optionnels.
-        HBox closeRow = optionalModRow(
+        HBox closeRow = Elements.ligne(
                 "Fermer le launcher au lancement du jeu",
-                "Le launcher se ferme automatiquement une fois Minecraft démarré.",
-                Settings.get().closeOnLaunch,
-                v -> { Settings.get().closeOnLaunch = v; Settings.get().save(); });
+                "Une fois Minecraft démarré, le launcher se ferme, ou se range dans la barre système si tu l'y gardes.",
+                Elements.interrupteur(Settings.get().closeOnLaunch,
+                        v -> { Settings.get().closeOnLaunch = v; Settings.get().save(); }, false),
+                false);
+
+        // Textures légères (owner 23/07) : pack ÷2 Decocraft/Yuushya/PointBlank pour les GPU
+        // anciens dont l'atlas dépasse la limite matérielle (crash/chargement infini au lancement).
+        HBox lightRow = Elements.ligne(
+                "Textures légères (PC modestes, GPU anciens)",
+                "Réduit la résolution des textures Decocraft, Yuushya et PointBlank. Coche cette option si le jeu "
+                        + "crash au chargement ou charge très lentement : aucun contenu n'est retiré.",
+                Elements.interrupteur(fr.nylerp.launcher.util.LightTextures.isEnabled(),
+                        v -> fr.nylerp.launcher.util.LightTextures.setEnabled(v), false),
+                false);
 
         Button openFiles = folderButton("Ouvrir le dossier du jeu",
                 () -> openInExplorer(fr.nylerp.launcher.config.AppPaths.gameDir().toFile()));
         HBox openRow = new HBox(openFiles);
         openRow.setAlignment(Pos.CENTER_LEFT);
-        openRow.setPadding(new Insets(2, 0, 0, 0));
+        openRow.setPadding(new Insets(rem(0.6), 0, rem(0.2), 0));
 
-        // Textures légères (owner 23/07) : pack ÷2 Decocraft/Yuushya/PointBlank pour les GPU
-        // anciens dont l'atlas dépasse la limite matérielle (crash/chargement infini au lancement).
-        HBox lightRow = optionalModRow(
-                "Textures légères (PC modestes / GPU anciens)",
-                "Réduit la résolution des textures Decocraft, Yuushya et PointBlank. Coche cette option si le jeu "
-                        + "crash au chargement ou charge très lentement — aucun contenu n'est retiré.",
-                fr.nylerp.launcher.util.LightTextures.isEnabled(),
-                v -> fr.nylerp.launcher.util.LightTextures.setEnabled(v));
-
-        return new VBox(14, h, p, closeRow, lightRow, openRow);
+        return section("Lancement", Elements.carte(
+                "Comportement au démarrage du jeu et accès rapide à tes fichiers.", closeRow, lightRow, openRow));
     }
 
-    /** A ghost button with a folder icon + label that opens a folder. Reused for the game + mods folders. */
+    // ── Démarrage et notifications (refonte 2026-10) ──────────────────────────────
+
+    private VBox startupSection() {
+        boolean mac = fr.nylerp.launcher.update.OptionalMods.isMac();
+        Interrupteur auto = Elements.interrupteur(Settings.get().demarrageAuto, v -> {
+            Settings.get().demarrageAuto = v;
+            Settings.get().save();
+            Fond.appliquerReglages();
+        }, false);
+        auto.setId("reglage-demarrageAuto");
+        Interrupteur garder = Elements.interrupteur(Settings.get().fondActif, v -> {
+            Settings.get().fondActif = v;
+            Settings.get().save();
+            Fond.appliquerReglages();
+        }, false);
+        garder.setId("reglage-fondActif");
+        Interrupteur annonces = Elements.interrupteur(Settings.get().notifications, v -> {
+            Settings.get().notifications = v;
+            Settings.get().save();
+            Fond.appliquerReglages();
+        }, false);
+        annonces.setId("reglage-notifications");
+
+        return section("Démarrage et notifications", Elements.carte(
+                "Le launcher peut rester discrètement dans la barre système pour te prévenir des ouvertures et des événements.",
+                Elements.ligne("Lancer au démarrage de l'ordinateur",
+                        "Le launcher s'ouvre en fond, sans fenêtre, quand tu allumes ton ordinateur.", auto, false),
+                Elements.ligne("Garder le launcher dans la barre système à la fermeture",
+                        mac ? "Fermer la fenêtre le range dans la barre des menus, en haut de l'écran, au lieu de le quitter."
+                            : "Fermer la fenêtre le range près de l'horloge, dans les icônes cachées, au lieu de le quitter.",
+                        garder, false),
+                Elements.ligne("Annonces",
+                        "Ouvertures, événements et nouveautés, affichés dans un coin de l'écran.", annonces, false)));
+    }
+
+    // ── Téléchargements ─────────────────────────────────────────────────────
+
+    private VBox downloadsSection() {
+        Interrupteur pre = Elements.interrupteur(Settings.get().preTelechargement, v -> {
+            Settings.get().preTelechargement = v;
+            Settings.get().save();
+        }, false);
+        pre.setId("reglage-preTelechargement");
+        return section("Téléchargements", Elements.carte(null,
+                Elements.ligne("Pré-télécharger les mises à jour en fond",
+                        "Les mises à jour du jeu se téléchargent pendant que le launcher est dans la barre système : "
+                                + "« Jouer » démarre tout de suite.", pre, false)));
+    }
+
+    // ── Animations ──────────────────────────────────────────────────────────
+
+    private VBox animationsSection() {
+        Interrupteur reduites = Elements.interrupteur(Settings.get().animationsReduites, v -> {
+            Settings.get().animationsReduites = v;
+            Settings.get().save();
+        }, false);
+        reduites.setId("reglage-animationsReduites");
+        return section("Animations", Elements.carte(null,
+                Elements.ligne("Animations réduites",
+                        "Remplace le ciel animé par une image fixe et limite les mouvements. Utile sur les ordinateurs modestes.",
+                        reduites, false)));
+    }
+
+    /** Bouton clair avec une icône de dossier, qui ouvre un dossier. Sert au jeu et aux mods. */
     private Button folderButton(String label, Runnable action) {
-        Button b = new Button(label);
-        b.getStyleClass().add("btn-ghost");
-        b.setFont(Fonts.semi(14));
-        b.setGraphic(Icons.folder(15, Color.web("#F4F4F7")));
-        b.setGraphicTextGap(9);
+        Button b = Elements.boutonClair(label, Icons.folder(14, Jetons.ENCRE_2));
         b.setOnAction(e -> action.run());
         return b;
     }
@@ -574,15 +616,6 @@ public class SettingsView extends BorderPane {
     // ── Mods optionnels ─────────────────────────────────────────────────────
 
     private VBox modsSection() {
-        Label h = new Label("Mods optionnels");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-
-        Label p = new Label("Mods que tu peux activer en plus du modpack. Ils seront téléchargés au prochain lancement.");
-        p.setFont(Fonts.medium(13));
-        p.setTextFill(Color.web("#A2A2AC"));
-        p.setWrapText(true);
-
         HBox litematicaRow = optionalModRow(
                 "Litematica",
                 "Prévisualisation et construction assistée par schémas.",
@@ -590,7 +623,7 @@ public class SettingsView extends BorderPane {
                 v -> { Settings.get().optionalLitematica = v; Settings.get().save(); });
 
         // Pokényle (15/10/2026) : Iris est toujours installé et Complementary actif par défaut
-        // (OptionalMods, ShaderDefaults) — la ligne est donc verrouillée sur « activé », et dit
+        // (OptionalMods, ShaderDefaults) : la ligne est donc verrouillée sur « activé », et dit
         // comment couper les shaders : en jeu, touche K.
         boolean pokenyle = fr.nylerp.launcher.config.ModeDeJeu.courant()
                 == fr.nylerp.launcher.config.ModeDeJeu.POKENYLE;
@@ -617,7 +650,7 @@ public class SettingsView extends BorderPane {
 
         HBox punchyRow = optionalModRow(
                 "Punchy! (animations)",
-                "Tes mains deviennent visibles avec l'objet tenu, et les coups, les déplacements et les interactions sont animés. Purement visuel — ni les dégâts ni le recul ne changent. Réglable en jeu.",
+                "Tes mains deviennent visibles avec l'objet tenu, et les coups, les déplacements et les interactions sont animés. Purement visuel : ni les dégâts ni le recul ne changent. Réglable en jeu.",
                 Settings.get().optionalPunchy,
                 v -> { Settings.get().optionalPunchy = v; Settings.get().save(); });
 
@@ -625,25 +658,26 @@ public class SettingsView extends BorderPane {
                 () -> openInExplorer(fr.nylerp.launcher.config.AppPaths.gameDir().resolve("mods").toFile()));
         HBox openModsRow = new HBox(openMods);
         openModsRow.setAlignment(Pos.CENTER_LEFT);
-        openModsRow.setPadding(new Insets(6, 0, 0, 0));
+        openModsRow.setPadding(new Insets(rem(0.6), 0, rem(0.2), 0));
 
-        VBox box = new VBox(14, h, p, litematicaRow, irisRow, dhRow, punchyRow, openModsRow);
+        java.util.List<javafx.scene.Node> lignes = new java.util.ArrayList<>(
+                java.util.List.of(litematicaRow, irisRow, dhRow, punchyRow));
         if (pokenyle) {
             // Manette : optionnel du mode pokényle seulement (OptionalMods, Controlify).
-            HBox controlifyRow = optionalModRow(
+            lignes.add(optionalModRow(
                     "Manette (Controlify)",
                     "Permet de jouer à la manette. Laisse-le coupé si tu joues au clavier et à la souris : "
                             + "il interroge les manettes en permanence et pèse sur la fluidité.",
                     Settings.get().optionalControlify,
-                    v -> { Settings.get().optionalControlify = v; Settings.get().save(); });
-            box.getChildren().add(box.getChildren().indexOf(openModsRow), controlifyRow);
+                    v -> { Settings.get().optionalControlify = v; Settings.get().save(); }));
         }
-        return box;
+        lignes.add(openModsRow);
+        return section("Mods optionnels", Elements.carte(
+                "Mods que tu peux activer en plus du modpack. Ils seront téléchargés au prochain lancement.",
+                lignes.toArray(new javafx.scene.Node[0])));
     }
 
-    /** A single optional-mod row: title + description on the left, pill switch
-     *  on the right. Centralised so each mod is one declarative call site
-     *  instead of 18 lines of repeated layout. */
+    /** Une ligne de mod optionnel : intitulé + explication à gauche, interrupteur à droite. */
     private HBox optionalModRow(String title, String desc, boolean initial,
                                 java.util.function.Consumer<Boolean> onChange) {
         return optionalModRow(title, desc, initial, onChange, false);
@@ -651,103 +685,59 @@ public class SettingsView extends BorderPane {
 
     private HBox optionalModRow(String title, String desc, boolean initial,
                                 java.util.function.Consumer<Boolean> onChange, boolean disabled) {
-        HBox row = new HBox();
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.getStyleClass().add("mod-row");
-        row.setPadding(new Insets(16, 20, 16, 20));
-
-        Label modTitle = new Label(title);
-        modTitle.setFont(Fonts.semi(14));
-        modTitle.setTextFill(Color.web(disabled ? "#6A6A72" : "#F4F4F7"));
-        Label modDesc = new Label(desc);
-        modDesc.setFont(Fonts.medium(12));
-        modDesc.setTextFill(Color.web("#A2A2AC"));
-        modDesc.setWrapText(true);
-        VBox info = new VBox(4, modTitle, modDesc);
-        HBox.setHgrow(info, Priority.ALWAYS);
-
-        CheckBox toggle = new CheckBox();
-        toggle.getStyleClass().add("pill-switch");
-        // Désactivée : affiche l'état imposé tel quel (DH sur Mac = coupé, Iris sur pokényle = activé).
-        toggle.setSelected(initial);
-        if (disabled) {
-            toggle.setDisable(true);
-            toggle.setOpacity(0.4);
-        } else {
-            toggle.selectedProperty().addListener((obs, a, b) -> onChange.accept(b));
-        }
-
-        row.getChildren().addAll(info, toggle);
-        return row;
+        return Elements.ligne(title, desc, Elements.interrupteur(initial, onChange, disabled), disabled);
     }
 
     // ── Maintenance : Réparer + Désinstaller (owner 2026-07-16) ─────────────
 
     private VBox maintenanceSection() {
-        Label h = new Label("Maintenance");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-        Label sub = new Label("Répare une installation cassée, ou supprime le launcher et tous les fichiers du jeu.");
-        sub.setFont(Fonts.regular(13));
-        sub.setTextFill(Color.web("#A2A2AC"));
-
-        // ── RÉPARER : purge les caches de vérification puis rejoue le sync complet du pack
-        //    (re-hash + re-téléchargement de tout fichier manquant/altéré) + mods optionnels +
-        //    servers.dat. Exactement le remède aux installs cassées (mods corrompus/dépareillés).
-        Button repair = new Button("Réparer le jeu et le launcher");
-        repair.getStyleClass().add("btn-ghost");
-        repair.setFont(Fonts.semi(13));
-        Label repairStatus = new Label("");
-        repairStatus.setFont(Fonts.regular(12));
-        repairStatus.setTextFill(Color.web("#A2A2AC"));
+        // RÉPARER : purge les caches de vérification puis rejoue le sync complet du pack (re-hash +
+        // re-téléchargement de tout fichier manquant/altéré) + mods optionnels + servers.dat.
+        Button repair = Elements.boutonSombre("Réparer le jeu et le launcher");
+        Label repairStatus = Elements.note("");
         repair.setOnAction(e -> runRepair(repair, repairStatus));
-        Label repairHint = new Label("Re-vérifie chaque fichier du pack et retélécharge ce qui est manquant ou abîmé. Tes réglages, mondes et captures sont conservés.");
-        repairHint.setFont(Fonts.regular(12));
-        repairHint.setTextFill(Color.web("#6A6A74"));
-        repairHint.setWrapText(true);
+        Label repairHint = Elements.texteLigne("Re-vérifie chaque fichier du pack et retélécharge ce qui est manquant ou abîmé. Tes réglages, mondes et captures sont conservés.");
 
-        // ── DÉSINSTALLER : DOUBLE confirmation — armement du bouton (rouge) PUIS panneau de
-        //    confirmation explicite par-dessus la page. Supprime les données du jeu + du launcher
-        //    et ouvre l'outil de désinstallation de l'OS.
-        Button uninstall = new Button("Désinstaller le launcher…");
-        uninstall.getStyleClass().add("btn-ghost");
-        uninstall.setFont(Fonts.semi(13));
-        uninstall.setStyle("-fx-text-fill: #FF5C5C; -fx-border-color: rgba(255,92,92,0.35);");
+        // DÉSINSTALLER : DOUBLE confirmation : armement du bouton (rouge) PUIS panneau de confirmation
+        // explicite par-dessus la page. Supprime les données du jeu + du launcher, retire le démarrage
+        // automatique et ouvre l'outil de désinstallation de l'OS.
+        Button uninstall = Elements.boutonDanger("Désinstaller le launcher…");
+        uninstall.setId("reglages-desinstaller");
         final boolean[] armed = {false};
         uninstall.setOnAction(e -> {
             if (!armed[0]) {
                 armed[0] = true;
                 uninstall.setText("Confirmer la désinstallation ?");
-                uninstall.setStyle("-fx-text-fill: #FFFFFF; -fx-background-color: #B03030; -fx-border-color: #FF5C5C;");
+                uninstall.getStyleClass().add("arme");
                 // désarmement auto après 5 s sans second clic
                 javafx.animation.PauseTransition pt = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(5));
                 pt.setOnFinished(ev -> {
                     armed[0] = false;
                     uninstall.setText("Désinstaller le launcher…");
-                    uninstall.setStyle("-fx-text-fill: #FF5C5C; -fx-border-color: rgba(255,92,92,0.35);");
+                    uninstall.getStyleClass().remove("arme");
                 });
                 pt.play();
             } else {
                 showUninstallConfirm();   // 2ᵉ confirmation : panneau modal explicite
             }
         });
-        Label unHint = new Label("Supprime le launcher, le jeu, les mods, les réglages et les comptes de cet ordinateur. Irréversible.");
-        unHint.setFont(Fonts.regular(12));
-        unHint.setTextFill(Color.web("#6A6A74"));
-        unHint.setWrapText(true);
+        Label unHint = Elements.texteLigne("Supprime le launcher, le jeu, les mods, les réglages et les comptes de cet ordinateur, "
+                + "et retire son lancement au démarrage. Irréversible.");
 
-        VBox box = new VBox(12, h, sub,
-                new VBox(6, repair, repairHint, repairStatus),
-                new VBox(6, uninstall, unHint));
-        box.setSpacing(16);
-        return box;
+        VBox reparer = new VBox(rem(0.4), repair, repairHint, repairStatus);
+        reparer.setPadding(new Insets(rem(0.6), 0, rem(0.6), 0));
+        VBox desinstaller = new VBox(rem(0.4), uninstall, unHint);
+        desinstaller.setPadding(new Insets(rem(0.6), 0, rem(0.4), 0));
+        return section("Maintenance", Elements.carte(
+                "Répare une installation cassée, ou supprime le launcher et tous les fichiers du jeu.",
+                reparer, desinstaller));
     }
 
     /** Réparation asynchrone : purge hashcache + manifest + record des mods managés, puis sync
      *  complet (chaque fichier re-hashé / re-téléchargé), mods optionnels, servers.dat. */
     private void runRepair(Button btn, Label status) {
         btn.setDisable(true);
-        status.setText("Réparation en cours — vérification de chaque fichier…");
+        status.setText("Réparation en cours : vérification de chaque fichier…");
         Thread t = new Thread(() -> {
             String result;
             try {
@@ -765,9 +755,9 @@ public class SettingsView extends BorderPane {
                     }
                 }).sync();
                 fr.nylerp.launcher.update.OptionalMods.applyAll();
-                result = "Réparation terminée — le jeu est prêt.";
+                result = "Réparation terminée : le jeu est prêt.";
             } catch (Throwable ex) {
-                result = "Réparation incomplète : " + ex.getMessage() + " — réessaie ou vérifie ta connexion.";
+                result = "Réparation incomplète : " + ex.getMessage() + ". Réessaie ou vérifie ta connexion.";
             }
             String finalResult = result;
             Platform.runLater(() -> { status.setText(finalResult); btn.setDisable(false); });
@@ -778,35 +768,28 @@ public class SettingsView extends BorderPane {
 
     /** 2ᵉ étape de la désinstallation : panneau modal par-dessus la page, choix explicite. */
     private void showUninstallConfirm() {
-        VBox card = new VBox(14);
-        card.setMaxWidth(460);
-        card.setMaxHeight(Region.USE_PREF_SIZE);
-        card.setPadding(new Insets(26));
-        card.setStyle("-fx-background-color: #101014; -fx-background-radius: 14;"
-                + " -fx-border-color: rgba(255,92,92,0.45); -fx-border-radius: 14; -fx-border-width: 1;");
         Label t = new Label("Tout supprimer ?");
-        t.setFont(Fonts.bold(18));
-        t.setTextFill(Color.web("#F4F4F7"));
-        Label d = new Label("Le launcher, le jeu, les mods, les réglages et les comptes enregistrés seront "
-                + "supprimés de cet ordinateur. Cette action est irréversible.");
-        d.setFont(Fonts.regular(13));
-        d.setTextFill(Color.web("#A2A2AC"));
-        d.setWrapText(true);
+        t.setFont(Polices.noir(rem(0.95)));
+        t.setTextFill(Jetons.ENCRE);
+        Label d = Elements.intro("Le launcher, le jeu, les mods, les réglages et les comptes enregistrés seront "
+                + "supprimés de cet ordinateur, et le launcher ne se lancera plus au démarrage. "
+                + "Cette action est irréversible.");
 
-        Button cancel = new Button("Annuler");
-        cancel.getStyleClass().add("btn-ghost");
-        cancel.setFont(Fonts.semi(13));
-        Button confirm = new Button("Tout supprimer");
-        confirm.setFont(Fonts.semi(13));
-        confirm.setStyle("-fx-background-color: #B03030; -fx-text-fill: white; -fx-background-radius: 10;"
-                + " -fx-padding: 8 18 8 18; -fx-cursor: hand;");
-        HBox btns = new HBox(10, cancel, confirm);
+        Button cancel = Elements.boutonClair("Annuler", null);
+        Button confirm = Elements.boutonDanger("Tout supprimer");
+        confirm.getStyleClass().add("arme");
+        HBox btns = new HBox(rem(0.5), cancel, confirm);
         btns.setAlignment(Pos.CENTER_RIGHT);
-        card.getChildren().addAll(t, d, btns);
+
+        VBox contenu = new VBox(rem(0.75), t, d, btns);
+        CarteVerre card = new CarteVerre(CarteVerre.Variante.OPAQUE, contenu);
+        card.setMaxWidth(rem(24));
+        card.setMaxHeight(Region.USE_PREF_SIZE);
 
         StackPane veil = new StackPane(card);
-        veil.setStyle("-fx-background-color: rgba(0,0,0,0.72);");
+        veil.getStyleClass().add("reglages-voile-modal");
         veil.setAlignment(Pos.CENTER);
+        veil.setId("reglages-confirmation");
         bodyStack.getChildren().add(veil);
         cancel.setOnAction(e -> bodyStack.getChildren().remove(veil));
         confirm.setOnAction(e -> {
@@ -819,21 +802,28 @@ public class SettingsView extends BorderPane {
         });
     }
 
-    /** Supprime les données (best effort) puis ouvre l'outil de désinstallation de l'OS et quitte. */
+    /** Retire le démarrage automatique, supprime les données (best effort), ouvre l'outil de
+     *  désinstallation de l'OS et quitte (icône de barre comprise). */
     private void performUninstall() {
+        // Démarrage automatique : par l'API du fond, PUIS de façon synchrone sur ce fil, pour que
+        // l'entrée soit partie avant l'arrêt du processus (la synchronisation du fond est asynchrone).
+        Fond.retirerDemarrageAuto();
+        try { DemarrageAuto.pourCeSysteme().desactiver(); } catch (Throwable ignored) { }
         deleteRecursive(fr.nylerp.launcher.config.AppPaths.rootDir());   // game/ state/ minecraft/ runtime/
         deleteRecursive(payloadCacheDir());                              // cache payload du bootstrap (NyleRP)
         try {
             String os = System.getProperty("os.name", "").toLowerCase();
             if (os.contains("win")) {
-                // Panneau « Applications installées » — l'utilisateur clique Désinstaller NyleLauncher.
+                // Panneau « Applications installées » : l'utilisateur clique Désinstaller NyleLauncher.
                 Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start", "ms-settings:appsfeatures"});
             } else if (os.contains("mac")) {
-                // Révèle l'app dans le Finder — glisser à la corbeille termine la désinstallation.
+                // Révèle l'app dans le Finder : glisser à la corbeille termine la désinstallation.
                 Runtime.getRuntime().exec(new String[]{"open", "-R", "/Applications/NyleLauncher.app"});
             }
         } catch (Throwable ignored) { }
-        Platform.runLater(Platform::exit);
+        // Fond.quitter et pas Platform.exit : l'icône de barre système (AWT) garderait sinon le
+        // processus en vie après la suppression de ses fichiers.
+        Platform.runLater(Fond::quitter);
     }
 
     private static java.nio.file.Path payloadCacheDir() {
@@ -847,8 +837,8 @@ public class SettingsView extends BorderPane {
         return java.nio.file.Path.of(home, ".nylerp");
     }
 
-    /** Suppression récursive best-effort (les fichiers verrouillés — ex. le jar payload en cours
-     *  d'exécution sous Windows — sont simplement laissés ; quelques Ko sans conséquence). */
+    /** Suppression récursive best-effort (les fichiers verrouillés, ex. le jar payload en cours
+     *  d'exécution sous Windows, sont simplement laissés ; quelques Ko sans conséquence). */
     private static void deleteRecursive(java.nio.file.Path root) {
         try (var walk = java.nio.file.Files.walk(root)) {
             walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
@@ -860,35 +850,31 @@ public class SettingsView extends BorderPane {
     // ── À propos ────────────────────────────────────────────────────────────
 
     private VBox aboutSection() {
-        Label h = new Label("À propos");
-        h.setFont(Fonts.bold(20));
-        h.setTextFill(Color.web("#F4F4F7"));
-
         GridPane g = new GridPane();
-        g.setHgap(40); g.setVgap(12);
+        g.setHgap(rem(2)); g.setVgap(rem(0.6));
         g.add(kvColumn("VERSION", fr.nylerp.launcher.update.SelfUpdater.installedVersion()), 0, 0);
         g.add(kvColumn("PAYLOAD", Constants.runningPayloadVersion()), 1, 0);
         g.add(kvColumn("SERVEUR", Constants.serverHost()), 2, 0);
         g.add(kvColumn("LOADER", "Fabric"), 3, 0);
         g.add(kvColumn("MC", Constants.MC_VERSION), 4, 0);
+        g.setPadding(new Insets(rem(0.3), 0, rem(0.6), 0));
 
         // Crédit obligatoire (Complementary License Agreement 1.7, § 1.2.a) : le pack est actif
         // par défaut en mode pokényle.
-        Label credit = new Label("Shaders : Complementary Reimagined par EminGT (complementary.dev), téléchargé depuis Modrinth");
-        credit.setFont(Fonts.regular(12));
-        credit.setTextFill(Color.web("#6A6A74"));
-        credit.setWrapText(true);
-        return new VBox(14, h, g, credit);
+        Label credit = Elements.note("Shaders : Complementary Reimagined par EminGT (complementary.dev), téléchargé depuis Modrinth");
+        VBox credits = new VBox(credit);
+        credits.setPadding(new Insets(rem(0.6), 0, rem(0.2), 0));
+        return section("À propos", Elements.carte(null, g, credits));
     }
 
     private VBox kvColumn(String k, String v) {
         Label key = new Label(k);
-        key.setFont(Fonts.black(10));
-        key.setTextFill(Color.web("#6A6A74"));
+        key.setFont(Polices.noir(rem(0.52)));
+        key.setTextFill(Color.web("#8fa1c2"));
         key.setStyle("-fx-letter-spacing: 0.20em;");
         Label val = new Label(v);
-        val.setFont(Fonts.semi(14));
-        val.setTextFill(Color.web("#F4F4F7"));
-        return new VBox(6, key, val);
+        val.setFont(Polices.extra(rem(0.74)));
+        val.setTextFill(Jetons.ENCRE);
+        return new VBox(rem(0.3), key, val);
     }
 }
