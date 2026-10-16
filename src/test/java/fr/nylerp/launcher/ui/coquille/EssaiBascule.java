@@ -20,7 +20,6 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
@@ -150,14 +149,9 @@ public final class EssaiBascule {
         attendre(1300);
         verifier("C bascule rapide autour d'un changement de compte", "pokenyle");
 
-        // D. boutique (vue de navigation), retour, réglages (arrière-plan), retour, fenêtre rangée puis rouverte
+        // D. réglages (arrière-plan), retour, fenêtre rangée puis rouverte
         ouvrir(CRACK, "pokenyle");
         attendre(1000);
-        fx(() -> { coquille.afficherVue(new StackPane()); return null; });
-        attendre(400);
-        fx(() -> { coquille.retour(); return null; });
-        attendre(800);
-        verifier("D1 boutique puis retour", "pokenyle");
         fx(() -> { coquille.enArrierePlan(); return null; });
         attendre(300);
         fx(() -> { coquille.reprendre(); return null; });

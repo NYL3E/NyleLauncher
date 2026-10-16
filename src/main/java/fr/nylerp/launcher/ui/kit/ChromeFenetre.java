@@ -71,7 +71,7 @@ public final class ChromeFenetre {
         carte.getStyleClass().add("kit-fenetre");
 
         // barre du haut : [contenu ajouté par la coquille] [poignée extensible] [réduire] [fermer]
-        double hb = Jetons.rem(2.3);
+        double hb = hauteurBarre();
         barre.setAlignment(Pos.CENTER_LEFT);
         barre.setSpacing(Jetons.rem(0.25));
         barre.setPadding(new Insets(0, Jetons.rem(0.55), 0, Jetons.rem(0.9)));
@@ -141,6 +141,13 @@ public final class ChromeFenetre {
     public void setSurFermer(Runnable r) { surFermer = r == null ? stage::hide : r; }
     /** Appelé par le bouton réduire (par défaut : réduire la fenêtre). */
     public void setSurReduire(Runnable r) { surReduire = r == null ? () -> stage.setIconified(true) : r; }
+
+    /**
+     * Hauteur de la barre du haut. La poignée de déplacement la recouvre sur toute la largeur et capte les clics :
+     * un bouton posé dans cette bande est en grande partie mort. Tout écran qui n'est pas la coquille (paramètres,
+     * ajout de compte…) doit donc placer ses boutons SOUS cette hauteur.
+     */
+    public static double hauteurBarre() { return Jetons.rem(2.3); }
 
     /** La barre du haut : la coquille y ajoute son logo, son compte… (index 0 = tout à gauche, avant la poignée). */
     public HBox getBarre() { return barre; }

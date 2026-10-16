@@ -108,6 +108,11 @@ public class LauncherApp extends Application {
                 fr.nylerp.launcher.annonces.Annonces.ouvrirUrl(cible);
                 return;
             }
+            if ("boutique".equalsIgnoreCase(cible == null ? "" : cible.trim())) {     // le site s'ouvre dans le navigateur : la fenêtre du launcher reste comme elle est
+                fr.nylerp.launcher.ui.coquille.Liens.boutique(
+                        fr.nylerp.launcher.config.ModeDeJeu.courant() == fr.nylerp.launcher.config.ModeDeJeu.POKENYLE ? "pokenyle" : "nylerp");
+                return;
+            }
             if (coquille != null) {
                 if (!chromeMontre(coquille)) show(coquille);
                 coquille.naviguer(cible);
@@ -244,16 +249,7 @@ public class LauncherApp extends Application {
         if (coquille != null) coquille.liberer();
         coquille = new Coquille(echelle, compte, this::showSettings, this::onLogout,
                 this::switchAccount, this::showAddAccount);
-        // Boutique intégrée : la vraie page du site dans un WebView, sous l'en-tête, « Retour » la referme.
         final Coquille c = coquille;
-        c.setSurBoutique((univers, pseudo) -> {
-            fr.nylerp.launcher.ui.boutique.BoutiqueView vue =
-                    fr.nylerp.launcher.ui.boutique.Boutique.ouvrir(univers, pseudo);
-            vue.setSurRetour(c::retour);
-            // Quand la vue quitte l'écran (retour de l'en-tête ou de la boutique), son WebView est libéré.
-            vue.parentProperty().addListener((o, avant, apres) -> { if (apres == null) vue.fermer(); });
-            c.afficherVue(vue);
-        });
         if (!fr.nylerp.launcher.config.Settings.get().accueilVu) {
             // Premier lancement après la mise à jour : l'écran « Nouveau launcher » explique le
             // démarrage en fond et permet de le couper, puis on arrive dans les univers.

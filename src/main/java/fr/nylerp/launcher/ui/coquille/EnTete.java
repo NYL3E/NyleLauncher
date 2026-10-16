@@ -47,18 +47,16 @@ import java.util.function.IntConsumer;
 final class EnTete {
 
     static final String SVG_PANIER = "M3.5 4.5h2.1l2.2 10a1.6 1.6 0 0 0 1.6 1.3h7.9a1.6 1.6 0 0 0 1.5-1.1l1.9-6.2H6.6M9.6 20.2h.01M17 20.2h.01";
-    static final String SVG_RETOUR = "M14.5 6.5 9 12l5.5 5.5";
 
     private final HBox gauche = new HBox();
     private final HBox droite = new HBox();
     private final Segment segment;
     private final ImageView coffre = new ImageView();
     private final Image coffrePokenyle, coffreNylerp;
-    private final HBox retour;
     private final BoutonCompte compteBouton;
 
     private IntConsumer surUnivers = i -> { };
-    private Runnable surBoutique = () -> { }, surDiscord = () -> { }, surRetour = () -> { };
+    private Runnable surBoutique = () -> { }, surDiscord = () -> { };
     private Runnable surAjouterCompte = () -> { }, surDeconnexion = () -> { };
     private Consumer<Account> surChangerCompte = a -> { };
     private boolean ignorerSegment;
@@ -79,15 +77,10 @@ final class EnTete {
         segment.choixProperty().addListener((o, a, b) -> { if (!ignorerSegment) surUnivers.accept(b.intValue()); });
         Tooltip.install(segment, new Tooltip("Choisis ton univers"));
 
-        retour = Pilules.claire("Retour", SVG_RETOUR);
-        retour.setOnMouseClicked(e -> surRetour.run());
-        retour.setVisible(false);
-        retour.setManaged(false);
-
         gauche.setAlignment(Pos.CENTER_LEFT);
         gauche.setSpacing(Jetons.rem(0.6));
         gauche.setPickOnBounds(false);
-        gauche.getChildren().addAll(coffre, retour, segment);
+        gauche.getChildren().addAll(coffre, segment);
         if (Constants.DEV) {
             Text dev = new Text("DEV");
             dev.setFont(Polices.noir(Jetons.rem(0.45)));
@@ -122,7 +115,6 @@ final class EnTete {
     void setSurUnivers(IntConsumer r) { surUnivers = r; }
     void setSurBoutique(Runnable r) { surBoutique = r; }
     void setSurDiscord(Runnable r) { surDiscord = r; }
-    void setSurRetour(Runnable r) { surRetour = r; }
     void setComptes(Consumer<Account> changer, Runnable ajouter, Runnable deconnexion) {
         surChangerCompte = changer; surAjouterCompte = ajouter; surDeconnexion = deconnexion;
     }
@@ -139,14 +131,6 @@ final class EnTete {
     void verrouillerUnivers(boolean v) {
         segment.setDisable(v);
         segment.setOpacity(v ? 0.55 : 1);
-    }
-
-    /** Une vue de navigation (boutique…) est ouverte : « Retour » remplace le choix d'univers. */
-    void modeRetour(boolean actif) {
-        retour.setVisible(actif);
-        retour.setManaged(actif);
-        segment.setVisible(!actif);
-        segment.setManaged(!actif);
     }
 
     /** Le choix d'univers plein écran est affiché : le segment ferait doublon. */

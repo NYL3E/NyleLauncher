@@ -8,6 +8,7 @@ import fr.nylerp.launcher.ui.compte.CarteChoix;
 import fr.nylerp.launcher.ui.compte.FondCiel;
 import fr.nylerp.launcher.ui.compte.VerifPseudo;
 import fr.nylerp.launcher.ui.kit.CarteVerre;
+import fr.nylerp.launcher.ui.kit.ChromeFenetre;
 import fr.nylerp.launcher.ui.kit.Jetons;
 import fr.nylerp.launcher.ui.kit.Polices;
 import fr.nylerp.launcher.ui.kit.TitreEclats;
@@ -113,7 +114,10 @@ public class LoginView extends StackPane {
             back.setId("retour-accueil");
             back.setOnAction(e -> onBack.run());
             StackPane.setAlignment(back, Pos.TOP_LEFT);
-            StackPane.setMargin(back, new Insets(Jetons.rem(1.0), 0, 0, Jetons.rem(1.0)));
+            // SOUS la barre de la fenêtre (sa poignée capte les clics sur toute la largeur) ; cible de clic d'au moins 40 px
+            back.setMinHeight(40);
+            back.setPickOnBounds(true);
+            StackPane.setMargin(back, new Insets(ChromeFenetre.hauteurBarre() + Jetons.rem(0.2), 0, 0, Jetons.rem(1.0)));
             getChildren().add(back);
         }
 

@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  * Essai d'intégration (lot L9) : la VRAIE application, dans un dossier personnel isolé (-Duser.home),
  * parcourue étape par étape avec une capture 1x et 2x de chaque écran.
  * Sortie : propriété {@code essai.sortie}. Étapes : connexion → compte crack → Accueil → choix d'univers
- * → Pokényle (pré-téléchargement lancé puis annulé) → boutique → réglages → NyleRP → Jouer (jeu réel)
+ * → Pokényle (pré-téléchargement lancé puis annulé) → réglages → NyleRP → Jouer (jeu réel)
  * → fermeture vers la barre → réouverture.
  */
 public final class EssaiParcours extends LauncherApp {
@@ -78,11 +78,6 @@ public final class EssaiParcours extends LauncherApp {
             Services.preTelechargeur.annuler("pokenyle");
             dormir(1500);
             journal("après annulation : " + Services.preTelechargeur.etat("pokenyle"));
-            fx(() -> coquille().naviguer("boutique"));
-            dormir(12000);
-            capturer("06-boutique");
-            fx(() -> coquille().retour());
-            dormir(1500);
             fx(this::showSettings);
             dormir(2500);
             capturer("07-reglages");

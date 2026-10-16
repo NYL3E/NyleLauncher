@@ -5,6 +5,7 @@ import fr.nylerp.launcher.config.Settings;
 import fr.nylerp.launcher.fond.DemarrageAuto;
 import fr.nylerp.launcher.fond.Fond;
 import fr.nylerp.launcher.ui.kit.CarteVerre;
+import fr.nylerp.launcher.ui.kit.ChromeFenetre;
 import fr.nylerp.launcher.ui.kit.Interrupteur;
 import fr.nylerp.launcher.ui.kit.Jetons;
 import fr.nylerp.launcher.ui.kit.Polices;
@@ -17,8 +18,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -43,6 +47,7 @@ public class SettingsView extends BorderPane {
     private FlowPane shotGrid;                              // grille de vignettes (re-scannée à l'ouverture)
     private Button shotSortBtn;
     private boolean shotsNewestFirst = true;
+    private javafx.event.EventHandler<KeyEvent> echap;
 
     public SettingsView(Runnable onBack) {
         Polices.charger();
@@ -59,18 +64,36 @@ public class SettingsView extends BorderPane {
         Button back = new Button();
         back.getStyleClass().add("reglages-retour");
         back.setGraphic(Icons.arrowLeft(rem(0.85), Jetons.ENCRE));
-        double d = rem(2.05);
+        double d = Math.max(rem(2.05), 40);            // jamais sous 40 px : cible de clic confortable
         back.setMinSize(d, d);
         back.setPrefSize(d, d);
         back.setMaxSize(d, d);
+        back.setPickOnBounds(true);
         back.setOnAction(e -> onBack.run());
         back.setId("reglages-retour");
+        Tooltip.install(back, new Tooltip("Retour (Échap)"));
+        // Échap = retour, tant qu'aucune surcouche (agrandissement, confirmation) n'est ouverte.
+        sceneProperty().addListener((o, ancienne, nouvelle) -> {
+            if (ancienne != null) ancienne.removeEventFilter(KeyEvent.KEY_PRESSED, echap);
+            if (nouvelle != null) nouvelle.addEventFilter(KeyEvent.KEY_PRESSED, echap);
+        });
+        this.echap = e -> {
+            if (e.getCode() != KeyCode.ESCAPE) return;
+            e.consume();
+            if (bodyStack != null && bodyStack.getChildren().size() > 1) {   // agrandissement / confirmation : Échap le ferme d'abord
+                bodyStack.getChildren().remove(bodyStack.getChildren().size() - 1);
+            } else {
+                onBack.run();
+            }
+        };
 
         TitreEclats title = new TitreEclats("Paramètres", TitreEclats.Style.SECONDAIRE, rem(1.6), null);
 
         HBox bar = new HBox(rem(0.85), back, title);
         bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setPadding(new Insets(rem(0.9), rem(1.4), rem(0.5), rem(1.2)));
+        // la barre de la fenêtre (poignée de déplacement) recouvre le haut de l'écran et capte les clics :
+        // le bouton Retour doit commencer SOUS elle, sinon sa partie haute est morte.
+        bar.setPadding(new Insets(ChromeFenetre.hauteurBarre() + rem(0.15), rem(1.4), rem(0.5), rem(1.2)));
         return bar;
     }
 

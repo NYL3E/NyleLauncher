@@ -16,9 +16,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 
@@ -110,15 +108,6 @@ public final class ApercuCoquille extends Application {
         // 6b. NyleRP : mise à jour en cours, puis erreur
         etape(() -> simuler("Mettre à jour", "Téléchargement du modpack · 498 / 1185 fichiers", 0.42), 1500, "06b-nylerp-maj");
         etape(() -> simuler("Jouer", "Impossible de joindre le serveur de mise à jour. Vérifie ta connexion.", 0), 1500, "06c-nylerp-erreur");
-        // 7. vue de navigation (boutique simulée) avec « Retour »
-        etape(() -> {
-            Coquille c = (Coquille) chrome.getCarte().getChildren().get(0);
-            Text t = new Text("Boutique (vue de démonstration)");
-            t.setFont(Polices.titre(32));
-            StackPane v = new StackPane(t);
-            v.setStyle("-fx-background-color: #eaf7ff;");
-            c.afficherVue(v);
-        }, 1500, "07-vue-navigation");
         // 8. séquence du ciel (temps forcés) : Ho-Oh passe entre 8 s et 53 s
         etape(() -> pokenyle(premium, new Etat(false, Optional.empty(), false, false), PreTelechargeur.AUCUN), 3500, null);
         for (double t : new double[]{9, 16, 24, 32, 40}) {

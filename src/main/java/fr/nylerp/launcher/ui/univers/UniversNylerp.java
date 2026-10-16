@@ -523,7 +523,7 @@ public final class UniversNylerp extends StackPane {
         Text t = new Text("Nouveau launcher");
         t.setFont(Polices.noir(Jetons.rem(0.72)));
         t.setFill(Jetons.ENCRE);
-        Text d = new Text("Nouveau design, boutique intégrée et annonces dans la barre système.");
+        Text d = new Text("Nouveau design et annonces dans la barre système.");
         d.setFont(Polices.gras(Jetons.rem(0.56)));
         d.setFill(Jetons.ENCRE_2);
         d.setWrappingWidth(l - Jetons.rem(1.2));

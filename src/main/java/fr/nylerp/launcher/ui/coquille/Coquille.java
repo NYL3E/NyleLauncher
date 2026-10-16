@@ -32,7 +32,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -40,8 +39,8 @@ import java.util.function.Consumer;
  *
  * <p>Elle porte un {@link LanceurJeu} (le lancement, partagé par les deux univers), les deux univers
  * (construits à la première visite, puis gardés), le choix d'univers du premier lancement, la bannière
- * de mise à jour du launcher et les vues de navigation (boutique…), affichées dans la zone de contenu
- * sous l'en-tête, avec un retour.
+ * de mise à jour du launcher. La boutique n'est PAS une vue du launcher : le bouton de l'en-tête ouvre la
+ * boutique du site dans le navigateur.
  *
  * <p>Changer d'univers = {@link ModeDeJeu#definir} (instance, pack et serveur suivent, comme avec
  * l'ancien sélecteur) + {@link LanceurJeu#apresChangementUnivers()} + le dernier univers retenu dans
@@ -59,13 +58,11 @@ public final class Coquille extends StackPane {
     private final LanceurJeu lanceur = new LanceurJeu();
     private final EnTete entete;
     private final StackPane scene = new StackPane();
-    private final StackPane vues = new StackPane();
     private final HBox banniere;
     private UniversPokenyle pokenyle;
     private UniversNylerp nylerp;
     private ModeDeJeu courant;
     private ChoixUnivers choix;
-    private Node vueNavigation;
     /** Transition d'univers en cours (une seule à la fois : voir {@link #terminerBascule()}). */
     private Animation bascule;
     private boolean enFond;
@@ -74,8 +71,6 @@ public final class Coquille extends StackPane {
     private final BoutonRond boutonPause = new BoutonRond(BoutonRond.PAUSE);
     private final BoutonRond boutonReglages = new BoutonRond(BoutonRond.ROUE);
     private final HBox outils;
-
-    private BiConsumer<String, String> surBoutique = (univers, pseudo) -> Liens.boutique(univers);
 
     /**
      * @param surReglages   ouvre les paramètres
@@ -97,7 +92,6 @@ public final class Coquille extends StackPane {
         entete.setSurUnivers(i -> changerUnivers(i == 0 ? ModeDeJeu.POKENYLE : ModeDeJeu.NYLERP));
         entete.setSurBoutique(this::ouvrirBoutique);
         entete.setSurDiscord(() -> Liens.ouvrir(Services.etatPokenyle.discordUrl()));
-        entete.setSurRetour(this::retour);
         entete.setComptes(surChangerCompte, surAjouterCompte, surDeconnexion);
         lanceur.occupeProperty().addListener((o, a, occupe) -> entete.verrouillerUnivers(occupe));
 
@@ -105,9 +99,6 @@ public final class Coquille extends StackPane {
         StackPane.setAlignment(banniere, Pos.TOP_LEFT);
         StackPane.setMargin(banniere, new Insets(Jetons.rem(2.6), 0, 0, Jetons.rem(1.2)));
 
-        // les vues de navigation commencent SOUS la barre de la fenêtre (en-tête toujours visible)
-        vues.setPadding(new Insets(Jetons.rem(2.3), 0, 0, 0));
-        vues.setPickOnBounds(false);
         boutonSon.setOnAction(e -> { UniversNylerp.basculerSon(); majOutils(); });
         Tooltip.install(boutonSon, new Tooltip("Couper / réactiver la musique"));
         boutonPause.setOnAction(e -> {
@@ -125,7 +116,7 @@ public final class Coquille extends StackPane {
         outils.setPickOnBounds(false);
         StackPane.setAlignment(outils, Pos.BOTTOM_RIGHT);
         StackPane.setMargin(outils, new Insets(0, Jetons.rem(1.4), Jetons.rem(1.2), 0));
-        getChildren().addAll(scene, outils, vues, banniere);
+        getChildren().addAll(scene, outils, banniere);
 
         // Le mode suit le dernier univers choisi AVANT la vérification du pack (qui lit le mode).
         String vu = Settings.get().universVu;
@@ -153,21 +144,12 @@ public final class Coquille extends StackPane {
     /** Zone des univers (pour les essais de non-régression : jamais vide après un changement d'univers ou de compte). */
     StackPane sceneUnivers() { return scene; }
 
-    /**
-     * Ce que fait le bouton « Boutique » de l'en-tête : reçoit l'univers affiché (« pokenyle » ou
-     * « nylerp ») et le pseudo. Par défaut, la boutique du site s'ouvre dans le navigateur ; l'intégration
-     * branche ici la boutique intégrée ({@code Boutique.ouvrir}) via {@link #afficherVue(Node)}.
-     */
-    public void setSurBoutique(BiConsumer<String, String> r) {
-        surBoutique = r == null ? (u, p) -> Liens.boutique(u) : r;
-    }
-
     /** Une cible venue d'une annonce : « pokenyle », « nylerp », « boutique ». */
     public void naviguer(String cible) {
         if (cible == null) return;
         switch (cible.trim().toLowerCase(java.util.Locale.ROOT)) {
-            case "pokenyle" -> { retourSansAnimation(); changerUnivers(ModeDeJeu.POKENYLE); }
-            case "nylerp" -> { retourSansAnimation(); changerUnivers(ModeDeJeu.NYLERP); }
+            case "pokenyle" -> changerUnivers(ModeDeJeu.POKENYLE);
+            case "nylerp" -> changerUnivers(ModeDeJeu.NYLERP);
             case "boutique" -> ouvrirBoutique();
             default -> { }
         }
@@ -183,7 +165,7 @@ public final class Coquille extends StackPane {
     /** Fenêtre de retour : seul l'univers affiché reprend. */
     public void reprendre() {
         enFond = false;
-        if (vueNavigation != null || choix != null) return;
+        if (choix != null) return;
         if (courant == ModeDeJeu.POKENYLE && pokenyle != null) pokenyle.afficher();
         if (courant == ModeDeJeu.NYLERP && nylerp != null) nylerp.reprendre();
     }
@@ -199,46 +181,11 @@ public final class Coquille extends StackPane {
         if (nylerp != null) nylerp.liberer();
     }
 
-    // ── Vues de navigation (boutique…) ──────────────────────────────────────────────────────────
+    // ── Boutique ────────────────────────────────────────────────────────────────────────────────
 
-    /** Affiche une vue dans la zone de contenu, sous l'en-tête ; « Retour » la referme. */
-    public void afficherVue(Node vue) {
-        if (vue == null) return;
-        vueNavigation = vue;
-        if (pokenyle != null) pokenyle.cacher();
-        vues.setStyle("-fx-background-color: #eaf7ff;");
-        vues.getChildren().setAll(vue);
-        entete.modeRetour(true);
-        vue.setOpacity(0);
-        FadeTransition f = new FadeTransition(Duration.millis(220), vue);
-        f.setToValue(1);
-        f.play();
-    }
-
-    /** Referme la vue de navigation ouverte (sans effet s'il n'y en a pas). */
-    public void retour() {
-        if (vueNavigation == null) return;
-        Node v = vueNavigation;
-        FadeTransition f = new FadeTransition(Duration.millis(180), v);
-        f.setToValue(0);
-        f.setOnFinished(e -> { vues.getChildren().remove(v); if (vueNavigation == null) vues.setStyle(""); });
-        f.play();
-        vueNavigation = null;
-        entete.modeRetour(false);
-        if (!enFond) reprendre();
-    }
-
-    private void retourSansAnimation() {
-        if (vueNavigation == null) return;
-        vues.getChildren().clear();
-        vues.setStyle("");
-        vueNavigation = null;
-        entete.modeRetour(false);
-    }
-
-    private void ouvrirBoutique() {
-        String univers = courant == ModeDeJeu.POKENYLE ? "pokenyle" : "nylerp";
-        surBoutique.accept(univers, compte == null ? null : compte.username());
+    /** Ouvre la boutique du site de l'univers affiché dans le navigateur du système (un clic = un onglet). */
+    public void ouvrirBoutique() {
+        Liens.boutique(courant == ModeDeJeu.POKENYLE ? "pokenyle" : "nylerp");
     }
 
     // ── Univers ─────────────────────────────────────────────────────────────────────────────────
