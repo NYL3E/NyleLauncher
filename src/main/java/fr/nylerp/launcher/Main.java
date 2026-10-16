@@ -16,6 +16,12 @@ public final class Main {
             System.exit(0); // the relaunched process owns the UI from here
             return;
         }
+        // Un seul launcher par session : si un autre tourne déjà, il se montre et on s'arrête ici,
+        // avant d'avoir ouvert quoi que ce soit (voir fond.Fond).
+        if (!fr.nylerp.launcher.fond.Fond.prendreLaMain(args)) {
+            System.exit(0);
+            return;
+        }
         Application.launch(LauncherApp.class, args);
     }
 }

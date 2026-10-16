@@ -27,6 +27,11 @@ dependencies {
     implementation 'ch.qos.logback:logback-classic:1.5.6'
     implementation 'org.slf4j:slf4j-api:2.0.13'
 
+    // Fond (refonte 2026-10) : appels natifs pour le démarrage automatique (registre Windows) et
+    // l'icône du Dock (NSApplication) — pur Java, natifs embarqués pour tous les OS.
+    implementation 'net.java.dev.jna:jna:5.14.0'
+    implementation 'net.java.dev.jna:jna-platform:5.14.0'
+
     // NOTE — OpenLauncherLib + FlowUpdater will be wired in the next step once
     // the vanilla launch path is designed; keeping the dep tree small for now.
 
