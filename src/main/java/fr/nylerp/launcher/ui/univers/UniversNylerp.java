@@ -67,7 +67,6 @@ public final class UniversNylerp extends StackPane {
     private static final java.util.Set<String> audioEnAttente = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private boolean videoCoupee = Settings.get().launcherVideoDisabled;
-    private SVGPath videoIcon;
     private final StackPane corpsFond = new StackPane();
     private Node ancreAudio;
     private boolean suspendu;
@@ -140,17 +139,16 @@ public final class UniversNylerp extends StackPane {
         StackPane.setAlignment(actualite, Pos.TOP_RIGHT);
         StackPane.setMargin(actualite, new Insets(Jetons.rem(3.6), Jetons.rem(1.4), 0, 0));
 
-        // ── vidéo (bas droite) et version (bas droite, discrète) ──
-        Region videoBtn = buildVideoButton();
+        // ── version (bas droite, discrète, à gauche du groupe son / pause / réglages de la coquille) ──
         Label version = new Label("v" + fr.nylerp.launcher.config.Constants.runningPayloadVersion());
         version.setFont(Polices.gras(Jetons.rem(0.5)));
         version.setTextFill(Color.rgb(255, 255, 255, 0.55));
-        HBox basDroite = new HBox(Jetons.rem(0.6), version, videoBtn);
+        HBox basDroite = new HBox(version);
         basDroite.setAlignment(Pos.CENTER_RIGHT);
         basDroite.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         basDroite.setPickOnBounds(false);
         StackPane.setAlignment(basDroite, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(basDroite, new Insets(0, Jetons.rem(1.4), Jetons.rem(1.2), 0));
+        StackPane.setMargin(basDroite, new Insets(0, Jetons.rem(8.4), Jetons.rem(1.75), 0));
 
         getChildren().addAll(corpsFond, voile, gauche, actualite, bloc, basDroite);
     }
@@ -448,30 +446,13 @@ public final class UniversNylerp extends StackPane {
         }));
     }
 
-    // ── Bouton vidéo (repris de MainView, au style du kit) ───────────────────────────────────────
+    // ── Vidéo de fond (le bouton vit dans le groupe du bas de la coquille) ─────────────────────────
 
-    private Region buildVideoButton() {
-        double c = Jetons.rem(1.9);
-        StackPane btn = new StackPane();
-        btn.setPrefSize(c, c);
-        btn.setMinSize(c, c);
-        btn.setMaxSize(c, c);
-        btn.setCursor(Curseurs.main());
-        String repos = "-fx-background-color: rgba(255,255,255,0.78); -fx-background-radius: 99; -fx-border-color: rgba(255,255,255,0.95); -fx-border-radius: 99; -fx-border-width: 1.2;";
-        String survol = repos.replace("0.78", "1.0");
-        btn.setStyle(repos);
-        btn.setOnMouseEntered(e -> btn.setStyle(survol));
-        btn.setOnMouseExited(e -> btn.setStyle(repos));
-        Tooltip.install(btn, new Tooltip("Couper / relancer la vidéo de fond\nCoupée, elle ne se relancera plus au démarrage"));
-        videoIcon = new SVGPath();
-        videoIcon.setFill(Jetons.ICONE);
-        applyVideoIconShape();
-        btn.getChildren().add(videoIcon);
-        btn.setOnMouseClicked(e -> toggleVideo());
-        return btn;
-    }
+    /** Vrai si le joueur a coupé la vidéo de fond (réglage gardé d'un démarrage à l'autre). */
+    public boolean videoCoupee() { return videoCoupee; }
 
-    private void toggleVideo() {
+    /** Coupe ou relance la vidéo de fond ; coupée, elle ne se relance plus au démarrage. */
+    public void basculerVideo() {
         videoCoupee = !videoCoupee;
         try {
             if (videoCoupee) arreterVideos();
@@ -479,16 +460,8 @@ public final class UniversNylerp extends StackPane {
         } catch (Throwable t) {
             System.err.println("[UniversNylerp] bascule du fond vidéo impossible : " + t);
         }
-        applyVideoIconShape();
         Settings.get().launcherVideoDisabled = videoCoupee;
         Settings.get().save();
-    }
-
-    private void applyVideoIconShape() {
-        if (videoIcon == null) return;
-        videoIcon.setContent(videoCoupee ? "M8 5v14l11-7z" : "M6 19h4V5H6v14zm8-14v14h4V5h-4z");
-        videoIcon.setScaleX(0.75);
-        videoIcon.setScaleY(0.75);
     }
 
     // ── Actualité (mêmes cartes que l'ancien panneau, en verre clair) ───────────────────────────

@@ -197,6 +197,7 @@ public class LauncherApp extends Application {
         }
         this.account = account;
         nouvelleCoquille(account);
+        fr.nylerp.launcher.annonces.Annonces.compteChange();
     }
 
     /** Switches to another roster account from the account menu. */
@@ -204,6 +205,7 @@ public class LauncherApp extends Application {
         AccountStore.setActive(target);
         this.account = AccountStore.active();
         nouvelleCoquille(this.account);
+        fr.nylerp.launcher.annonces.Annonces.compteChange();
         silentRefresh(this.account);
     }
 

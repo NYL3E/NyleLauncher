@@ -16,6 +16,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import fr.nylerp.launcher.ui.kit.BoutonRond;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -56,6 +58,11 @@ public final class Coquille extends StackPane {
     private ChoixUnivers choix;
     private Node vueNavigation;
     private boolean enFond;
+    /** Groupe discret du bas à droite, commun aux deux univers : son, pause, réglages. */
+    private final BoutonRond boutonSon = new BoutonRond(BoutonRond.SON);
+    private final BoutonRond boutonPause = new BoutonRond(BoutonRond.PAUSE);
+    private final BoutonRond boutonReglages = new BoutonRond(BoutonRond.ROUE);
+    private final HBox outils;
 
     private BiConsumer<String, String> surBoutique = (univers, pseudo) -> Liens.boutique(univers);
 
@@ -77,7 +84,6 @@ public final class Coquille extends StackPane {
 
         entete = new EnTete(compte);
         entete.setSurUnivers(i -> changerUnivers(i == 0 ? ModeDeJeu.POKENYLE : ModeDeJeu.NYLERP));
-        entete.setSurReglages(surReglages);
         entete.setSurBoutique(this::ouvrirBoutique);
         entete.setSurDiscord(() -> Liens.ouvrir(Services.etatPokenyle.discordUrl()));
         entete.setSurRetour(this::retour);
@@ -91,7 +97,24 @@ public final class Coquille extends StackPane {
         // les vues de navigation commencent SOUS la barre de la fenêtre (en-tête toujours visible)
         vues.setPadding(new Insets(Jetons.rem(2.3), 0, 0, 0));
         vues.setPickOnBounds(false);
-        getChildren().addAll(scene, vues, banniere);
+        boutonSon.setOnAction(e -> { UniversNylerp.basculerSon(); majOutils(); });
+        Tooltip.install(boutonSon, new Tooltip("Couper / réactiver la musique"));
+        boutonPause.setOnAction(e -> {
+            if (courant == ModeDeJeu.NYLERP && nylerp != null) nylerp.basculerVideo();
+            else if (courant == ModeDeJeu.POKENYLE && pokenyle != null) pokenyle.basculerAnimation();
+            majOutils();
+        });
+        Tooltip.install(boutonPause, new Tooltip("Mettre en pause / relancer le fond animé"));
+        boutonReglages.setRotationSurvol(60);
+        boutonReglages.setOnAction(e -> surReglages.run());
+        Tooltip.install(boutonReglages, new Tooltip("Paramètres"));
+        outils = new HBox(Jetons.rem(0.5), boutonSon, boutonPause, boutonReglages);
+        outils.setAlignment(Pos.CENTER_RIGHT);
+        outils.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        outils.setPickOnBounds(false);
+        StackPane.setAlignment(outils, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(outils, new Insets(0, Jetons.rem(1.4), Jetons.rem(1.2), 0));
+        getChildren().addAll(scene, outils, vues, banniere);
 
         // Le mode suit le dernier univers choisi AVANT la vérification du pack (qui lit le mode).
         String vu = Settings.get().universVu;
@@ -240,6 +263,7 @@ public final class Coquille extends StackPane {
     private void montrer(ModeDeJeu m, boolean anime) {
         ModeDeJeu ancien = courant;
         courant = m;
+        majOutils();
         entete.montrerUnivers(m == ModeDeJeu.POKENYLE ? 0 : 1);
         Node nouveau;
         if (m == ModeDeJeu.POKENYLE) {
@@ -274,6 +298,15 @@ public final class Coquille extends StackPane {
         p.setInterpolator(Jetons.SORTIE);
         p.setOnFinished(e -> scene.getChildren().retainAll(nouveau));
         p.play();
+    }
+
+    /** Icônes du groupe du bas selon l'état : son coupé ou non, fond en pause ou non. */
+    private void majOutils() {
+        boutonSon.setIcone(UniversNylerp.sonCoupe() ? BoutonRond.SON_COUPE : BoutonRond.SON);
+        boolean enPause = courant == ModeDeJeu.NYLERP
+                ? (nylerp != null ? nylerp.videoCoupee() : Settings.get().launcherVideoDisabled)
+                : UniversPokenyle.animationEnPause();
+        boutonPause.setIcone(enPause ? BoutonRond.LECTURE : BoutonRond.PAUSE);
     }
 
     // ── Bannière de mise à jour du launcher ─────────────────────────────────────────────────────

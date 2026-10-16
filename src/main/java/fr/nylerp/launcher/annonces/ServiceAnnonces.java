@@ -135,5 +135,8 @@ final class ServiceAnnonces {
         }
     }
 
+    /** Reprogramme les cartes depuis la dernière lecture, sans réseau (le compte vient de changer). */
+    void reprogrammer() { programmer(); }
+
     boolean sequenceEnCours() { return sequenceEnCours; }
 }

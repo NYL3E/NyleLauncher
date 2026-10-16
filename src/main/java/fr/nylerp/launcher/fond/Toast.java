@@ -30,8 +30,8 @@ import java.util.List;
 
 /**
  * Carte d'annonce au style du site (fond nacré, encre #30384A, accent #10A7E6), affichée dans le
- * coin de l'écran même quand la fenêtre du launcher est fermée : en haut à droite sous macOS et
- * Linux (là où le système range ses propres notifications), en bas à droite sous Windows.
+ * coin de l'écran même quand la fenêtre du launcher est fermée : en bas à droite sous Windows et
+ * macOS (en haut, les bannières du système les recouvraient), en haut à droite sous Linux.
  *
  * <p>Pas de {@code TrayIcon.displayMessage} : sous macOS il signe la notification « Java » ou
  * « Éditeur de script », et son rendu varie d'un système à l'autre.
@@ -165,7 +165,9 @@ final class Toast {
         for (Stage st : ouvertes) {
             double h = st.getHeight();
             st.setX(zone.getMaxX() - st.getWidth() - MARGE + ombre);
-            if (Systeme.windows()) {
+            // En bas à droite sous Windows ET macOS : en haut à droite, les bannières du système
+            // (« Notifications … ») recouvraient nos cartes (constaté au test d'intégration du 16/10).
+            if (Systeme.windows() || Systeme.mac()) {
                 st.setY(zone.getMaxY() - MARGE + ombre - cumul - h);
             } else {
                 st.setY(zone.getMinY() + MARGE - ombre + cumul);

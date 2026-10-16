@@ -75,6 +75,18 @@ public final class Annonces {
         LOG.info("Annonces : démarrées ({})", base);
     }
 
+    /**
+     * À appeler quand le compte actif change (connexion, changement de compte) : le ciblage premium /
+     * crack dépend du compte, et le premier cycle a pu tourner avant toute connexion.
+     */
+    public static synchronized void compteChange() {
+        if (planif == null || service == null) return;
+        ServiceAnnonces s = service;
+        planif.schedule(() -> {
+            try { s.reprogrammer(); } catch (Throwable t) { LOG.warn("Annonces : reprogrammation en échec : {}", t.toString()); }
+        }, 2, TimeUnit.SECONDS);
+    }
+
     /** Arrête les lectures (quitter, tests). La config déjà lue reste en place. */
     public static synchronized void arreter() {
         if (planif != null) planif.shutdownNow();

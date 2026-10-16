@@ -131,7 +131,7 @@ public final class UniversPokenyle extends StackPane {
 
     /** L'univers devient visible : le ciel s'anime, le compte à rebours tourne. */
     public void afficher() {
-        ciel.demarrer();
+        if (!animationEnPause) ciel.demarrer();
         seconde.play();
         rafraichir();
     }
@@ -143,6 +143,17 @@ public final class UniversPokenyle extends StackPane {
     }
 
     public CielPokenyle ciel() { return ciel; }
+
+    /** Pause du ciel demandée par le joueur (bouton du bas) : le ciel reste figé jusqu'à la reprise. */
+    private static boolean animationEnPause;
+
+    public static boolean animationEnPause() { return animationEnPause; }
+
+    /** Met le ciel en pause ou le relance (bouton pause du groupe du bas). */
+    public void basculerAnimation() {
+        animationEnPause = !animationEnPause;
+        if (animationEnPause) ciel.arreter(); else ciel.demarrer();
+    }
 
     /** Vrai si ce joueur peut lancer Pokényle maintenant. */
     public static boolean ouvertPour(Account compte) {

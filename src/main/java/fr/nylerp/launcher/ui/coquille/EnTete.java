@@ -4,7 +4,6 @@ import fr.nylerp.launcher.auth.Account;
 import fr.nylerp.launcher.auth.AccountStore;
 import fr.nylerp.launcher.config.Constants;
 import fr.nylerp.launcher.ui.kit.BoutonCompte;
-import fr.nylerp.launcher.ui.kit.BoutonIcone;
 import fr.nylerp.launcher.ui.kit.BoutonPilule;
 import fr.nylerp.launcher.ui.kit.Curseurs;
 import fr.nylerp.launcher.ui.kit.Jetons;
@@ -12,14 +11,12 @@ import fr.nylerp.launcher.ui.kit.Polices;
 import fr.nylerp.launcher.ui.kit.Segment;
 import fr.nylerp.launcher.ui.univers.ImagesDistantes;
 import fr.nylerp.launcher.ui.univers.Pilules;
-import fr.nylerp.launcher.ui.univers.UniversNylerp;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.BlurType;
@@ -33,9 +30,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.SVGPath;
-import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Text;
 import javafx.stage.Popup;
 import javafx.util.Duration;
@@ -47,13 +41,12 @@ import java.util.function.IntConsumer;
 /**
  * L'en-tête de la coquille, posé DANS la barre de la fenêtre (la poignée de déplacement sépare les
  * deux groupes) : à gauche le coffre, le choix d'univers et le badge DEV ; à droite Discord, la
- * boutique, les réglages, le son et le compte (menu des comptes : changer, ajouter, retirer,
+ * boutique et le compte (menu des comptes : changer, ajouter, retirer,
  * se déconnecter — repris de l'ancien menu de la capsule).
  */
 final class EnTete {
 
     static final String SVG_PANIER = "M3.5 4.5h2.1l2.2 10a1.6 1.6 0 0 0 1.6 1.3h7.9a1.6 1.6 0 0 0 1.5-1.1l1.9-6.2H6.6M9.6 20.2h.01M17 20.2h.01";
-    static final String SVG_BARRE_SON = "M4 4l16 16";
     static final String SVG_RETOUR = "M14.5 6.5 9 12l5.5 5.5";
 
     private final HBox gauche = new HBox();
@@ -62,11 +55,10 @@ final class EnTete {
     private final ImageView coffre = new ImageView();
     private final Image coffrePokenyle, coffreNylerp;
     private final HBox retour;
-    private final SVGPath barreSon = new SVGPath();
     private final BoutonCompte compteBouton;
 
     private IntConsumer surUnivers = i -> { };
-    private Runnable surReglages = () -> { }, surBoutique = () -> { }, surDiscord = () -> { }, surRetour = () -> { };
+    private Runnable surBoutique = () -> { }, surDiscord = () -> { }, surRetour = () -> { };
     private Runnable surAjouterCompte = () -> { }, surDeconnexion = () -> { };
     private Consumer<Account> surChangerCompte = a -> { };
     private boolean ignorerSegment;
@@ -112,26 +104,6 @@ final class EnTete {
         discord.setOnAction(e -> surDiscord.run());
         HBox boutique = Pilules.claire("Boutique", SVG_PANIER);
         boutique.setOnMouseClicked(e -> surBoutique.run());
-        BoutonIcone reglages = new BoutonIcone(BoutonIcone.REGLAGES);
-        reglages.setOnAction(e -> surReglages.run());
-        Tooltip.install(reglages, new Tooltip("Paramètres"));
-        BoutonIcone son = new BoutonIcone(BoutonIcone.SON);
-        barreSon.setContent(SVG_BARRE_SON);
-        barreSon.setStroke(Jetons.ICONE);
-        barreSon.setStrokeWidth(2.2);
-        barreSon.setStrokeLineCap(StrokeLineCap.ROUND);
-        barreSon.setMouseTransparent(true);
-        Group gb = new Group(new Rectangle(24, 24, Color.TRANSPARENT), barreSon);
-        double c = Jetons.rem(1.5617), ti = Jetons.rem(1.0938);
-        gb.setScaleX(ti / 24);
-        gb.setScaleY(ti / 24);
-        gb.setLayoutX(c / 2 - 12);
-        gb.setLayoutY(c / 2 - 12);
-        gb.setMouseTransparent(true);
-        son.getChildren().add(gb);
-        son.setOnAction(e -> { UniversNylerp.basculerSon(); majSon(); });
-        Tooltip.install(son, new Tooltip("Couper / réactiver la musique"));
-        majSon();
 
         compteBouton = new BoutonCompte(compte == null ? null : compte.username());
         Tetes.charger(compte, compteBouton::setImage);
@@ -141,14 +113,13 @@ final class EnTete {
         droite.setSpacing(Jetons.rem(0.35));
         droite.setPickOnBounds(false);
         droite.setPadding(new Insets(0, Jetons.rem(0.5), 0, 0));
-        droite.getChildren().addAll(discord, boutique, reglages, son, compteBouton);
+        droite.getChildren().addAll(discord, boutique, compteBouton);
     }
 
     HBox gauche() { return gauche; }
     HBox droite() { return droite; }
 
     void setSurUnivers(IntConsumer r) { surUnivers = r; }
-    void setSurReglages(Runnable r) { surReglages = r; }
     void setSurBoutique(Runnable r) { surBoutique = r; }
     void setSurDiscord(Runnable r) { surDiscord = r; }
     void setSurRetour(Runnable r) { surRetour = r; }
@@ -182,10 +153,6 @@ final class EnTete {
     void masquerSegment(boolean m) {
         segment.setVisible(!m);
         segment.setManaged(!m);
-    }
-
-    private void majSon() {
-        barreSon.setVisible(UniversNylerp.sonCoupe());
     }
 
     // ── Menu des comptes (logique de l'ancien showAccountMenu, au style du kit) ────────────────
