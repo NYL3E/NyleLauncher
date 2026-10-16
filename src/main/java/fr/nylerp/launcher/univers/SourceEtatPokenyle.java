@@ -19,10 +19,13 @@ public interface SourceEtatPokenyle {
     /** Libellé affiché quand la date exacte n'est pas connue, par exemple « mi-décembre ». */
     String libelleOuverture();
 
-    /** Vrai si les comptes crack sont acceptés sur Pokényle. */
+    /**
+     * Gardé dans le contrat pour ne rien casser, mais l'interface ne le lit plus : le serveur décide, pas le launcher.
+     * Un compte crack voit les mêmes écrans qu'un premium (décision de l'owner, 16/10/2026).
+     */
     boolean crackAutorise();
 
-    /** Message montré à un compte crack tant que {@link #crackAutorise()} est faux. */
+    /** Idem : plus lu par l'interface (voir {@link #crackAutorise()}). */
     String messageCrack();
 
     boolean discordActif();

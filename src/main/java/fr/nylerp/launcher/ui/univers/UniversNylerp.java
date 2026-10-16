@@ -127,12 +127,14 @@ public final class UniversNylerp extends StackPane {
         gauche.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         gauche.setPickOnBounds(false);
         StackPane.setAlignment(gauche, Pos.TOP_LEFT);
-        StackPane.setMargin(gauche, new Insets(Jetons.rem(4.2), 0, 0, Jetons.rem(2.2)));
+        StackPane.setMargin(gauche, new Insets(Jetons.rem(4.2), 0, 0, Jetons.rem(1.8)));
 
         // ── lancement, en bas à gauche ──
         BlocLancement bloc = new BlocLancement(lanceur, false, "NYLERP", Pos.TOP_LEFT);
         StackPane.setAlignment(bloc, Pos.BOTTOM_LEFT);
-        StackPane.setMargin(bloc, new Insets(0, 0, Jetons.rem(2.3), Jetons.rem(1.6)));
+        // bord gauche visible = celui du logo (1,8 rem) ; la pilule garde 0,62 rem de halo à sa gauche. Le pied du bloc
+        // suit la même ligne de base que le groupe son / pause / réglages du coin opposé (1,2 rem).
+        StackPane.setMargin(bloc, new Insets(0, 0, Jetons.rem(1.2) - Jetons.rem(0.2), Jetons.rem(1.8) - Jetons.rem(0.62)));
 
         // ── actualité, à droite ──
         Region actualite = construireActualite();

@@ -7,7 +7,6 @@ import fr.nylerp.launcher.jeu.LanceurJeu;
 import fr.nylerp.launcher.ui.SelecteurMode;
 import fr.nylerp.launcher.ui.kit.BoutonJouer;
 import fr.nylerp.launcher.ui.kit.BoutonPilule;
-import fr.nylerp.launcher.ui.kit.CarteVerre;
 import fr.nylerp.launcher.ui.kit.Jetons;
 import fr.nylerp.launcher.ui.kit.Polices;
 import fr.nylerp.launcher.univers.PreTelechargeur;
@@ -31,7 +30,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
 
 import java.time.ZonedDateTime;
@@ -41,24 +39,35 @@ import java.util.Optional;
  * L'UNIVERS POKÉNYLE — le haut de page du site : ciel animé (nuées et Ho-Oh), fond aux coffres-
  * Pokéballs, gros logo officiel, gros bouton du kit.
  *
- * <p>Trois états, lus sur {@link Services#etatPokenyle} et {@link Services#preTelechargeur} (jamais une
+ * <p>Deux états, lus sur {@link Services#etatPokenyle} et {@link Services#preTelechargeur} (jamais une
  * implémentation) :
  * <ul>
  *   <li><b>ouvert pour ce joueur</b> (ouverture générale, testeur distant, ou testeur historique de
  *       {@link SelecteurMode}) : « Jouer », branché sur le {@link LanceurJeu} ;</li>
- *   <li><b>compte crack</b> alors que Pokényle ne les accepte pas encore : le message distant, honnête —
- *       jamais un lancement voué à l'échec ;</li>
  *   <li><b>pas encore ouvert</b> : compte à rebours (date connue) ou libellé (« mi-décembre »),
  *       pré-téléchargement du pack s'il existe, « Me prévenir », liste d'attente si Discord est actif.</li>
  * </ul>
+ * Aucune variante selon le type de compte : un compte crack voit EXACTEMENT les mêmes états qu'un premium. C'est
+ * le serveur qui décide qui peut entrer, pas le launcher (décision de l'owner, 16/10/2026).
  */
 public final class UniversPokenyle extends StackPane {
+
+    /** Bord gauche visible commun au logo et au bouton (même colonne). */
+    private static double margeGauche() { return Jetons.rem(1.8); }
+    /** Distance du pied du bloc au bas de la fenêtre : celle du groupe son / pause / réglages (Coquille). */
+    private static double margeBasse() { return Jetons.rem(1.2); }
+    private static double haloBas() { return Jetons.rem(0.8); }
+
+    /** Agrandissement du fond (1 = cadrage du site). */
+    private static final double ZOOM_FOND = 1.14;
 
     private final double largeur, hauteur;
     private final Account compte;
     private final ImageView fond = new ImageView();
     private final CielPokenyle ciel;
     private final StackPane zoneAction = new StackPane();
+    /** La capsule « Ouverture mi-décembre » / compte à rebours : sous le logo, dans le ciel (jamais sur les Poké Balls). */
+    private final StackPane zoneEtat = new StackPane();
     private final LogoPokenyle logo;
     private final BlocLancement blocOuvert;
     private final Timeline seconde;
@@ -78,8 +87,11 @@ public final class UniversPokenyle extends StackPane {
 
         // fond : un poil plus grand que la fenêtre, pour que la parallaxe ne découvre jamais un bord
         fond.setPreserveRatio(false);
-        fond.setFitWidth(largeur * 1.025);
-        fond.setFitHeight(hauteur * 1.025);
+        // cadrage : l'image est agrandie et calée en bas à gauche, pour que la Poké Ball de gauche sorte de l'emprise du
+        // bloc de lancement (bas à gauche) ; la parallaxe garde ainsi une marge de chaque côté.
+        fond.setFitWidth(largeur * ZOOM_FOND);
+        fond.setFitHeight(hauteur * ZOOM_FOND);
+        StackPane.setAlignment(fond, Pos.BOTTOM_LEFT);
         fond.setSmooth(true);
         fond.setOpacity(0);
         ImagesDistantes.charger(CheminsMedias.POKENYLE_FOND_2X, "/images/univers/fond-pokenyle-1x.jpg", 0, 0, img -> {
@@ -110,15 +122,29 @@ public final class UniversPokenyle extends StackPane {
         zoneAction.setPickOnBounds(false);
         zoneAction.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
-        VBox gauche = new VBox(Jetons.rem(0.4), logo, zoneAction);
-        VBox.setMargin(zoneAction, new Insets(Jetons.rem(1.1), 0, 0, -Jetons.rem(0.6)));
-        gauche.setAlignment(Pos.TOP_LEFT);
-        gauche.setPickOnBounds(false);
-        gauche.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        StackPane.setAlignment(gauche, Pos.TOP_LEFT);
-        StackPane.setMargin(gauche, new Insets(Jetons.rem(3.3), 0, 0, Jetons.rem(2.4)));
+        // colonne gauche : le logo en haut, le bloc de lancement ancré en bas à gauche. Même ligne de base que le groupe
+        // son / pause / réglages du coin opposé (marge basse de la coquille), et même bord gauche visible que le logo.
+        zoneEtat.setAlignment(Pos.TOP_LEFT);
+        zoneEtat.setPickOnBounds(false);
+        zoneEtat.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        VBox haut = new VBox(Jetons.rem(0.55), logo, zoneEtat);
+        haut.setAlignment(Pos.TOP_LEFT);
+        haut.setPickOnBounds(false);
+        haut.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        StackPane.setAlignment(haut, Pos.TOP_LEFT);
+        StackPane.setMargin(haut, new Insets(Jetons.rem(3.3), 0, 0, margeGauche()));
+        // la zone d'action contient halo et marge interne de la pilule (0,6 rem) : on les retire pour que le bord VISIBLE
+        // du bouton tombe sur margeGauche() et que son pied tombe sur margeBasse().
+        StackPane.setAlignment(zoneAction, Pos.BOTTOM_LEFT);
+        poserPied(null);
 
-        getChildren().addAll(fond, ciel, voile, gauche, ciel.avant());
+        // voile doux sombre en bas à gauche : le texte blanc reste lisible sur l'herbe, sans bloc visible
+        Region voileBas = new Region();
+        voileBas.setMouseTransparent(true);
+        voileBas.setStyle("-fx-background-color: radial-gradient(center 0% 100%, radius 62%, rgba(6,34,24,0.46) 0%,"
+                + " rgba(6,34,24,0.22) 45%, rgba(6,34,24,0.0) 100%);");
+
+        getChildren().addAll(fond, ciel, voile, voileBas, haut, zoneAction, ciel.avant());
 
         seconde = new Timeline(new KeyFrame(Duration.seconds(1), e -> majCompteur()));
         seconde.setCycleCount(Timeline.INDEFINITE);
@@ -162,9 +188,15 @@ public final class UniversPokenyle extends StackPane {
         return Services.etatPokenyle.ouvertPour(pseudo) || SelecteurMode.estAutorise(compte);
     }
 
-    /** Vrai si ce compte est un compte crack que Pokényle refuse encore. */
-    public static boolean crackRefuse(Account compte) {
-        return compte != null && compte.isOffline() && !Services.etatPokenyle.crackAutorise();
+
+    /**
+     * Pied du bloc : le dernier élément VISIBLE tombe sur la ligne de base du groupe son / pause / réglages. Une pilule
+     * a un halo dessous (compris dans la zone, pas dans ce qu'on voit) ; la rangée de boutons secondaires n'en a pas.
+     */
+    private void poserPied(Node contenu) {
+        boolean pilule = contenu == null || contenu == blocOuvert || !(contenu instanceof VBox v && v.getChildren().size() > 1);
+        double bas = pilule ? margeBasse() - haloBas() : margeBasse();
+        StackPane.setMargin(zoneAction, new Insets(0, 0, Math.max(0, bas), margeGauche() - Jetons.rem(0.6)));
     }
 
     // ── États ────────────────────────────────────────────────────────────────────────────────────
@@ -174,8 +206,7 @@ public final class UniversPokenyle extends StackPane {
         SourceEtatPokenyle s = Services.etatPokenyle;
         PreTelechargeur pt = Services.preTelechargeur;
         String cle;
-        if (crackRefuse(compte)) cle = "crack|" + s.messageCrack() + "|" + s.discordActif();
-        else if (ouvertPour(compte)) cle = "ouvert";
+        if (ouvertPour(compte)) cle = "ouvert";
         else cle = "attente|" + s.ouverture().isPresent() + "|" + s.libelleOuverture() + "|" + s.discordActif()
                 + "|" + (pt == PreTelechargeur.AUCUN ? "-" : pt.etat("pokenyle").name());
         if (cle.equals(etatAffiche)) {
@@ -185,32 +216,16 @@ public final class UniversPokenyle extends StackPane {
         }
         etatAffiche = cle;
         Node contenu;
-        if (cle.startsWith("crack")) contenu = vueCrack(s);
-        else if (cle.equals("ouvert")) contenu = blocOuvert;
+        if (cle.equals("ouvert")) contenu = blocOuvert;
         else contenu = vueAttente(s, pt);
+        if (cle.equals("ouvert")) zoneEtat.getChildren().clear();
         zoneAction.getChildren().setAll(contenu);
+        poserPied(contenu);
         contenu.setOpacity(0);
         FadeTransition f = new FadeTransition(Duration.millis(220), contenu);
         f.setToValue(1);
         f.play();
         majCompteur();
-    }
-
-    private Node vueCrack(SourceEtatPokenyle s) {
-        Text t = new Text(s.messageCrack());
-        t.setFont(Polices.extra(Jetons.rem(0.7)));
-        t.setFill(Jetons.ENCRE);
-        TextFlow flux = new TextFlow(t);
-        flux.setMaxWidth(Jetons.rem(15.5));
-        flux.setPrefWidth(Jetons.rem(15.5));
-        VBox v = new VBox(Jetons.rem(0.45), flux, rangeeSecondaire(s, true));
-        CarteVerre carte = new CarteVerre(CarteVerre.Variante.CLAIRE, v);
-        carte.setPadding(new Insets(Jetons.rem(0.9)));
-        carte.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        StackPane enveloppe = new StackPane(carte);
-        enveloppe.setPadding(new Insets(0, 0, 0, Jetons.rem(0.6)));
-        enveloppe.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        return enveloppe;
     }
 
     private Node vueAttente(SourceEtatPokenyle s, PreTelechargeur pt) {
@@ -228,11 +243,10 @@ public final class UniversPokenyle extends StackPane {
                 + "-fx-border-color: white; -fx-border-radius: 99; -fx-border-width: 1.5;");
         capsule.setEffect(new DropShadow(BlurType.GAUSSIAN, Color.rgb(40, 80, 150, 0.18), Jetons.rem(0.9), 0, 0, Jetons.rem(0.2)));
         capsule.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        VBox.setMargin(capsule, new Insets(0, 0, Jetons.rem(0.2), Jetons.rem(0.6)));
+        zoneEtat.getChildren().setAll(capsule);
 
         VBox v = new VBox(Jetons.rem(0.35));
         v.setAlignment(Pos.TOP_LEFT);
-        v.getChildren().add(capsule);
 
         boolean preDispo = pt != PreTelechargeur.AUCUN;
         BoutonJouer principal = new BoutonJouer(preDispo ? libellePreTelechargement(pt) : "Me prévenir");

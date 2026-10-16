@@ -9,10 +9,14 @@ import fr.nylerp.launcher.ui.kit.Polices;
 import fr.nylerp.launcher.ui.univers.UniversNylerp;
 import fr.nylerp.launcher.ui.univers.UniversPokenyle;
 import fr.nylerp.launcher.univers.Services;
+import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
 import javafx.animation.ScaleTransition;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -21,6 +25,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
@@ -45,6 +50,10 @@ import java.util.function.Consumer;
  */
 public final class Coquille extends StackPane {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Coquille.class);
+    /** Crochet des essais : fait échouer la construction d'un univers pour prouver la vue de repli. Nul en production. */
+    static volatile java.util.function.Predicate<ModeDeJeu> echecConstructionSimule;
+
     private final double echelle;
     private final Account compte;
     private final LanceurJeu lanceur = new LanceurJeu();
@@ -57,6 +66,8 @@ public final class Coquille extends StackPane {
     private ModeDeJeu courant;
     private ChoixUnivers choix;
     private Node vueNavigation;
+    /** Transition d'univers en cours (une seule à la fois : voir {@link #terminerBascule()}). */
+    private Animation bascule;
     private boolean enFond;
     /** Groupe discret du bas à droite, commun aux deux univers : son, pause, réglages. */
     private final BoutonRond boutonSon = new BoutonRond(BoutonRond.SON);
@@ -138,6 +149,9 @@ public final class Coquille extends StackPane {
     /** Les éléments à poser à droite de la poignée (avant réduire / fermer). */
     public HBox elementsDroite() { return entete.droite(); }
     public LanceurJeu lanceur() { return lanceur; }
+
+    /** Zone des univers (pour les essais de non-régression : jamais vide après un changement d'univers ou de compte). */
+    StackPane sceneUnivers() { return scene; }
 
     /**
      * Ce que fait le bouton « Boutique » de l'en-tête : reçoit l'univers affiché (« pokenyle » ou
@@ -261,28 +275,27 @@ public final class Coquille extends StackPane {
     }
 
     private void montrer(ModeDeJeu m, boolean anime) {
-        ModeDeJeu ancien = courant;
         courant = m;
         majOutils();
         entete.montrerUnivers(m == ModeDeJeu.POKENYLE ? 0 : 1);
-        Node nouveau;
+        // Une transition encore en cours est terminée d'abord. Son nettoyage différé retirait sinon le nœud que cette
+        // bascule vient d'afficher (deux changements en moins de 420 ms), puis la seconde retirait le reste : zone vide.
+        terminerBascule();
+        Node nouveau = universPour(m);
         if (m == ModeDeJeu.POKENYLE) {
-            if (pokenyle == null) pokenyle = new UniversPokenyle(echelle, compte, lanceur);
-            nouveau = pokenyle;
             if (nylerp != null) nylerp.suspendre();
-            if (!enFond) pokenyle.afficher();
+            if (nouveau == pokenyle && !enFond) securise(pokenyle::afficher, "affichage de Pokényle");
         } else {
-            if (nylerp == null) nylerp = new UniversNylerp(echelle, compte, lanceur);
-            nouveau = nylerp;
             if (pokenyle != null) pokenyle.cacher();
-            if (!enFond) nylerp.reprendre();
-            else nylerp.suspendre();
+            if (nouveau == nylerp) securise(enFond ? nylerp::suspendre : nylerp::reprendre, "reprise de NyleRP");
         }
-        Node avant = ancien == null ? null : (ancien == ModeDeJeu.POKENYLE ? pokenyle : nylerp);
-        if (!scene.getChildren().contains(nouveau)) scene.getChildren().add(nouveau);
+        ObservableList<Node> enfants = scene.getChildren();
+        Node avant = enfants.isEmpty() ? null : enfants.get(enfants.size() - 1);
+        if (avant == nouveau) avant = null;
+        if (!enfants.contains(nouveau)) enfants.add(nouveau);
         nouveau.toFront();
         if (!anime || avant == null) {
-            scene.getChildren().retainAll(nouveau);
+            enfants.setAll(nouveau);
             nouveau.setOpacity(1);
             return;
         }
@@ -296,8 +309,72 @@ public final class Coquille extends StackPane {
         s.setToY(1);
         ParallelTransition p = new ParallelTransition(f, s);
         p.setInterpolator(Jetons.SORTIE);
-        p.setOnFinished(e -> scene.getChildren().retainAll(nouveau));
+        p.setOnFinished(e -> {
+            // setAll (et non retainAll) : l'univers affiché reste, quoi qu'il se soit passé entre-temps
+            if (bascule == p) { bascule = null; scene.getChildren().setAll(nouveau); }
+        });
+        bascule = p;
         p.play();
+    }
+
+    /** Arrête la transition d'univers en cours (sans son nettoyage) et remet les nœuds présents à l'état normal. */
+    private void terminerBascule() {
+        if (bascule != null) {
+            bascule.setOnFinished(null);
+            bascule.stop();
+            bascule = null;
+        }
+        for (Node n : scene.getChildren()) {
+            n.setOpacity(1);
+            n.setScaleX(1);
+            n.setScaleY(1);
+        }
+    }
+
+    /** L'univers à afficher. Une construction qui échoue ne laisse JAMAIS la zone vide : vue de repli avec « Réessayer ». */
+    private Node universPour(ModeDeJeu m) {
+        try {
+            if (echecConstructionSimule != null && echecConstructionSimule.test(m)) throw new IllegalStateException("échec simulé (essai)");
+            if (m == ModeDeJeu.POKENYLE) {
+                if (pokenyle == null) pokenyle = new UniversPokenyle(echelle, compte, lanceur);
+                return pokenyle;
+            }
+            if (nylerp == null) nylerp = new UniversNylerp(echelle, compte, lanceur);
+            return nylerp;
+        } catch (Throwable e) {
+            LOG.error("Univers {} : construction impossible, vue de repli affichée", m, e);
+            if (m == ModeDeJeu.POKENYLE) pokenyle = null; else nylerp = null;
+            return vueRepli(m);
+        }
+    }
+
+    /** Ciel fixe du site (ou nuit de NyleRP), un message court et « Réessayer » (reconstruit l'univers). */
+    private Node vueRepli(ModeDeJeu m) {
+        boolean poke = m == ModeDeJeu.POKENYLE;
+        Text titre = new Text((poke ? "Pokényle" : "NyleRP") + " ne s'est pas affiché");
+        titre.setFont(Polices.titre(Jetons.rem(1.1)));
+        titre.setFill(poke ? Jetons.ENCRE : Color.WHITE);
+        Text detail = new Text("Un petit souci d'affichage. Réessaie : tes données ne sont pas touchées.");
+        detail.setFont(Polices.extra(Jetons.rem(0.62)));
+        detail.setFill(poke ? Jetons.ENCRE : Color.WHITE);
+        Button reessayer = new Button("Réessayer");
+        reessayer.getStyleClass().add("kit-valider");
+        reessayer.setOnAction(e -> montrer(m, true));
+        VBox v = new VBox(Jetons.rem(0.6), titre, detail, reessayer);
+        v.setAlignment(Pos.CENTER);
+        StackPane repli = new StackPane(v);
+        repli.setStyle(poke
+                ? "-fx-background-color: linear-gradient(to bottom, #4f9fe0 0%, #8cc8f2 55%, #cfe9fb 75%, #8fc56a 76%, #5fa043 100%);"
+                : "-fx-background-color: linear-gradient(to bottom, #1b1740, #3a2a62);");
+        return repli;
+    }
+
+    private static void securise(Runnable r, String quoi) {
+        try {
+            r.run();
+        } catch (Throwable e) {
+            LOG.error("Coquille : échec de {}", quoi, e);
+        }
     }
 
     /** Icônes du groupe du bas selon l'état : son coupé ou non, fond en pause ou non. */
