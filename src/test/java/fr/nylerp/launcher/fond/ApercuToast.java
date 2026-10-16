@@ -30,8 +30,12 @@ public class ApercuToast extends Application {
         String sortie = getParameters().getRaw().get(0);
         String[][] fonds = { { "clair", "#EAF7FF" }, { "sombre", "#1E2230" } };
         for (String[] fond : fonds) {
-            StackPane racine = new StackPane(Toast.contenu("Pokényle ouvre demain à 18 h",
-                    "Le pack est déjà téléchargé : un clic et tu es en jeu dès l'ouverture.", stage, null));
+            // 2e argument « note » : le texte exact de la confirmation « Me prévenir » (retour owner du 16/10).
+            boolean note = getParameters().getRaw().size() > 1;
+            StackPane racine = new StackPane(Toast.contenu(
+                    note ? "C'est noté" : "Pokényle ouvre demain à 18 h",
+                    note ? "Le launcher te préviendra la veille et le jour de l'ouverture de Pokényle."
+                         : "Le pack est déjà téléchargé : un clic et tu es en jeu dès l'ouverture.", stage, null));
             racine.setPadding(new Insets(24));
             racine.setStyle("-fx-background-color: " + fond[1] + ";");
             Scene s = new Scene(racine);

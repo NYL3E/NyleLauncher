@@ -16,6 +16,12 @@ public final class Main {
             System.exit(0); // the relaunched process owns the UI from here
             return;
         }
+        // Outil de contrôle : « NyleLauncher --notif-test » montre une carte d'annonce de test pendant quelques
+        // secondes, sans ouvrir le launcher, sans prendre le verrou d'instance (marche même s'il tourne déjà).
+        if (java.util.Arrays.asList(args).contains(fr.nylerp.launcher.fond.NotifTest.ARG)) {
+            Application.launch(fr.nylerp.launcher.fond.NotifTest.class, args);
+            return;
+        }
         // Un seul launcher par session : si un autre tourne déjà, il se montre et on s'arrête ici,
         // avant d'avoir ouvert quoi que ce soit (voir fond.Fond).
         if (!fr.nylerp.launcher.fond.Fond.prendreLaMain(args)) {

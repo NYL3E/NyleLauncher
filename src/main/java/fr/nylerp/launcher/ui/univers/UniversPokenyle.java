@@ -272,13 +272,19 @@ public final class UniversPokenyle extends StackPane {
         return h;
     }
 
-    /** Garde les annonces actives (c'est par elles que vient l'alerte de la veille) et le confirme. */
+    /** Garde les annonces actives (c'est par elles que vient l'alerte d'ouverture) et le confirme, honnêtement. */
     private void mePrevenir() {
         Settings r = Settings.get();
         r.notifications = true;
         r.save();
         Fond.appliquerReglages();
-        Fond.notifier("C'est noté", "Le launcher te préviendra la veille et le jour de l'ouverture de Pokényle.", "pokenyle");
+        // La promesse n'est tenue que si le launcher tourne en fond le jour J : barre système gardée ET démarrage
+        // avec l'ordinateur. Sinon on le dit, au lieu de promettre une alerte qui ne viendrait pas.
+        boolean enFond = r.fondActif && r.demarrageAuto && r.accueilVu;
+        Fond.notifier("C'est noté",
+                enFond ? "Le launcher te préviendra à l'approche de l'ouverture de Pokényle."
+                       : "Pour être prévenu, active « Lancer au démarrage » dans les réglages : le launcher doit rester en fond.",
+                "pokenyle");
     }
 
     private void majCompteur() {

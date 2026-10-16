@@ -288,7 +288,7 @@ public class LauncherApp extends Application {
         }
     }
 
-    private static void loadFonts() {
+    public static void loadFonts() {
         String[] files = {
                 "Montserrat-Regular.ttf",
                 "Montserrat-Medium.ttf",

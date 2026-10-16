@@ -38,6 +38,33 @@ Chercher les lignes « Fond : ».
 10. **Mise à l'échelle** : à 125 % et 150 % (Paramètres → Affichage), l'icône près de l'horloge est nette
     et la carte d'annonce n'est pas coupée.
 
+## Cartes d'annonce / notifications (payload 1.1.4) — à faire sous Windows par l'owner
+
+La carte est dessinée par le launcher (pas une notification Windows) : elle n'a ni « … » ni menu. Une croix de 32 px
+la ferme, un clic ailleurs sur la carte ouvre le launcher. Elle disparaît seule après 8 s (le survol suspend le délai).
+
+**Voir une carte en une seconde, sans publier d'annonce** : `Win + R`, coller l'une de ces deux lignes (la première
+qui ouvre quelque chose) puis Entrée :
+
+    "%LOCALAPPDATA%\NyleLauncher\NyleLauncher.exe" --notif-test
+    "C:\Program Files\NyleLauncher\NyleLauncher.exe" --notif-test
+
+(Si aucune ne marche : clic droit sur le raccourci du bureau → « Ouvrir l'emplacement du fichier », puis le même
+`NyleLauncher.exe --notif-test` depuis une invite de commandes dans ce dossier.) Une carte « Notification de test »
+apparaît en bas à droite de l'écran principal ; la commande ne ferme rien et ne touche pas au launcher déjà ouvert.
+
+1. **Aspect** : le logo à gauche, « NYLELAUNCHER » en bleu, le titre, le texte sur 2 à 3 lignes, une croix grise bien
+   visible en haut à droite. AUCUN « … » ni menu à trois points.
+2. **Croix** : un clic dessus ferme la carte (fondu, ~0,3 s). Un clic sur le bord de la zone de la croix compte aussi.
+3. **Clic sur la carte** (ailleurs que la croix) : la carte se ferme (et ouvre le launcher quand c'est une vraie annonce).
+4. **Survol** : la carte reste tant que la souris est dessus, puis repart seule.
+5. **Barre des tâches** : aucun bouton « NyleLauncher » ne s'ajoute pendant l'affichage de la carte.
+6. **Mise à l'échelle** 125 % et 150 % : la carte n'est pas coupée, la croix reste dans la carte.
+7. **Une vraie confirmation** : launcher → Pokényle → « Me prévenir » : la carte « C'est noté » apparaît avec la
+   même croix. Le texte dépend des réglages (démarrage automatique actif ou non).
+Journal : `%LOCALAPPDATA%\NyleLauncher\Logs\launcher.log`, lignes « Toast : affichée », « Toast : fermée par la croix »,
+« Toast : clic sur la carte ». Si un clic ne fait rien, joindre ces lignes (absentes = le clic n'arrive pas à la fenêtre).
+
 ## Linux (Ubuntu GNOME, Fedora KDE, Mint Cinnamon si possible)
 
 1. **Premier lancement** : fenêtre normale. KDE / Cinnamon / XFCE : icône dans la zone d'état.

@@ -8,6 +8,10 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
+import javafx.scene.Group;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.shape.Line;
+import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
@@ -25,6 +29,9 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,22 +43,34 @@ import java.util.List;
  * <p>Pas de {@code TrayIcon.displayMessage} : sous macOS il signe la notification « Java » ou
  * « Éditeur de script », et son rendu varie d'un système à l'autre.
  *
- * <p>Elle disparaît seule (le survol suspend le délai), se ferme par la croix, et un clic n'importe
+ * <p>Elle disparaît seule (le survol suspend le délai), se ferme par la croix (une vraie zone de 32 px
+ * dessinée, jamais un caractère de texte : un Label trop étroit le remplace par « … »), et un clic n'importe
  * où ailleurs lance l'action reçue (ouvrir le launcher sur la bonne page). Plusieurs cartes
  * s'empilent. Fil JavaFX obligatoire.
  */
 final class Toast {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Toast.class);
+
     static final double LARGEUR = 360;
+    /** Zone cliquable de la croix (au moins 28 px). */
+    static final double CROIX = 32;
+    private static final double PADDING_CARTE = 14;
+    private static final double LOGO = 40;
+    private static final double ESPACE_LIGNE = 12;
+    /** Largeur fixe des textes : le reste de la carte, croix et logo déduits, donc rien ne se comprime. */
+    static final double LARGEUR_TEXTE = LARGEUR - 2 * PADDING_CARTE - LOGO - CROIX - 2 * ESPACE_LIGNE;
     private static final double MARGE = 16;
     private static final double ECART = 10;
     private static final Duration DUREE = Duration.seconds(8);
 
     private static final List<Stage> ouvertes = new ArrayList<>();
+    private static Runnable apresToutFerme;
     /** Propriétaire invisible : sous Windows, une fenêtre possédée n'a pas de bouton dans la barre des tâches. */
     private static Stage proprietaire;
 
     static void afficher(String titre, String texte, Runnable surClic) {
+        LOG.info("Toast : affichée « {} »", titre);
         Stage st = new Stage(StageStyle.TRANSPARENT);
         st.initOwner(proprietaire());
         st.setAlwaysOnTop(true);
@@ -99,29 +118,37 @@ final class Toast {
         logo.setClip(coin);
 
         Label marque = new Label("NYLELAUNCHER");
-        marque.setStyle("-fx-font-family: 'Montserrat Bold', 'Montserrat'; -fx-font-weight: bold; -fx-font-size: 10px;"
+        marque.setStyle("-fx-font-family: 'Montserrat Bold', 'Montserrat', 'System'; -fx-font-weight: bold; -fx-font-size: 10px;"
                 + " -fx-text-fill: #10A7E6; -fx-letter-spacing: 1;");
         Label lTitre = new Label(titre == null ? "" : titre);
-        lTitre.setWrapText(true);
-        lTitre.setStyle("-fx-font-family: 'Montserrat Bold', 'Montserrat'; -fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #30384A;");
+        lTitre.setStyle("-fx-font-family: 'Montserrat Bold', 'Montserrat', 'System'; -fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #30384A;");
         Label lTexte = new Label(texte == null ? "" : texte);
-        lTexte.setWrapText(true);
-        lTexte.setStyle("-fx-font-family: 'Montserrat'; -fx-font-size: 12.5px; -fx-text-fill: #5A6478; -fx-line-spacing: 1;");
+        lTexte.setStyle("-fx-font-family: 'Montserrat', 'System'; -fx-font-size: 12.5px; -fx-text-fill: #5A6478; -fx-line-spacing: 1;");
+        // Largeur FIXE : le texte passe à la ligne dans sa colonne, et ne peut jamais prendre la place de la croix.
+        for (Label l : new Label[] { marque, lTitre, lTexte }) {
+            l.setWrapText(true);
+            l.setMinWidth(LARGEUR_TEXTE);
+            l.setPrefWidth(LARGEUR_TEXTE);
+            l.setMaxWidth(LARGEUR_TEXTE);
+            l.setMinHeight(Region.USE_PREF_SIZE);
+        }
         VBox textes = new VBox(2, marque, lTitre, lTexte);
-        HBox.setHgrow(textes, Priority.ALWAYS);
+        textes.setMinWidth(LARGEUR_TEXTE);
+        textes.setPrefWidth(LARGEUR_TEXTE);
+        textes.setMaxWidth(LARGEUR_TEXTE);
 
-        Label croix = new Label("×");
-        croix.setStyle("-fx-font-size: 18px; -fx-text-fill: #8A93A6; -fx-padding: 0 2 0 6;");
-        croix.setCursor(Cursor.HAND);
-        croix.setOnMouseEntered(e -> croix.setStyle("-fx-font-size: 18px; -fx-text-fill: #30384A; -fx-padding: 0 2 0 6;"));
-        croix.setOnMouseExited(e -> croix.setStyle("-fx-font-size: 18px; -fx-text-fill: #8A93A6; -fx-padding: 0 2 0 6;"));
-        croix.setOnMouseClicked(e -> { e.consume(); fermer(st); });
+        StackPane croix = croix(() -> {
+            LOG.info("Toast : fermée par la croix");
+            fermer(st);
+        });
 
-        HBox ligne = new HBox(12, logo, textes, croix);
+        HBox ligne = new HBox(ESPACE_LIGNE, logo, textes, croix);
         ligne.setAlignment(Pos.TOP_LEFT);
+        // La zone de 32 px déborde un peu vers le coin : la croix reste au coin de la carte, la zone est généreuse.
+        HBox.setMargin(croix, new Insets(-8, -6, 0, 0));
 
         VBox carte = new VBox(ligne);
-        carte.setPadding(new Insets(14, 14, 14, 14));
+        carte.setPadding(new Insets(PADDING_CARTE));
         carte.setPrefWidth(LARGEUR);
         carte.setMaxWidth(LARGEUR);
         carte.setMinHeight(Region.USE_PREF_SIZE);
@@ -135,10 +162,58 @@ final class Toast {
         carte.setOnMouseEntered(e -> carte.setStyle(fond.replace("0.28", "0.6")));
         carte.setOnMouseExited(e -> carte.setStyle(fond));
         carte.setOnMouseClicked(e -> {
+            LOG.info("Toast : clic sur la carte");
             fermer(st);
             if (surClic != null) surClic.run();
         });
         return carte;
+    }
+
+    /**
+     * Bouton « fermer » : un carré de 32 px (taille minimale = préférée = maximale, donc jamais comprimé), avec une croix
+     * dessinée en deux traits, pas un caractère de texte. Le clic se déclenche dès l'appui : fiable même quand la fenêtre
+     * n'a pas encore le focus (carte posée sur le bureau, sans fenêtre active du launcher).
+     */
+    static StackPane croix(Runnable fermer) {
+        Line a = new Line(0, 0, 10, 10);
+        Line b = new Line(10, 0, 0, 10);
+        for (Line l : new Line[] { a, b }) {
+            l.setStroke(Color.web("#4A5468"));
+            l.setStrokeWidth(2.2);
+            l.setStrokeLineCap(StrokeLineCap.ROUND);
+            l.setMouseTransparent(true);
+        }
+        StackPane c = new StackPane(new Group(a, b));
+        c.setMinSize(CROIX, CROIX);
+        c.setPrefSize(CROIX, CROIX);
+        c.setMaxSize(CROIX, CROIX);
+        c.setPickOnBounds(true);
+        c.setCursor(Cursor.HAND);
+        c.setAccessibleText("Fermer la notification");
+        String repos = "-fx-background-radius: 16; -fx-background-color: rgba(48,56,74,0);";
+        String survol = "-fx-background-radius: 16; -fx-background-color: rgba(48,56,74,0.12);";
+        c.setStyle(repos);
+        c.setOnMouseEntered(e -> c.setStyle(survol));
+        c.setOnMouseExited(e -> c.setStyle(repos));
+        c.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+            e.consume();
+            fermer.run();
+        });
+        // Le « clic » qui suit l'appui ne doit pas atteindre la carte (qui ouvrirait le launcher).
+        c.addEventHandler(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+        return c;
+    }
+
+    /**
+     * Coin supérieur gauche (x, y) d'une carte (ombre comprise) dans la zone visible de l'écran :
+     * en bas à droite (Windows, macOS) ou en haut à droite (Linux), {@code cumul} = hauteur déjà prise par les cartes
+     * plus proches du bord.
+     */
+    static double[] position(Rectangle2D zone, double largeur, double hauteur, double cumul, boolean enBas) {
+        double ombre = 24; // marge transparente autour de la carte
+        double x = zone.getMaxX() - largeur - MARGE + ombre;
+        double y = enBas ? zone.getMaxY() - MARGE + ombre - cumul - hauteur : zone.getMinY() + MARGE - ombre + cumul;
+        return new double[] { x, y };
     }
 
     private static Stage proprietaire() {
@@ -161,17 +236,15 @@ final class Toast {
     private static void disposer() {
         Rectangle2D zone = Screen.getPrimary().getVisualBounds();
         double ombre = 24; // marge transparente autour de la carte
+        // En bas à droite sous Windows ET macOS : en haut à droite, les bannières du système
+        // (« Notifications … ») recouvraient nos cartes (constaté au test d'intégration du 16/10).
+        boolean enBas = Systeme.windows() || Systeme.mac();
         double cumul = 0;
         for (Stage st : ouvertes) {
             double h = st.getHeight();
-            st.setX(zone.getMaxX() - st.getWidth() - MARGE + ombre);
-            // En bas à droite sous Windows ET macOS : en haut à droite, les bannières du système
-            // (« Notifications … ») recouvraient nos cartes (constaté au test d'intégration du 16/10).
-            if (Systeme.windows() || Systeme.mac()) {
-                st.setY(zone.getMaxY() - MARGE + ombre - cumul - h);
-            } else {
-                st.setY(zone.getMinY() + MARGE - ombre + cumul);
-            }
+            double[] xy = position(zone, st.getWidth(), h, cumul, enBas);
+            st.setX(xy[0]);
+            st.setY(xy[1]);
             cumul += h - 2 * ombre + ECART;
         }
     }
@@ -184,9 +257,13 @@ final class Toast {
         f.setOnFinished(e -> {
             st.close();
             disposer();
+            if (ouvertes.isEmpty() && apresToutFerme != null) apresToutFerme.run();
         });
         f.play();
     }
+
+    /** Rappel appelé quand la dernière carte ouverte vient de se fermer (outil d'essai). */
+    static void surToutFerme(Runnable r) { apresToutFerme = r; }
 
     private Toast() {}
 }
