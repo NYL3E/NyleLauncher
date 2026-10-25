@@ -50,16 +50,17 @@ public final class SelecteurMode extends VBox {
     /**
      * Les comptes pour lesquels ce composant est construit.
      *
-     * <p>L'owner, plus les testeurs qu'il a désignés (2026-08-30). La liste est courte et écrite
-     * ici plutôt que chargée depuis un fichier : pokényle est un terrain d'essai, et une liste
-     * distante donnerait à qui sait la lire l'existence d'un second univers — précisément ce que
-     * ce composant est censé ne pas divulguer.
+     * <p>L'owner, plus les testeurs qu'il a désignés (2026-08-30 ; « khuunaa » ajouté le 2026-10-25,
+     * sur demande explicite de l'owner). La liste est courte et écrite ici plutôt que chargée depuis
+     * un fichier : pokényle est un terrain d'essai, et une liste distante donnerait à qui sait la
+     * lire l'existence d'un second univers — précisément ce que ce composant est censé ne pas
+     * divulguer.
      *
      * <p>Comparaison en minuscules et sans espaces : un pseudo saisi « MrCedriic » ou
      * « mrcedriic » désigne le même joueur, et Mojang ne distingue pas la casse.
      */
     private static final java.util.Set<String> AUTORISES = java.util.Set.of(
-            "nyl3e", "mrcedriic", "fell4eli", "disryy", "milanzio");
+            "nyl3e", "mrcedriic", "fell4eli", "disryy", "milanzio", "khuunaa");
 
     private static final Color ENCRE      = Color.web("#F4F4F7");
     private static final Color ENCRE_PALE = Color.web("#8A8A93");

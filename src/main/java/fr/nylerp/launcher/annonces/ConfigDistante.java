@@ -37,10 +37,10 @@ public final class ConfigDistante implements SourceEtatPokenyle {
 
     /**
      * Repli quand la config distante ne donne pas de liste : la même que {@code SelecteurMode.AUTORISES}
-     * (owner + testeurs désignés le 2026-08-30). Recopiée ici plutôt que lue dans l'interface, qui sera
-     * refaite par la refonte.
+     * (owner + testeurs désignés le 2026-08-30, « khuunaa » le 2026-10-25). Recopiée ici plutôt que lue
+     * dans l'interface, qui sera refaite par la refonte.
      */
-    static final Set<String> TESTEURS_REPLI = Set.of("nyl3e", "mrcedriic", "fell4eli", "disryy", "milanzio");
+    static final Set<String> TESTEURS_REPLI = Set.of("nyl3e", "mrcedriic", "fell4eli", "disryy", "milanzio", "khuunaa");
 
     /** Valeurs lues, immuables : une lecture concurrente voit toujours un état complet. */
     record Etat(ZonedDateTime ouverture, String libelle, boolean ouvert, boolean crack, String messageCrack,

@@ -59,4 +59,20 @@ class AccesPokenyleTest {
         Services.etatPokenyle = source(false, Set.of());
         assertTrue(AccesPokenyle.autorise(compte("NYL3E")));
     }
+
+    /**
+     * Khuunaa (owner, 2026-10-25) : testeur de la liste intégrée, donc « Jouer » et pré-téléchargement de Pokényle même
+     * quand la config distante n'a pas été mise à jour (ici : aucun testeur distant, Pokényle fermé). Un pseudo voisin
+     * n'y a pas droit.
+     */
+    @Test
+    void khuunaaEstTesteurHistoriqueSansListeDistante() {
+        Services.etatPokenyle = source(false, Set.of());
+        assertTrue(AccesPokenyle.autorise(compte("Khuunaa")));
+        assertTrue(AccesPokenyle.autorise(compte("khuunaa")));
+        assertTrue(AccesPokenyle.autorise(compte(" KHUUNAA ")));
+        assertFalse(AccesPokenyle.autorise(compte("Khuunaa_")), "pseudo voisin refusé");
+        assertFalse(AccesPokenyle.autorise(compte("Khunaa")), "faute de frappe refusée");
+        assertFalse(AccesPokenyle.autorise(compte("Joueur")), "un joueur ordinaire reste refusé");
+    }
 }

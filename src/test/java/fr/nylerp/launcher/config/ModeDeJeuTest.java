@@ -48,7 +48,8 @@ class ModeDeJeuTest {
     void leSelecteurNExistePasPourUnJoueurOrdinaire() {
         // Des pseudos VOISINS des autorisés : l'accès ne doit pas déborder d'un caractère.
         for (String pseudo : new String[]{"Valucks", "Kqzah_", "Darkousse", "nyl3e_", "NYL3EE", "",
-                "MrCedric", "MrCedriic_", "FELL4EL", "FELL4ELII", "DISRY", "DISRYY_"}) {
+                "MrCedric", "MrCedriic_", "FELL4EL", "FELL4ELII", "DISRY", "DISRYY_",
+                "Khuuna", "Khunaa", "Khuunaaa", "Khuunaa_", "Khuunaa2", "Kuunaa", "Khuun aa"}) {
             Account compte = new Account(Account.Type.MICROSOFT, pseudo, "u", null, null);
             assertFalse(fr.nylerp.launcher.ui.SelecteurMode.estAutorise(compte),
                     "« " + pseudo + " » ne doit pas avoir accès au sélecteur");
@@ -73,7 +74,9 @@ class ModeDeJeuTest {
         // joueur non autorisé ne fait rien instancier du tout.
         for (String pseudo : new String[]{"NYL3E", "nyl3e", " NYL3E ",
                 "MrCedriic", "mrcedriic", " MrCedriic ",
-                "FELL4ELI", "fell4eli", "DISRYY", "disryy"}) {
+                "FELL4ELI", "fell4eli", "DISRYY", "disryy",
+                "Milanzio", "milanzio", " MILANZIO ",
+                "Khuunaa", "khuunaa", "KHUUNAA", " Khuunaa ", "\tkhuunaa\n"}) {
             assertTrue(fr.nylerp.launcher.ui.SelecteurMode.estAutorise(
                             new Account(Account.Type.MICROSOFT, pseudo, "u", null, null)),
                     "le sélecteur doit être autorisé pour « " + pseudo + " »");

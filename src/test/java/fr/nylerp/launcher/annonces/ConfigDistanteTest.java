@@ -49,6 +49,8 @@ class ConfigDistanteTest {
         assertFalse(c.rafraichir());
         assertFalse(c.ouvertPour("quelquun"));
         assertTrue(c.ouvertPour("NYL3E"), "repli : la liste intégrée des testeurs");
+        assertTrue(c.ouvertPour("Khuunaa"), "repli : khuunaa fait partie de la liste intégrée");
+        assertFalse(c.ouvertPour("Khuunaa_"), "repli : un pseudo voisin n'y est pas");
         assertTrue(c.ouverture().isEmpty());
         assertEquals("mi-décembre", c.libelleOuverture());
         assertFalse(c.crackAutorise());
