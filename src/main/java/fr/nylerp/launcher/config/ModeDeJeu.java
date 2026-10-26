@@ -99,11 +99,21 @@ public enum ModeDeJeu {
         return NYLERP;
     }
 
+    /** Prévenu après chaque changement réel de mode (l'icône de la fenêtre le suit). Un seul abonné : la fenêtre. */
+    private static volatile java.util.function.Consumer<ModeDeJeu> surChangement;
+
+    /** Enregistre l'abonné aux changements de mode (remplace le précédent). */
+    public static void surChangement(java.util.function.Consumer<ModeDeJeu> abonne) {
+        surChangement = abonne;
+    }
+
     /** Enregistre le mode choisi. Sans effet si c'était déjà celui-là. */
     public static void definir(ModeDeJeu mode) {
         if (mode == null || mode == courant()) return;
         Settings s = Settings.get();
         s.modeDeJeu = mode.id;
         s.save();
+        java.util.function.Consumer<ModeDeJeu> abonne = surChangement;
+        if (abonne != null) abonne.accept(mode);
     }
 }

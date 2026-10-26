@@ -47,13 +47,13 @@ public final class CheminsMedias {
     public static final String CARTE_POKENYLE_2X = "univers/carte-pokenyle@2x.jpg";
     public static final String CARTE_NYLERP_2X   = "univers/carte-nylerp@2x.jpg";
     /** Logos en 2x, aux noms livrés par l'agent du site (16/10) : texte en 44 et 88 px de haut (1x),
-     *  et le coffre seul (icône carrée) aux mêmes hauteurs. */
+     *  et l'icône carrée aux mêmes hauteurs (la tête de Pikachu pour Pokényle, le coffre pour NyleRP). */
     public static final String LOGO_POKENYLE_ENTETE_2X = "logos/logo-pokenyle-44@2x.png";
     public static final String LOGO_POKENYLE_GRAND_2X  = "logos/logo-pokenyle-88@2x.png";
     public static final String LOGO_NYLERP_ENTETE_2X   = "logos/logo-nylerp-44@2x.png";
     public static final String LOGO_NYLERP_GRAND_2X    = "logos/logo-nylerp-88@2x.png";
-    public static final String COFFRE_POKENYLE_44_2X   = "logos/logo-pokenyle-coffre-44@2x.png";
-    public static final String COFFRE_POKENYLE_88_2X   = "logos/logo-pokenyle-coffre-88@2x.png";
+    public static final String PIKACHU_POKENYLE_44_2X  = "logos/logo-pokenyle-pikachu-44@2x.png";
+    public static final String PIKACHU_POKENYLE_88_2X  = "logos/logo-pokenyle-pikachu-88@2x.png";
     public static final String COFFRE_NYLERP_44_2X     = "logos/logo-nylerp-coffre-44@2x.png";
     public static final String COFFRE_NYLERP_88_2X     = "logos/logo-nylerp-coffre-88@2x.png";
 

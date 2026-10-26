@@ -136,4 +136,20 @@ class ModeDeJeuTest {
         assertTrue(json.contains("\"modeDeJeu\""), "le champ doit être sérialisé");
         assertTrue(json.contains("pokenyle"), "le mode choisi doit être celui écrit");
     }
+
+    @Test
+    void lAbonneEstPreveuniquementQuandLeModeChangeVraiment() {
+        java.util.List<ModeDeJeu> vus = new java.util.ArrayList<>();
+        ModeDeJeu.surChangement(vus::add);
+        try {
+            ModeDeJeu.definir(ModeDeJeu.NYLERP);   // déjà NyleRP : rien
+            ModeDeJeu.definir(null);               // rien
+            ModeDeJeu.definir(ModeDeJeu.POKENYLE);
+            ModeDeJeu.definir(ModeDeJeu.POKENYLE); // déjà Pokényle : rien
+            ModeDeJeu.definir(ModeDeJeu.NYLERP);
+            assertEquals(java.util.List.of(ModeDeJeu.POKENYLE, ModeDeJeu.NYLERP), vus);
+        } finally {
+            ModeDeJeu.surChangement(null);
+        }
+    }
 }

@@ -77,11 +77,8 @@ public class LauncherApp extends Application {
 
         this.stage = stage;
         stage.setTitle(Constants.APP_NAME);
-        try {
-            stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/app_icon.png")));
-        } catch (Exception e) {
-            LOG.warn("Could not load app icon: {}", e.toString());
-        }
+        // L'icône de la fenêtre suit l'univers (tête de Pikachu en Pokényle, coffre de NyleRP sinon).
+        fr.nylerp.launcher.ui.IconeFenetre.suivre(stage);
 
         // Fenêtre : 1180 × 700, réduite d'un bloc (et tout le kit avec elle) si l'écran est plus petit.
         echelle = calculerEchelle();

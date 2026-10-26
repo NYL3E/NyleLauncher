@@ -40,7 +40,8 @@ import java.util.function.IntConsumer;
 
 /**
  * L'en-tête de la coquille, posé DANS la barre de la fenêtre (la poignée de déplacement sépare les
- * deux groupes) : à gauche le coffre, le choix d'univers et le badge DEV ; à droite Discord, la
+ * deux groupes) : à gauche le logo de l'univers (la tête de Pikachu pour Pokényle, le coffre pour NyleRP), le choix
+ * d'univers et le badge DEV ; à droite Discord, la
  * boutique et le compte (menu des comptes : changer, ajouter, retirer,
  * se déconnecter — repris de l'ancien menu de la capsule).
  */
@@ -52,7 +53,7 @@ final class EnTete {
     private final HBox droite = new HBox();
     private final Segment segment;
     private final ImageView coffre = new ImageView();
-    private final Image coffrePokenyle, coffreNylerp;
+    private final Image logoPokenyle, coffreNylerp;
     private final BoutonCompte compteBouton;
 
     private IntConsumer surUnivers = i -> { };
@@ -63,15 +64,15 @@ final class EnTete {
 
     EnTete(Account compte) {
         double h = Jetons.rem(1.15);
-        coffrePokenyle = ImagesDistantes.classpath("/images/univers/logo-pokenyle-coffre-44-2x.png", 0, 0);
+        logoPokenyle = ImagesDistantes.classpath("/images/univers/logo-pokenyle-pikachu-44-2x.png", 0, 0);
         coffreNylerp = ImagesDistantes.classpath("/images/univers/logo-nylerp-coffre-44-2x.png", 0, 0);
         coffre.setFitHeight(Jetons.rem(1.75));
         coffre.setPreserveRatio(true);
         coffre.setSmooth(true);
         coffre.setImage(fr.nylerp.launcher.config.ModeDeJeu.courant() == fr.nylerp.launcher.config.ModeDeJeu.POKENYLE
-                ? coffrePokenyle : coffreNylerp);
+                ? logoPokenyle : coffreNylerp);
 
-        ImageView lp = new ImageView(coffrePokenyle), ln = new ImageView(coffreNylerp);
+        ImageView lp = new ImageView(logoPokenyle), ln = new ImageView(coffreNylerp);
         for (ImageView v : new ImageView[]{lp, ln}) { v.setFitHeight(h); v.setPreserveRatio(true); v.setSmooth(true); }
         segment = new Segment(new String[]{"Pokényle", "NyleRP"}, new Node[]{lp, ln});
         segment.choixProperty().addListener((o, a, b) -> { if (!ignorerSegment) surUnivers.accept(b.intValue()); });
@@ -124,7 +125,7 @@ final class EnTete {
         ignorerSegment = true;
         segment.setChoix(i);
         ignorerSegment = false;
-        coffre.setImage(i == 0 ? coffrePokenyle : coffreNylerp);
+        coffre.setImage(i == 0 ? logoPokenyle : coffreNylerp);
     }
 
     /** Pendant un lancement ou un téléchargement, on ne change pas d'univers sous les pieds du jeu. */
