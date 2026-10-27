@@ -189,6 +189,9 @@ public final class ModpackUpdater {
         // stale/empty .nyle_managed_mods record and asset-name sanitization.
         dedupExistingMods(modsDir, modsManifestNames);
 
+        // Un jar tronqué (téléchargement coupé) empêche Fabric de démarrer : on le retire ici, la passe 1 le retélécharge.
+        JarsAbimes.purger(modsDir);
+
         int total = remote.files.size();
         int done = 0;
         long bytesTotal = remote.files.stream().mapToLong(f -> Math.max(0, f.size)).sum();
@@ -337,7 +340,14 @@ public final class ModpackUpdater {
                     }
                     String apres = Hashing.sha256(local);
                     if (e.sha256 != null && !e.sha256.equalsIgnoreCase(apres)) {
-                        throw new IOException("Checksum KO pour " + e.path);
+                        // Empreinte fausse : on ne laisse JAMAIS le fichier abîmé en place ; une seule nouvelle tentative.
+                        Files.deleteIfExists(local);
+                        Downloader.toFile(e.url, local, null);
+                        apres = Hashing.sha256(local);
+                        if (!e.sha256.equalsIgnoreCase(apres)) {
+                            Files.deleteIfExists(local);
+                            throw new IOException("Checksum KO pour " + e.path);
+                        }
                     }
                     hashes.put(local, apres);
                     int d = faits.incrementAndGet();

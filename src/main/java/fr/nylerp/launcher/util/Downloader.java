@@ -120,6 +120,11 @@ public final class Downloader {
                 }
             }
         }
+        if (total > 0 && Files.size(tmp) != total) {
+            long recu = Files.size(tmp);
+            Files.deleteIfExists(tmp);
+            throw new IOException("Téléchargement incomplet (" + recu + " / " + total + " octets) : " + url);
+        }
         Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
 
