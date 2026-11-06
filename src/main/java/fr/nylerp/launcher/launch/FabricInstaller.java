@@ -28,9 +28,31 @@ public final class FabricInstaller {
     public static Result install(String mcVersion, String loaderVersion) throws IOException {
         String url = "https://meta.fabricmc.net/v2/versions/loader/"
                 + mcVersion + "/" + loaderVersion + "/profile/json";
-        LOG.info("Fetching Fabric profile {}", url);
-        String json = Downloader.toString(url);
-        JsonObject profile = GSON.fromJson(json, JsonObject.class);
+        // Local d'abord : le profil d'un couple (Minecraft, loader) ne change jamais. Le re-télécharger à chaque « Jouer »
+        // coûtait un aller-retour réseau (0,1 à 0,15 s mesurés) et faisait ÉCHOUER un lancement hors ligne alors que tout
+        // est sur le disque. Re-téléchargé seulement s'il manque ou s'il est illisible.
+        Path cache = AppPaths.rootDir().resolve("minecraft").resolve("versions")
+                .resolve("fabric-loader-" + loaderVersion + "-" + mcVersion).resolve("profile.json");
+        JsonObject profile = null;
+        if (Files.exists(cache)) {
+            try {
+                profile = GSON.fromJson(Files.readString(cache), JsonObject.class);
+                if (profile == null || !profile.has("mainClass") || !profile.has("libraries")) profile = null;
+            } catch (Exception illisible) {
+                profile = null;
+            }
+        }
+        if (profile == null) {
+            LOG.info("Fetching Fabric profile {}", url);
+            String json = Downloader.toString(url);
+            profile = GSON.fromJson(json, JsonObject.class);
+            try {
+                Files.createDirectories(cache.getParent());
+                Files.writeString(cache, json);
+            } catch (Exception ignored) {
+                // pas de cache : on re-téléchargera la prochaine fois, comme avant
+            }
+        }
 
         String mainClass = profile.get("mainClass").getAsString();
         Path libraries = AppPaths.rootDir().resolve("minecraft").resolve("libraries");

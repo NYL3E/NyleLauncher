@@ -407,6 +407,16 @@ public final class LanceurJeu {
                 // Migration one-shot : retire l'ancien NYLERP-PACK.zip (désormais embarqué en mod).
                 fr.nylerp.launcher.util.LightTextures.cleanupLegacyPack();
 
+                // Session Microsoft rafraîchie EN MÊME TEMPS que la synchronisation (06/11/2026) : les deux attendaient le
+                // réseau l'une après l'autre (synchronisation puis 1,3 à 2,0 s de rafraîchissement, launcher.log). Le
+                // résultat est attendu plus bas, au même endroit et avec les mêmes règles qu'avant.
+                Account compteDepart = fr.nylerp.launcher.auth.AccountStore.active();
+                java.util.concurrent.CompletableFuture<Account> rafraichissement =
+                        (compteDepart != null && compteDepart.type() == Account.Type.MICROSOFT
+                                && compteDepart.refreshToken() != null)
+                        ? fr.nylerp.launcher.auth.MicrosoftAuth.refresh(compteDepart.refreshToken())
+                        : null;
+
                 // Sync du modpack. En cas d'échec on ne lance PLUS silencieusement les
                 // vieux mods (ce qui laissait le joueur bloqué sur une version périmée sans
                 // le savoir) : on affiche un dialog clair et on laisse le joueur choisir —
@@ -442,6 +452,10 @@ public final class LanceurJeu {
                     }
                 }
                 if (syncCancelled) {
+                    // Le rafraîchissement parti en parallèle a pu aboutir : on garde la session neuve (jeton tournant).
+                    if (rafraichissement != null) {
+                        rafraichissement.thenAccept(fr.nylerp.launcher.auth.AccountStore::updateActive);
+                    }
                     Platform.runLater(() -> {
                         status.setText("Lancement annulé");
                         progress.setProgress(0);
@@ -472,9 +486,12 @@ public final class LanceurJeu {
                         && account.refreshToken() != null) {
                     Platform.runLater(() -> status.setText("Vérification de ta session Microsoft…"));
                     try {
-                        Account fresh = fr.nylerp.launcher.auth.MicrosoftAuth
-                                .refresh(account.refreshToken())
-                                .get(20, java.util.concurrent.TimeUnit.SECONDS);
+                        // Le rafraîchissement lancé avant la synchronisation, s'il visait bien ce compte ; sinon un neuf.
+                        java.util.concurrent.CompletableFuture<Account> enCours =
+                                (rafraichissement != null && account.refreshToken().equals(compteDepart.refreshToken()))
+                                ? rafraichissement
+                                : fr.nylerp.launcher.auth.MicrosoftAuth.refresh(account.refreshToken());
+                        Account fresh = enCours.get(20, java.util.concurrent.TimeUnit.SECONDS);
                         fr.nylerp.launcher.auth.AccountStore.updateActive(fresh);
                         account = fresh;
                         org.slf4j.LoggerFactory.getLogger("Auth")

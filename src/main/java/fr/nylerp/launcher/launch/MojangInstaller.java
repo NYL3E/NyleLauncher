@@ -28,7 +28,20 @@ public final class MojangInstaller {
     private static final Logger LOG = LoggerFactory.getLogger(MojangInstaller.class);
     private static final Gson GSON = new Gson();
 
+    /** SHA-1 déjà vérifiés (taille + date) : voir Sha1Cache. Chargé et enregistré à chaque install(). */
+    private static Sha1Cache sha1s = null;
+
     public static JsonObject install(String mcVersion, Downloader.Progress progress) throws IOException {
+        Path cacheSha1 = AppPaths.launcherState().resolve("mojang-sha1.json");
+        sha1s = Sha1Cache.charger(cacheSha1);
+        try {
+            return installer(mcVersion, progress);
+        } finally {
+            sha1s.enregistrer(cacheSha1);
+        }
+    }
+
+    private static JsonObject installer(String mcVersion, Downloader.Progress progress) throws IOException {
         Path root = AppPaths.rootDir().resolve("minecraft");
         Path versionsDir = root.resolve("versions").resolve(mcVersion);
         Files.createDirectories(versionsDir);
@@ -151,13 +164,20 @@ public final class MojangInstaller {
 
     private static void downloadIfNeeded(String url, Path dest, String expectedSha1,
                                          Downloader.Progress p) throws IOException {
-        if (Files.exists(dest) && sha1Matches(dest, expectedSha1)) return;
+        if (Files.exists(dest) && (sha1s != null ? sha1s.conforme(dest, expectedSha1, MojangInstaller::sha1)
+                                                  : sha1Matches(dest, expectedSha1))) return;
         Files.createDirectories(dest.getParent());
         Downloader.toFile(url, dest, p);
     }
 
     private static boolean sha1Matches(Path file, String expected) {
         if (expected == null) return true;
+        String s = sha1(file);
+        return s != null && s.equalsIgnoreCase(expected);
+    }
+
+    /** SHA-1 hexadécimal du fichier, ou null s'il est illisible. */
+    private static String sha1(Path file) {
         try {
             java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
             byte[] buf = new byte[32 * 1024];
@@ -167,9 +187,9 @@ public final class MojangInstaller {
             }
             StringBuilder sb = new StringBuilder();
             for (byte b : md.digest()) sb.append(String.format("%02x", b));
-            return sb.toString().equalsIgnoreCase(expected);
+            return sb.toString();
         } catch (Exception e) {
-            return false;
+            return null;
         }
     }
 

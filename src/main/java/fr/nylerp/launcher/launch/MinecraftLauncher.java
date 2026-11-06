@@ -102,12 +102,18 @@ public final class MinecraftLauncher {
         // so the JVM commits lazily and can never fail at init. (physMb < 0 = detection failed →
         // keep the user's value, still lazy + no pre-touch so init is safe.)
         int maxMb = clampHeapMb(ramMb, SystemRam.totalMb());
-        int initMb = Math.min(maxMb, 1024);
+        int initMb = initialHeapMb(maxMb);
         cmd.add("-Xmx" + maxMb + "M");
         cmd.add("-Xms" + initMb + "M");
 
         // ── G1 GC : voir gcFlags() et les constantes GC_* plus bas ──────
         cmd.addAll(gcFlags());
+
+        // ── Résolveur du nom de la machine (macOS) : voir ResolveurLocalJar — 5 s gagnées avant la 1re ligne de Fabric ──
+        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+            Path resolveur = ResolveurLocalJar.preparer(AppPaths.rootDir().resolve("runtime"));
+            if (resolveur != null) cmd.add("-Xbootclasspath/a:" + resolveur);
+        }
 
         // ── AWT / Java2D mitigation (keep — independent of GC choice) ──
         // MenuCanvas (used by Nyle menus) uses BufferedImage + Graphics2D
@@ -214,6 +220,14 @@ public final class MinecraftLauncher {
     }
 
     // ── Mémoire ─────────────────────────────────────────────────────────────────────────────
+
+    /** -Xms : la MOITIÉ du -Xmx (au moins 1 Go, au plus le -Xmx). Avec 1 Go fixe, G1 démarrait sur une jeune génération
+     *  minuscule et enchaînait ~80 collectes pendant le seul démarrage (JFR du 06/11/2026 : 7 + 17 + 26 + 31 collectes,
+     *  ~1,9 s de pauses). Aucun risque mémoire : sans AlwaysPreTouch, macOS, Windows et Linux n'engagent une page qu'à sa
+     *  première écriture ; le tas réservé n'est pas de la RAM consommée. */
+    static int initialHeapMb(int maxMb) {
+        return Math.min(maxMb, Math.max(1024, maxMb / 2));
+    }
 
     /** Plafond physique du -Xmx : RAM − 2 Go, plancher 2 Go ; {@code physMb <= 0} (détection
      *  ratée) → la valeur demandée telle quelle. */
