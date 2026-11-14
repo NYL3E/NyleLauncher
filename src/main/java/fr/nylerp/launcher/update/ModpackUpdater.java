@@ -190,7 +190,7 @@ public final class ModpackUpdater {
         dedupExistingMods(modsDir, modsManifestNames);
 
         // Un jar tronqué (téléchargement coupé) empêche Fabric de démarrer : on le retire ici, la passe 1 le retélécharge.
-        JarsAbimes.purger(modsDir);
+        JarsAbimes.purger(modsDir, AppPaths.launcherState().resolve("jars-sains.json"));
 
         int total = remote.files.size();
         int done = 0;
