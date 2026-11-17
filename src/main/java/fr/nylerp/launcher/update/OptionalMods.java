@@ -96,7 +96,7 @@ public final class OptionalMods {
             // toggle force-enables this (see Settings.get().optionalIris being
             // OR'd with optionalDistantHorizons below).
             // 15/10/2026 : toujours installé en mode pokényle, où Complementary Reimagined est
-            // actif par défaut (ShaderDefaults). Le joueur coupe les shaders en jeu avec K ; le
+            // choisi par défaut (ShaderDefaults ; coupé au départ depuis le 16/11/2026). Le joueur l'allume ou le coupe en jeu avec K ; le
             // réglage « Iris (shaders) » ne vaut donc plus que pour NyleRP.
             new Entry(
                 "iris-fabric-1.8.8+mc1.21.1.jar",

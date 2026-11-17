@@ -645,16 +645,16 @@ public class SettingsView extends BorderPane {
                 Settings.get().optionalLitematica,
                 v -> { Settings.get().optionalLitematica = v; Settings.get().save(); });
 
-        // Pokényle (15/10/2026) : Iris est toujours installé et Complementary actif par défaut
-        // (OptionalMods, ShaderDefaults) : la ligne est donc verrouillée sur « activé », et dit
-        // comment couper les shaders : en jeu, touche K.
+        // Pokényle (15/10/2026) : Iris est toujours installé, avec Complementary choisi (OptionalMods,
+        // ShaderDefaults) ; depuis le 16/11/2026 les shaders sont COUPÉS au premier lancement. La ligne
+        // est donc verrouillée sur « activé », et dit comment allumer les shaders : en jeu, touche K.
         boolean pokenyle = fr.nylerp.launcher.config.ModeDeJeu.courant()
                 == fr.nylerp.launcher.config.ModeDeJeu.POKENYLE;
         HBox irisRow = pokenyle
                 ? optionalModRow(
                         "Iris (shaders)",
-                        "Toujours installé sur pokényle, avec les shaders Complementary Reimagined. "
-                                + "Pour couper ou rallumer les shaders : touche K en jeu.",
+                        "Toujours installé sur pokényle, avec les shaders Complementary Reimagined (coupés au départ). "
+                                + "Pour les allumer ou les couper : touche K en jeu.",
                         true, v -> { }, true)
                 : optionalModRow(
                         "Iris (shaders)",

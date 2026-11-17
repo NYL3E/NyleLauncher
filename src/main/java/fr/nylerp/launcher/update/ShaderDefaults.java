@@ -15,8 +15,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
 /**
- * SHADERS PAR DÉFAUT DU MODE POKÉNYLE (15/10/2026) : Complementary Reimagined r5.9.3, actif dès
- * le premier lancement, coupable en jeu avec la touche K d'Iris.
+ * SHADERS PAR DÉFAUT DU MODE POKÉNYLE (15/10/2026) : Complementary Reimagined r5.9.3, CHOISI dès le premier
+ * lancement mais COUPÉ (16/11/2026) : le joueur l'allume en jeu avec la touche K d'Iris.
  *
  * <h2>Licence (Complementary License Agreement 1.7, § 1.2)</h2>
  * <ul>
@@ -111,7 +111,7 @@ public final class ShaderDefaults {
      * Réglages Iris par défaut, UNE SEULE FOIS par instance, en mode pokényle seulement.
      * <ul>
      *   <li>{@code config/iris.properties} absent, ou clé {@code shaderPack} absente ou vide →
-     *       {@code shaderPack=}{@value #PACK_FILE}, {@code enableShaders=true},
+     *       {@code shaderPack=}{@value #PACK_FILE}, {@code enableShaders=false} (16/11/2026 : coupés au départ, touche K),
      *       {@code disableUpdateMessage=true} ; toutes les autres clés sont gardées. Un autre
      *       pack déjà choisi → fichier intouché.</li>
      *   <li>{@code shaderpacks/<zip>.txt} absent → profil {@link #PROFILE_TXT}. Présent →
@@ -134,7 +134,10 @@ public final class ShaderDefaults {
             String pack = p.getProperty("shaderPack");
             if (pack == null || pack.isBlank()) {
                 p.setProperty("shaderPack", PACK_FILE);
-                p.setProperty("enableShaders", "true");
+                // 16/11/2026 (chantier perf-lag-pc, décision du coordinateur pour l'owner) : les shaders restent COUPÉS au premier lancement
+                // (le pack est choisi : la touche K les allume). Avant : actifs par défaut — un joueur sur un PC moyen démarrait à 15 i/s
+                // sans savoir pourquoi (relevé de l'owner du 31/10, RTX 3080 : médiane 15 i/s shaders actifs).
+                p.setProperty("enableShaders", "false");
                 p.setProperty("disableUpdateMessage", "true");
                 Files.createDirectories(props.getParent());
                 try (OutputStream out = Files.newOutputStream(props)) {

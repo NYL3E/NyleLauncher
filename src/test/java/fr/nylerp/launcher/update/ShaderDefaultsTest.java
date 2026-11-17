@@ -58,7 +58,7 @@ class ShaderDefaultsTest {
         ShaderDefaults.applyIrisDefaultsOnce(game, ModeDeJeu.POKENYLE);
         Properties p = lire();
         assertEquals(ShaderDefaults.PACK_FILE, p.getProperty("shaderPack"));
-        assertEquals("true", p.getProperty("enableShaders"));
+        assertEquals("false", p.getProperty("enableShaders"), "16/11 : shaders coupés au premier lancement (touche K)");
         assertEquals("true", p.getProperty("disableUpdateMessage"));
         assertEquals(ShaderDefaults.PROFILE_TXT, Files.readString(txt(), StandardCharsets.ISO_8859_1));
         assertTrue(Files.exists(marker()));
@@ -80,7 +80,7 @@ class ShaderDefaultsTest {
         ShaderDefaults.applyIrisDefaultsOnce(game, ModeDeJeu.POKENYLE);
         Properties p = lire();
         assertEquals(ShaderDefaults.PACK_FILE, p.getProperty("shaderPack"));
-        assertEquals("true", p.getProperty("enableShaders"));
+        assertEquals("false", p.getProperty("enableShaders"), "pack vide = aucun shader visible avant : ça reste sans shader");
         assertEquals("true", p.getProperty("disableUpdateMessage"));
         assertEquals("false", p.getProperty("allowUnknownShaders"), "clé du joueur perdue");
         assertEquals("SRGB", p.getProperty("colorSpace"));
