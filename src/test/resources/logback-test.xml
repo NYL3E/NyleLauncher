@@ -1,0 +1,12 @@
+<configuration>
+    <!-- Essais : journal sur la console seulement. Sans ce fichier, logback.xml écrirait dans le vrai
+         launcher.log de la machine qui construit (celui du joueur ou de l'owner). -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

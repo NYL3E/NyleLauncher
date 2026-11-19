@@ -1,0 +1,124 @@
+package fr.nylerp.launcher.discord;
+
+import com.google.gson.JsonObject;
+import fr.nylerp.launcher.univers.Services;
+import fr.nylerp.launcher.univers.SourceEtatPokenyle;
+import org.junit.jupiter.api.Test;
+
+import java.time.ZonedDateTime;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Ce que voient les amis du joueur, état par état, et les limites de Discord sur chaque champ. */
+class ActiviteTest {
+
+    private static JsonObject a(Activite.Phase p, boolean fenetre, boolean pokenyle, boolean enFond, boolean details) {
+        return Activite.pour(new Activite.Situation(p, fenetre, pokenyle, 1_763_500_000L, enFond, details));
+    }
+
+    private static String details(JsonObject a) { return a.get("details").getAsString(); }
+    private static String url(JsonObject a) { return a.getAsJsonArray("buttons").get(0).getAsJsonObject().get("url").getAsString(); }
+
+    @Test
+    void texteDeChaqueEtat() {
+        JsonObject lanceur = a(Activite.Phase.LANCEUR, true, false, false, false);
+        assertEquals("Dans le lanceur", details(lanceur));
+        assertFalse(lanceur.has("timestamps"), "pas de chrono dans le lanceur");
+        assertEquals("https://www.nylerp.fr/", url(lanceur));
+
+        assertEquals("Mise à jour du jeu…", details(a(Activite.Phase.MISE_A_JOUR, true, true, false, false)));
+
+        JsonObject jeu = a(Activite.Phase.EN_JEU, false, true, false, false);
+        assertEquals("En jeu sur Pokényle", details(jeu));
+        assertEquals(1_763_500_000L, jeu.getAsJsonObject("timestamps").get("start").getAsLong());
+        assertEquals("https://pokerayou.academy/", url(jeu));
+        assertEquals("En jeu sur NyleRP", details(a(Activite.Phase.EN_JEU, false, false, false, false)));
+
+        for (JsonObject o : new JsonObject[] {lanceur, jeu}) {
+            assertEquals("NyleLauncher", o.get("name").getAsString());
+            assertEquals(0, o.get("type").getAsInt());
+            assertEquals("logo", o.getAsJsonObject("assets").get("large_image").getAsString());
+            assertFalse(o.has("status_display_type"), "par défaut, Discord montre le nom de l'application");
+        }
+    }
+
+    @Test
+    void launcherSeulDansLaBarreAucuneActiviteSaufConfigDistante() {
+        assertNull(a(Activite.Phase.LANCEUR, false, true, false, false), "PC allumé, launcher rangé : rien");
+        assertNotNull(a(Activite.Phase.LANCEUR, false, true, true, false), "discordEnFond : activité dès que le processus vit");
+        assertNotNull(a(Activite.Phase.EN_JEU, false, true, false, false), "en jeu, fenêtre rangée : activité");
+        assertNotNull(a(Activite.Phase.MISE_A_JOUR, false, true, false, false));
+    }
+
+    @Test
+    void varianteStatutDetailsSeulementEnJeu() {
+        JsonObject jeu = a(Activite.Phase.EN_JEU, false, true, false, true);
+        assertEquals("Pokényle", details(jeu));
+        assertEquals("En jeu", jeu.get("state").getAsString());
+        assertEquals(2, jeu.get("status_display_type").getAsInt());
+        JsonObject lanceur = a(Activite.Phase.LANCEUR, true, true, false, true);
+        assertEquals("Dans le lanceur", details(lanceur));
+        assertFalse(lanceur.has("status_display_type"), "dans le lanceur, « Joue à Pokényle » serait faux");
+    }
+
+    @Test
+    void limitesDeDiscordRespectees() {
+        for (Activite.Phase p : Activite.Phase.values()) {
+            for (int k = 0; k < 4; k++) {
+                JsonObject o = a(p, true, (k & 1) == 1, false, (k & 2) == 2);
+                int d = details(o).length();
+                assertTrue(d >= 2 && d <= 128, "details de 2 à 128 caractères");
+                var boutons = o.getAsJsonArray("buttons");
+                assertTrue(boutons.size() <= 2);
+                String label = boutons.get(0).getAsJsonObject().get("label").getAsString();
+                assertTrue(!label.isEmpty() && label.length() <= 32, "libellé de bouton de 1 à 32 caractères");
+                assertTrue(url(o).startsWith("https://") && url(o).length() <= 512);
+                String texte = o.toString().toLowerCase();
+                assertFalse(texte.contains("crack") || texte.contains("discord.gg"), "règles de l'owner");
+            }
+        }
+    }
+
+    @Test
+    void repliRetireDAbordLeNomPuisLesChampsRecents() {
+        JsonObject o = a(Activite.Phase.EN_JEU, false, true, false, true);
+        JsonObject r1 = Activite.repli(o, 1);
+        assertFalse(r1.has("name"));
+        assertTrue(r1.has("buttons") && r1.has("status_display_type"));
+        JsonObject r2 = Activite.repli(o, 2);
+        assertFalse(r2.has("name") || r2.has("buttons") || r2.has("status_display_type"));
+        assertEquals("Pokényle", details(r2));
+        assertTrue(o.has("name") && o.has("buttons"), "l'activité d'origine n'est pas touchée");
+        assertNull(Activite.repli(null, 2));
+    }
+
+    @Test
+    void identifiantDeLaConfigDistantePrioritaire() {
+        SourceEtatPokenyle avant = Services.etatPokenyle;
+        try {
+            Services.etatPokenyle = source("987654321098765432");
+            assertEquals("987654321098765432", ActiviteDiscord.identifiant());
+            Services.etatPokenyle = source("n'importe quoi");
+            assertEquals(ActiviteDiscord.ID_APPLICATION, ActiviteDiscord.identifiant(), "invalide : la constante");
+            Services.etatPokenyle = SourceEtatPokenyle.PAR_DEFAUT;
+            assertEquals(ActiviteDiscord.ID_APPLICATION, ActiviteDiscord.identifiant());
+        } finally {
+            Services.etatPokenyle = avant;
+        }
+    }
+
+    private static SourceEtatPokenyle source(String id) {
+        return new SourceEtatPokenyle() {
+            @Override public boolean ouvertPour(String pseudo) { return false; }
+            @Override public Optional<ZonedDateTime> ouverture() { return Optional.empty(); }
+            @Override public String libelleOuverture() { return ""; }
+            @Override public boolean crackAutorise() { return false; }
+            @Override public String messageCrack() { return ""; }
+            @Override public boolean discordActif() { return false; }
+            @Override public String discordUrl() { return ""; }
+            @Override public void surChangement(Runnable rappel) { }
+            @Override public String discordAppId() { return id; }
+        };
+    }
+}

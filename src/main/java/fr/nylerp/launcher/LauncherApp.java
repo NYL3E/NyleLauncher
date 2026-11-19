@@ -70,12 +70,17 @@ public class LauncherApp extends Application {
         // (pose Services.preTelechargeur) : avant la coquille, qui lit ces deux services. Aussi en mode fond.
         fr.nylerp.launcher.annonces.Annonces.demarrer();
         fr.nylerp.launcher.update.pretelechargement.PreTelechargement.demarrer();
+        // Activité Discord « NyleLauncher » (fil démon, après les annonces qui posent la config distante).
+        fr.nylerp.launcher.discord.ActiviteDiscord.demarrer();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try { fr.nylerp.launcher.discord.ActiviteDiscord.arreter(); } catch (Throwable ignore) { }
             try { fr.nylerp.launcher.update.pretelechargement.PreTelechargement.arreter(); } catch (Throwable ignore) { }
             try { fr.nylerp.launcher.annonces.Annonces.arreter(); } catch (Throwable ignore) { }
         }, "nyle-arret-services"));
 
         this.stage = stage;
+        // L'activité Discord suit la fenêtre : affichée, rangée dans la barre système, jamais construite (mode fond).
+        stage.showingProperty().addListener((o, avant, montree) -> fr.nylerp.launcher.discord.ActiviteDiscord.fenetre(montree));
         stage.setTitle(Constants.APP_NAME);
         // L'icône de la fenêtre suit l'univers (tête de Pikachu en Pokényle, coffre de NyleRP sinon).
         fr.nylerp.launcher.ui.IconeFenetre.suivre(stage);

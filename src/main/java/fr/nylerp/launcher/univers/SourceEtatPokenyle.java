@@ -35,6 +35,15 @@ public interface SourceEtatPokenyle {
     /** Rappel appelé (sur n'importe quel fil) quand la config distante change. */
     void surChangement(Runnable rappel);
 
+    /** Activité Discord : identifiant de l'application Discord « NyleLauncher » ({@code discordAppId}), vide = constante du launcher. */
+    default String discordAppId() { return ""; }
+
+    /** Activité Discord : vrai = activité même quand le launcher est seul dans la barre système ({@code discordEnFond}). */
+    default boolean discordEnFond() { return false; }
+
+    /** Activité Discord : {@code "details"} = en jeu, la liste des membres montre l'univers au lieu du nom ({@code discordStatut}). */
+    default String discordStatut() { return ""; }
+
     SourceEtatPokenyle PAR_DEFAUT = new SourceEtatPokenyle() {
         @Override public boolean ouvertPour(String pseudo) { return false; }
         @Override public Optional<ZonedDateTime> ouverture() { return Optional.empty(); }

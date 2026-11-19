@@ -564,6 +564,12 @@ public class SettingsView extends BorderPane {
             Fond.appliquerReglages();
         }, false);
         annonces.setId("reglage-notifications");
+        Interrupteur discord = Elements.interrupteur(Settings.get().activiteDiscord, v -> {
+            Settings.get().activiteDiscord = v;
+            Settings.get().save();
+            fr.nylerp.launcher.discord.ActiviteDiscord.reglageChange();
+        }, false);
+        discord.setId("reglage-activiteDiscord");
 
         return section("Démarrage et notifications", Elements.carte(
                 "Le launcher peut rester discrètement dans la barre système pour te prévenir des ouvertures et des événements.",
@@ -574,7 +580,9 @@ public class SettingsView extends BorderPane {
                             : "Fermer la fenêtre le range près de l'horloge, dans les icônes cachées, au lieu de le quitter.",
                         garder, false),
                 Elements.ligne("Annonces",
-                        "Ouvertures, événements et nouveautés, affichés dans un coin de l'écran.", annonces, false)));
+                        "Ouvertures, événements et nouveautés, affichés dans un coin de l'écran.", annonces, false),
+                Elements.ligne("Activité Discord",
+                        "Tes amis voient sur Discord quand tu es sur le launcher ou en jeu.", discord, false)));
     }
 
     // ── Téléchargements ─────────────────────────────────────────────────────

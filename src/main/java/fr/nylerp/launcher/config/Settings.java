@@ -119,6 +119,9 @@ public final class Settings {
     public boolean accueilVu                = false;
     /** Dernier univers ouvert dans la nouvelle interface ("pokenyle" ou "nylerp"), vide = jamais. */
     public String universVu                 = "";
+    /** Activité Discord « NyleLauncher » (owner 19/11/2026 : ses amis voient qu'il joue). Allumée par défaut ;
+     *  clé absente d'un ancien fichier = défaut (Gson passe par le constructeur sans argument). */
+    public boolean activiteDiscord          = true;
 
     private static Settings current;
 

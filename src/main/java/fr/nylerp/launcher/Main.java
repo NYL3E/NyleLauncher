@@ -22,6 +22,13 @@ public final class Main {
             Application.launch(fr.nylerp.launcher.fond.NotifTest.class, args);
             return;
         }
+        // Outil de contrôle : « NyleLauncher --discord-test [identifiant] » pose l'activité Discord 20 s puis l'efface,
+        // sans interface ni verrou d'instance (voir discord.EssaiDiscord).
+        if (java.util.Arrays.asList(args).contains(fr.nylerp.launcher.discord.EssaiDiscord.ARG)) {
+            try { fr.nylerp.launcher.discord.EssaiDiscord.main(args); } catch (InterruptedException ignored) { }
+            System.exit(0);
+            return;
+        }
         // Un seul launcher par session : si un autre tourne déjà, il se montre et on s'arrête ici,
         // avant d'avoir ouvert quoi que ce soit (voir fond.Fond).
         if (!fr.nylerp.launcher.fond.Fond.prendreLaMain(args)) {

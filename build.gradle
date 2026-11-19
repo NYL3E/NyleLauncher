@@ -44,6 +44,9 @@ dependencies {
 test {
     useJUnitPlatform()
     testLogging { events 'passed', 'failed', 'skipped' }
+    // Activité Discord : un essai qui passerait par les chemins du système viserait ce canal inexistant,
+    // jamais le Discord de la machine qui construit (voir discord.CheminsIpc).
+    environment 'NYLE_DISCORD_IPC', layout.buildDirectory.file('essais-discord/aucun-discord-ipc').get().asFile.absolutePath
 }
 
 javafx {

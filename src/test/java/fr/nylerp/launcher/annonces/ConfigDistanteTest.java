@@ -146,4 +146,29 @@ class ConfigDistanteTest {
         assertFalse(c.rafraichir(), "corps illisible = échec");
         assertTrue(c.discordActif());
     }
+
+    @Test
+    void activiteDiscordLueCleParCle() {
+        ConfigDistante sans = nouvelle(URI.create("http://127.0.0.1:1/api/launcher/config"));
+        assertEquals("", sans.discordAppId(), "sans config : la constante du launcher");
+        assertFalse(sans.discordEnFond());
+        assertEquals("", sans.discordStatut());
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42",
+                "\"discordAppId\": \" 123456789012345678 \", \"discordEnFond\": true, \"discordStatut\": \"details\"");
+        ConfigDistante c = nouvelle(serveur.uri("config"));
+        assertTrue(c.rafraichir());
+        assertEquals("123456789012345678", c.discordAppId());
+        assertTrue(c.discordEnFond());
+        assertEquals("details", c.discordStatut());
+        assertTrue(c.discordActif(), "les clés voisines ne bougent pas");
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42",
+                "\"discordAppId\": 123456789012345678, \"discordEnFond\": \"oui\", \"discordStatut\": \"autre\"");
+        ConfigDistante mauvaise = nouvelle(serveur.uri("config"));
+        assertTrue(mauvaise.rafraichir());
+        assertEquals("", mauvaise.discordAppId(), "un nombre JSON au lieu d'un texte : ignoré (précision perdue)");
+        assertFalse(mauvaise.discordEnFond(), "mauvais type : défaut");
+        assertEquals("", mauvaise.discordStatut(), "valeur inconnue : défaut");
+    }
 }

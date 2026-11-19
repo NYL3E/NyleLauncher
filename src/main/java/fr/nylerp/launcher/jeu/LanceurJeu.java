@@ -184,6 +184,7 @@ public final class LanceurJeu {
      *  {@code METTRE À JOUR} just disabled the button with no motion. */
     private void setPlayBusy(boolean busy) {
         occupe.set(busy);            // refonte 2026-10 : l'interface (bouton, segment) s'y abonne
+        fr.nylerp.launcher.discord.ActiviteDiscord.occupe(busy);   // « Mise à jour du jeu… », fin du jeu
         // Canal DEV : la barre terminal n'anime son curseur d'attente QUE pendant un travail réel.
         // Au repos elle reste strictement figée — pas d'animation permanente sur l'écran d'accueil.
         if (termProgress != null) termProgress.setBusy(busy);
@@ -532,6 +533,7 @@ public final class LanceurJeu {
                     }
                 });
 
+                if (proc != null) fr.nylerp.launcher.discord.ActiviteDiscord.jeuLance();   // « En jeu sur … » et son chrono
                 Platform.runLater(() -> {
                     status.setText("Jeu en cours de lancement…");
                     progress.setProgress(1);
