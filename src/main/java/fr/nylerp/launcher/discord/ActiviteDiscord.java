@@ -22,6 +22,12 @@ import org.slf4j.LoggerFactory;
  * jeu en cours (« En jeu sur Pokényle » ou « En jeu sur NyleRP », avec le chrono). Launcher seul dans la
  * barre système, sans jeu : aucune activité (un PC simplement allumé ne doit pas afficher « Joue à
  * NyleLauncher » toute la journée) ; la clé distante {@code discordEnFond} peut renverser cette règle.
+ *
+ * <h2>Avec le mod {@code nylepresence} dans le pack</h2>
+ * Le jeu montre lui-même l'activité (il sait si le joueur est vraiment connecté au serveur). Si le jar
+ * {@code nylepresence-*.jar} est dans le dossier {@code mods} de l'instance au lancement, le launcher se tait
+ * tant que le jeu tourne ; sinon il garde « En jeu sur … » comme avant. Le jeu reçoit le réglage du launcher
+ * par {@code -Dnylelauncher.discord=on|off} ({@code MinecraftLauncher}) : « off » fait taire le mod aussi.
  */
 public final class ActiviteDiscord {
 
@@ -38,6 +44,8 @@ public final class ActiviteDiscord {
     private static volatile boolean enJeu;
     private static volatile boolean jeuPokenyle;
     private static volatile long debutJeu;
+    /** Le jeu lancé a le mod {@code nylepresence} : c'est lui qui parle tant qu'il tourne. */
+    private static volatile boolean modEnJeu;
     private static ClientPresence client;
 
     private ActiviteDiscord() { }
@@ -76,6 +84,7 @@ public final class ActiviteDiscord {
     public static void jeuLance() {
         try { jeuPokenyle = ModeDeJeu.courant() == ModeDeJeu.POKENYLE; } catch (Throwable ignore) { }
         debutJeu = System.currentTimeMillis() / 1000L;
+        try { modEnJeu = modPresenceDans(fr.nylerp.launcher.config.AppPaths.modsDir()); } catch (Throwable t) { modEnJeu = false; }
         enJeu = true;
         reveiller();
     }
@@ -109,7 +118,17 @@ public final class ActiviteDiscord {
         return distant != null ? distant : ID_APPLICATION;
     }
 
+    /** Vrai si {@code mods} contient le mod client {@code nylepresence} (il tient alors l'activité en jeu). */
+    static boolean modPresenceDans(java.nio.file.Path mods) {
+        try (var jars = java.nio.file.Files.newDirectoryStream(mods, "nylepresence-*.jar")) {
+            return jars.iterator().hasNext();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     private static JsonObject activite() {
+        if (enJeu && modEnJeu) return null; // le mod du jeu parle : une seule source à la fois
         Activite.Phase phase = enJeu ? Activite.Phase.EN_JEU
                 : occupe ? Activite.Phase.MISE_A_JOUR : Activite.Phase.LANCEUR;
         boolean pokenyle = enJeu ? jeuPokenyle : ModeDeJeu.courant() == ModeDeJeu.POKENYLE;

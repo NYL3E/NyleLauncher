@@ -10,8 +10,11 @@ import com.google.gson.JsonObject;
  * nom ; {@code timestamps.start} fait le chrono (secondes, comme la bibliothèque officielle discord-rpc et
  * l'exemple de la doc RPC) ; {@code assets.large_image} est une clé d'image de l'application ;
  * {@code buttons} : deux au plus, libellé de 1 à 32 caractères, adresse de 1 à 512.
+ *
+ * <p>Partagé tel quel avec le mod client {@code nylepresence} (même fichier, à garder identique) : le launcher
+ * se sert de LANCEUR, MISE_A_JOUR et EN_JEU ; le mod, de ECRAN_TITRE, SOLO et EN_JEU.
  */
-final class Activite {
+public final class Activite {
 
     /** Le nom de l'application Discord. Envoyé aussi dans {@code name}, sans en dépendre (même valeur). */
     static final String NOM = "NyleLauncher";
@@ -26,29 +29,31 @@ final class Activite {
     static final String TEXTE_MISE_A_JOUR = "Mise à jour du jeu…";
     static final String TEXTE_EN_JEU_POKENYLE = "En jeu sur Pokényle";
     static final String TEXTE_EN_JEU_NYLERP = "En jeu sur NyleRP";
+    static final String TEXTE_ECRAN_TITRE = "Sur l'écran titre";
+    static final String TEXTE_SOLO = "En solo";
 
     /** {@code status_display_type} : 0 = nom de l'activité dans la liste des membres, 2 = champ {@code details}. */
     static final int STATUT_NOM = 0;
     static final int STATUT_DETAILS = 2;
 
-    enum Phase { LANCEUR, MISE_A_JOUR, EN_JEU }
+    public enum Phase { LANCEUR, MISE_A_JOUR, EN_JEU, ECRAN_TITRE, SOLO }
 
     /**
      * Tout ce dont dépend l'activité, figé à un instant.
      *
-     * @param fenetreVisible la fenêtre du launcher est à l'écran
+     * @param fenetreVisible la fenêtre du launcher est à l'écran (sans effet hors de la phase LANCEUR)
      * @param pokenyle       l'univers concerné (celui du jeu lancé, ou celui choisi dans le launcher)
      * @param debutJeu       lancement du jeu, en secondes depuis 1970 (phase EN_JEU)
      * @param enFond         config distante {@code discordEnFond} : activité même quand le launcher est seul dans la barre
      * @param statutDetails  config distante {@code discordStatut = "details"} : en jeu, la liste des membres montre « Pokényle »
      */
-    record Situation(Phase phase, boolean fenetreVisible, boolean pokenyle, long debutJeu,
+    public record Situation(Phase phase, boolean fenetreVisible, boolean pokenyle, long debutJeu,
                      boolean enFond, boolean statutDetails) { }
 
     private Activite() { }
 
     /** L'activité à poser, ou null pour n'en montrer aucune (launcher seul dans la barre système). */
-    static JsonObject pour(Situation s) {
+    public static JsonObject pour(Situation s) {
         if (s.phase() == Phase.LANCEUR && !s.fenetreVisible() && !s.enFond()) return null;
 
         JsonObject a = new JsonObject();
@@ -63,6 +68,8 @@ final class Activite {
                 case LANCEUR -> TEXTE_LANCEUR;
                 case MISE_A_JOUR -> TEXTE_MISE_A_JOUR;
                 case EN_JEU -> s.pokenyle() ? TEXTE_EN_JEU_POKENYLE : TEXTE_EN_JEU_NYLERP;
+                case ECRAN_TITRE -> TEXTE_ECRAN_TITRE;
+                case SOLO -> TEXTE_SOLO;
             });
         }
         if (s.phase() == Phase.EN_JEU && s.debutJeu() > 0) {

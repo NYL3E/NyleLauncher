@@ -17,8 +17,10 @@ import java.util.function.Function;
  * </ul>
  * La variable d'environnement {@value #VARIABLE_ESSAI}, si elle est posée, remplace TOUTE la liste par
  * le seul chemin qu'elle donne : les essais (faux Discord) ne touchent ainsi jamais le vrai.
+ *
+ * <p>Partagé tel quel avec le mod client {@code nylepresence} (même fichier, à garder identique).
  */
-final class CheminsIpc {
+public final class CheminsIpc {
 
     static final String VARIABLE_ESSAI = "NYLE_DISCORD_IPC";
     static final int CANAUX = 10;
@@ -31,7 +33,7 @@ final class CheminsIpc {
     private CheminsIpc() { }
 
     /** Les chemins à essayer sur cette machine. */
-    static List<String> systeme() {
+    public static List<String> systeme() {
         // Filet macOS : si TMPDIR manque à l'environnement du processus, le dossier temporaire de l'utilisateur
         // (celui où Discord pose son canal) reste connu de Java.
         return candidats(v -> {

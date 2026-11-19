@@ -128,6 +128,8 @@ public final class MinecraftLauncher {
         cmd.add("-Djava.library.path=" + mcRoot.resolve("natives"));
         cmd.add("-Dminecraft.launcher.brand=nylelauncher");
         cmd.add("-Dminecraft.launcher.version=" + readAppVersion());
+        // Activité Discord : le mod client nylepresence suit le réglage du launcher (« off » le fait taire aussi).
+        cmd.add("-Dnylelauncher.discord=" + (fr.nylerp.launcher.config.Settings.get().activiteDiscord ? "on" : "off"));
         cmd.add("-cp");
         cmd.add(cpStr);
         cmd.add(fabric.mainClass());

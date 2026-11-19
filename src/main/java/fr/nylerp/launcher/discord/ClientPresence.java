@@ -30,18 +30,20 @@ import java.util.function.Supplier;
  * </ul>
  * Les fournisseurs (identifiant, réglage, activité) sont relus à chaque tour : {@link #reveiller()} après
  * un changement les fait relire tout de suite.
+ *
+ * <p>Partagé tel quel avec le mod client {@code nylepresence} (même fichier, à garder identique).
  */
-final class ClientPresence {
+public final class ClientPresence {
 
     private static final Logger LOG = LoggerFactory.getLogger("Discord");
 
     /** Durées en millisecondes (les essais les raccourcissent). */
-    record Reglages(long reessaiMinMs, long reessaiMaxMs, long ecartMajMs, long periodeMs,
+    public record Reglages(long reessaiMinMs, long reessaiMaxMs, long ecartMajMs, long periodeMs,
                     long attenteReadyMs, long sommeilInerteMs) {
-        static final Reglages NORMAUX = new Reglages(20_000, 30_000, 5_000, 500, 5_000, 30_000);
+        public static final Reglages NORMAUX = new Reglages(20_000, 30_000, 5_000, 500, 5_000, 30_000);
     }
 
-    enum EtatConnexion { DEMARRAGE, INERTE, COUPEE, ABSENT, ECHEC, REFUS, CONNECTE, PERDUE, ARRETEE }
+    public enum EtatConnexion { DEMARRAGE, INERTE, COUPEE, ABSENT, ECHEC, REFUS, CONNECTE, PERDUE, ARRETEE }
 
     /** Discord a refusé la poignée de main (identifiant inconnu…) : inutile d'essayer les autres canaux. */
     private static final class Refus extends IOException {
@@ -74,7 +76,7 @@ final class ClientPresence {
     private long derniereMaj;
     private long prochainEssai;
 
-    ClientPresence(Supplier<List<String>> chemins, Supplier<String> identifiant, BooleanSupplier actif,
+    public ClientPresence(Supplier<List<String>> chemins, Supplier<String> identifiant, BooleanSupplier actif,
                    Supplier<JsonObject> activite, Reglages reglages) {
         this.chemins = chemins;
         this.identifiant = identifiant;
@@ -83,7 +85,7 @@ final class ClientPresence {
         this.r = reglages;
     }
 
-    synchronized void demarrer() {
+    public synchronized void demarrer() {
         if (fil != null) return;
         fil = new Thread(this::boucle, "nyle-discord");
         fil.setDaemon(true);
@@ -91,7 +93,7 @@ final class ClientPresence {
     }
 
     /** Fait relire tout de suite l'identifiant, le réglage et l'activité. N'importe quel fil. */
-    void reveiller() {
+    public void reveiller() {
         synchronized (verrou) {
             reveil = true;
             verrou.notifyAll();
@@ -104,7 +106,7 @@ final class ClientPresence {
      *
      * @return vrai si le fil est terminé
      */
-    boolean arreter(long attenteMs) {
+    public boolean arreter(long attenteMs) {
         arret = true;
         reveiller();
         Thread f;
@@ -114,7 +116,7 @@ final class ClientPresence {
         return !f.isAlive();
     }
 
-    EtatConnexion etat() { return etat; }
+    public EtatConnexion etat() { return etat; }
 
     // ── Le fil ───────────────────────────────────────────────────────────────
 
@@ -353,7 +355,7 @@ final class ClientPresence {
     }
 
     /** Un identifiant d'application Discord (nombre de 15 à 25 chiffres), ou null. */
-    static String idValide(String id) {
+    public static String idValide(String id) {
         if (id == null) return null;
         String t = id.trim();
         if (t.length() < 15 || t.length() > 25) return null;

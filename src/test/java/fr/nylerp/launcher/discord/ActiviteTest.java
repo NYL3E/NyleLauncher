@@ -1,16 +1,14 @@
 package fr.nylerp.launcher.discord;
 
 import com.google.gson.JsonObject;
-import fr.nylerp.launcher.univers.Services;
-import fr.nylerp.launcher.univers.SourceEtatPokenyle;
 import org.junit.jupiter.api.Test;
-
-import java.time.ZonedDateTime;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Ce que voient les amis du joueur, état par état, et les limites de Discord sur chaque champ. */
+/**
+ * Ce que voient les amis du joueur, état par état, et les limites de Discord sur chaque champ.
+ * Partagé tel quel avec le mod client {@code nylepresence}.
+ */
 class ActiviteTest {
 
     private static JsonObject a(Activite.Phase p, boolean fenetre, boolean pokenyle, boolean enFond, boolean details) {
@@ -34,6 +32,8 @@ class ActiviteTest {
         assertEquals(1_763_500_000L, jeu.getAsJsonObject("timestamps").get("start").getAsLong());
         assertEquals("https://pokerayou.academy/", url(jeu));
         assertEquals("En jeu sur NyleRP", details(a(Activite.Phase.EN_JEU, false, false, false, false)));
+        assertEquals("Sur l'écran titre", details(a(Activite.Phase.ECRAN_TITRE, false, true, false, false)), "mod du jeu");
+        assertEquals("En solo", details(a(Activite.Phase.SOLO, false, true, false, false)), "mod du jeu");
 
         for (JsonObject o : new JsonObject[] {lanceur, jeu}) {
             assertEquals("NyleLauncher", o.get("name").getAsString());
@@ -49,6 +49,7 @@ class ActiviteTest {
         assertNotNull(a(Activite.Phase.LANCEUR, false, true, true, false), "discordEnFond : activité dès que le processus vit");
         assertNotNull(a(Activite.Phase.EN_JEU, false, true, false, false), "en jeu, fenêtre rangée : activité");
         assertNotNull(a(Activite.Phase.MISE_A_JOUR, false, true, false, false));
+        assertNotNull(a(Activite.Phase.ECRAN_TITRE, false, true, false, false), "le jeu tourne : activité");
     }
 
     @Test
@@ -91,34 +92,5 @@ class ActiviteTest {
         assertEquals("Pokényle", details(r2));
         assertTrue(o.has("name") && o.has("buttons"), "l'activité d'origine n'est pas touchée");
         assertNull(Activite.repli(null, 2));
-    }
-
-    @Test
-    void identifiantDeLaConfigDistantePrioritaire() {
-        SourceEtatPokenyle avant = Services.etatPokenyle;
-        try {
-            Services.etatPokenyle = source("987654321098765432");
-            assertEquals("987654321098765432", ActiviteDiscord.identifiant());
-            Services.etatPokenyle = source("n'importe quoi");
-            assertEquals(ActiviteDiscord.ID_APPLICATION, ActiviteDiscord.identifiant(), "invalide : la constante");
-            Services.etatPokenyle = SourceEtatPokenyle.PAR_DEFAUT;
-            assertEquals(ActiviteDiscord.ID_APPLICATION, ActiviteDiscord.identifiant());
-        } finally {
-            Services.etatPokenyle = avant;
-        }
-    }
-
-    private static SourceEtatPokenyle source(String id) {
-        return new SourceEtatPokenyle() {
-            @Override public boolean ouvertPour(String pseudo) { return false; }
-            @Override public Optional<ZonedDateTime> ouverture() { return Optional.empty(); }
-            @Override public String libelleOuverture() { return ""; }
-            @Override public boolean crackAutorise() { return false; }
-            @Override public String messageCrack() { return ""; }
-            @Override public boolean discordActif() { return false; }
-            @Override public String discordUrl() { return ""; }
-            @Override public void surChangement(Runnable rappel) { }
-            @Override public String discordAppId() { return id; }
-        };
     }
 }
