@@ -18,8 +18,10 @@ public final class Activite {
 
     /** Le nom de l'application Discord. Envoyé aussi dans {@code name}, sans en dépendre (même valeur). */
     static final String NOM = "NyleLauncher";
-    /** Clé de l'image à téléverser dans le portail Discord (Rich Presence, Art Assets). */
+    /** Clé d'image par défaut (portail Discord, Rich Presence, Art Assets) ; remplaçable par la config ({@code discordImage}). */
     static final String CLE_IMAGE = "logo";
+    /** Longueur maximale admise pour une image venue de la config (clé ou adresse). */
+    static final int IMAGE_MAX = 256;
     static final String BOUTON = "Rejoindre le serveur";
     /** Racines des sites dont le launcher ouvre déjà la boutique ({@code ui/coquille/Liens}). */
     static final String SITE_POKENYLE = "https://pokerayou.academy/";
@@ -46,9 +48,25 @@ public final class Activite {
      * @param debutJeu       lancement du jeu, en secondes depuis 1970 (phase EN_JEU)
      * @param enFond         config distante {@code discordEnFond} : activité même quand le launcher est seul dans la barre
      * @param statutDetails  config distante {@code discordStatut = "details"} : en jeu, la liste des membres montre « Pokényle »
+     * @param image          config {@code discordImage} : clé d'image ou adresse https ; null ou invalide = {@link #CLE_IMAGE}
      */
     public record Situation(Phase phase, boolean fenetreVisible, boolean pokenyle, long debutJeu,
-                     boolean enFond, boolean statutDetails) { }
+                     boolean enFond, boolean statutDetails, String image) { }
+
+    /**
+     * L'image venue de la config, si elle est admissible : une clé simple ({@code [a-z0-9_-]}, 1 à 64 caractères, comme
+     * les clés du portail, qui sont en minuscules) ou une adresse {@code https://} sans espace ni caractère de contrôle ni
+     * guillemet, de {@value #IMAGE_MAX} caractères au plus (la doc admet les deux dans {@code assets.large_image}).
+     * Sinon null : on garde {@link #CLE_IMAGE}.
+     */
+    public static String imageValide(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        if (t.isEmpty() || t.length() > IMAGE_MAX) return null;
+        if (t.matches("[a-z0-9_-]{1,64}")) return t;
+        if (t.startsWith("https://") && t.length() > "https://".length() && t.matches("https://[\\x21-\\x7E&&[^\"'<>\\\\`{}|^]]+")) return t;
+        return null;
+    }
 
     private Activite() { }
 
@@ -78,7 +96,8 @@ public final class Activite {
             a.add("timestamps", t);
         }
         JsonObject images = new JsonObject();
-        images.addProperty("large_image", CLE_IMAGE);
+        String image = imageValide(s.image());
+        images.addProperty("large_image", image != null ? image : CLE_IMAGE);
         images.addProperty("large_text", NOM);
         a.add("assets", images);
 

@@ -20,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * L'état de Pokényle piloté depuis le Studio ({@code /api/launcher/config}) : date d'ouverture,
  * ouverture générale, comptes crack, Discord, testeurs, activité Discord ({@code discordAppId},
- * {@code discordEnFond}, {@code discordStatut}, {@code discordPour}).
+ * {@code discordEnFond}, {@code discordStatut}, {@code discordPour}, {@code discordImage}).
  *
  * <p>Toute clé absente ou au mauvais type prend la valeur par défaut du contrat, une à une : une
  * faute de frappe au Studio sur une clé ne fait jamais tomber les autres. Hors ligne, on lit la
@@ -46,9 +46,10 @@ public final class ConfigDistante implements SourceEtatPokenyle {
     /** Valeurs lues, immuables : une lecture concurrente voit toujours un état complet. */
     record Etat(ZonedDateTime ouverture, String libelle, boolean ouvert, boolean crack, String messageCrack,
                 boolean discordActif, String discordUrl, Set<String> testeurs,
-                String discordAppId, boolean discordEnFond, String discordStatut, boolean discordPourTous) {
+                String discordAppId, boolean discordEnFond, String discordStatut, boolean discordPourTous,
+                String discordImage) {
         static final Etat DEFAUT = new Etat(null, LIBELLE_DEFAUT, false, false, MESSAGE_CRACK_DEFAUT,
-                false, DISCORD_DEFAUT, null, "", false, "", false);
+                false, DISCORD_DEFAUT, null, "", false, "", false, "");
     }
 
     private final PointAcces point;
@@ -104,6 +105,7 @@ public final class ConfigDistante implements SourceEtatPokenyle {
     @Override public boolean discordEnFond() { return etat.discordEnFond(); }
     @Override public String discordStatut() { return etat.discordStatut(); }
     @Override public boolean discordPourTous() { return etat.discordPourTous(); }
+    @Override public String discordImage() { return etat.discordImage(); }
 
     // ── Lecture tolérante ────────────────────────────────────────────────────
 
@@ -122,7 +124,8 @@ public final class ConfigDistante implements SourceEtatPokenyle {
                 identifiantDiscord(c.get("discordAppId")),
                 bool(c.get("discordEnFond"), false),
                 "details".equals(texte(c.get("discordStatut"), 20, "")) ? "details" : "",
-                "tous".equals(texte(c.get("discordPour"), 20, "")));
+                "tous".equals(texte(c.get("discordPour"), 20, "")),
+                image(c.get("discordImage")));
     }
 
     private static ZonedDateTime date(JsonElement e) {
@@ -145,6 +148,13 @@ public final class ConfigDistante implements SourceEtatPokenyle {
         if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString()) return DISCORD_DEFAUT;
         String u = e.getAsString().trim();
         return u.startsWith("https://discord.gg/") || u.startsWith("https://discord.com/invite/") ? u : DISCORD_DEFAUT;
+    }
+
+    /** Image de l'activité Discord : clé simple ou adresse https admise par {@code Activite.imageValide}, sinon vide. */
+    private static String image(JsonElement e) {
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString()) return "";
+        String v = fr.nylerp.launcher.discord.Activite.imageValide(e.getAsString());
+        return v != null ? v : "";
     }
 
     /** Identifiant d'application Discord : un nombre de 15 à 25 chiffres, en texte ; sinon vide (constante du launcher). */

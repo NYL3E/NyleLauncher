@@ -39,7 +39,7 @@ class ClientPresenceTest {
     }
 
     private static JsonObject enJeu(boolean pokenyle) {
-        return Activite.pour(new Activite.Situation(Activite.Phase.EN_JEU, false, pokenyle, DEBUT, false, false));
+        return Activite.pour(new Activite.Situation(Activite.Phase.EN_JEU, false, pokenyle, DEBUT, false, false, null));
     }
 
     private Path canal() { return dossier.resolve("discord-ipc-0"); }

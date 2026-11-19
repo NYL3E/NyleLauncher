@@ -38,7 +38,7 @@ public final class EssaiDiscord {
             try { duree = Math.max(1, Math.min(600, Long.parseLong(a.get(d + 1)))) * 1000L; } catch (NumberFormatException ignore) { }
         }
         JsonObject activite = Activite.pour(new Activite.Situation(Activite.Phase.EN_JEU, true, true,
-                System.currentTimeMillis() / 1000L, false, details));
+                System.currentTimeMillis() / 1000L, false, details, null));
         System.out.println("Essai Discord : activité envoyée : " + activite);
         String identifiant = id;
         ClientPresence c = new ClientPresence(CheminsIpc::systeme, () -> identifiant, () -> true, () -> activite,

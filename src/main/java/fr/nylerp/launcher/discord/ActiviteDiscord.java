@@ -165,6 +165,6 @@ public final class ActiviteDiscord {
         boolean pokenyle = enJeu ? jeuPokenyle : ModeDeJeu.courant() == ModeDeJeu.POKENYLE;
         SourceEtatPokenyle c = config();
         return Activite.pour(new Activite.Situation(phase, fenetreVisible, pokenyle, debutJeu,
-                c.discordEnFond(), "details".equalsIgnoreCase(c.discordStatut())));
+                c.discordEnFond(), "details".equalsIgnoreCase(c.discordStatut()), c.discordImage()));
     }
 }

@@ -199,4 +199,22 @@ class ConfigDistanteTest {
         assertTrue(mauvais.rafraichir());
         assertFalse(mauvais.discordPourTous(), "mauvais type : testeurs seulement");
     }
+
+    @Test
+    void imageDeLActiviteDiscord() {
+        ConfigDistante sans = nouvelle(URI.create("http://127.0.0.1:1/api/launcher/config"));
+        assertEquals("", sans.discordImage(), "clé absente : vide, l'activité garde la clé logo");
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42",
+                "\"discordImage\": \"https://nyle-mc-server.pages.dev/launcher/discord-logo.png\"");
+        ConfigDistante c = nouvelle(serveur.uri("config"));
+        assertTrue(c.rafraichir());
+        assertEquals("https://nyle-mc-server.pages.dev/launcher/discord-logo.png", c.discordImage());
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42", "\"discordImage\": \"http://pas-https.fr/logo.png\"");
+        ConfigDistante mauvaise = nouvelle(serveur.uri("config"));
+        assertTrue(mauvaise.rafraichir());
+        assertEquals("", mauvaise.discordImage(), "adresse non https : refusée");
+        assertTrue(mauvaise.discordActif(), "les clés voisines ne bougent pas");
+    }
 }

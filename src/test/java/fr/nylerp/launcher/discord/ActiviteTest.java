@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ActiviteTest {
 
     private static JsonObject a(Activite.Phase p, boolean fenetre, boolean pokenyle, boolean enFond, boolean details) {
-        return Activite.pour(new Activite.Situation(p, fenetre, pokenyle, 1_763_500_000L, enFond, details));
+        return Activite.pour(new Activite.Situation(p, fenetre, pokenyle, 1_763_500_000L, enFond, details, null));
     }
 
     private static String details(JsonObject a) { return a.get("details").getAsString(); }
@@ -78,6 +78,21 @@ class ActiviteTest {
                 String texte = o.toString().toLowerCase();
                 assertFalse(texte.contains("crack") || texte.contains("discord.gg"), "règles de l'owner");
             }
+        }
+    }
+
+    @Test
+    void imageDeLaConfigCleOuAdresseHttpsSinonLogo() {
+        java.util.function.Function<String, String> image = v -> Activite.pour(new Activite.Situation(Activite.Phase.EN_JEU,
+                false, true, 1L, false, false, v)).getAsJsonObject("assets").get("large_image").getAsString();
+        assertEquals("logo", image.apply(null), "absente : la clé logo");
+        assertEquals("logo_pokenyle", image.apply(" logo_pokenyle "), "clé simple du portail");
+        String url = "https://nyle-mc-server.pages.dev/launcher/discord-logo.png";
+        assertEquals(url, image.apply(url), "adresse https publique");
+        for (String mauvais : new String[] {"", "   ", "http://nyle-mc-server.pages.dev/logo.png", "javascript:alert(1)",
+                "https://", "https://a b.png", "https://x.fr/\"logo\".png", "Logo", "mp:external/abc",
+                "https://x.fr/" + "a".repeat(300), "logo\n", "clé"}) {
+            assertEquals("logo", image.apply(mauvais), "refusé, logo gardé : « " + mauvais + " »");
         }
     }
 

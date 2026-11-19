@@ -44,6 +44,9 @@ public interface SourceEtatPokenyle {
     /** Activité Discord : {@code "details"} = en jeu, la liste des membres montre l'univers au lieu du nom ({@code discordStatut}). */
     default String discordStatut() { return ""; }
 
+    /** Activité Discord : image ({@code discordImage}), clé d'image ou adresse https ; vide = la clé « logo ». */
+    default String discordImage() { return ""; }
+
     /** Activité Discord : vrai = pour tous les joueurs ({@code discordPour = "tous"}) ; sinon testeurs seulement. */
     default boolean discordPourTous() { return false; }
 
