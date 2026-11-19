@@ -44,6 +44,12 @@ public interface SourceEtatPokenyle {
     /** Activité Discord : {@code "details"} = en jeu, la liste des membres montre l'univers au lieu du nom ({@code discordStatut}). */
     default String discordStatut() { return ""; }
 
+    /** Activité Discord : vrai = pour tous les joueurs ({@code discordPour = "tous"}) ; sinon testeurs seulement. */
+    default boolean discordPourTous() { return false; }
+
+    /** Ce pseudo est-il dans la liste des testeurs (distante, ou celle intégrée hors ligne) ? Indépendant de l'ouverture. */
+    default boolean estTesteur(String pseudo) { return false; }
+
     SourceEtatPokenyle PAR_DEFAUT = new SourceEtatPokenyle() {
         @Override public boolean ouvertPour(String pseudo) { return false; }
         @Override public Optional<ZonedDateTime> ouverture() { return Optional.empty(); }

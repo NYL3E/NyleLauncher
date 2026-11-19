@@ -23,6 +23,10 @@ import org.slf4j.LoggerFactory;
  * barre système, sans jeu : aucune activité (un PC simplement allumé ne doit pas afficher « Joue à
  * NyleLauncher » toute la journée) ; la clé distante {@code discordEnFond} peut renverser cette règle.
  *
+ * <h2>Activation progressive</h2>
+ * Clé distante {@code discordPour} : absente ou {@code "testeurs"} = seulement les comptes testeurs (liste
+ * {@code testeursPokenyle}) ; {@code "tous"} = tout le monde. Hors de la cible, aucune connexion à Discord.
+ *
  * <h2>Avec le mod {@code nylepresence} dans le pack</h2>
  * Le jeu montre lui-même l'activité (il sait si le joueur est vraiment connecté au serveur). Si le jar
  * {@code nylepresence-*.jar} est dans le dossier {@code mods} de l'instance au lancement, le launcher se tait
@@ -47,6 +51,7 @@ public final class ActiviteDiscord {
     /** Le jeu lancé a le mod {@code nylepresence} : c'est lui qui parle tant qu'il tourne. */
     private static volatile boolean modEnJeu;
     private static ClientPresence client;
+    private static volatile Boolean dernierAcces;
 
     private ActiviteDiscord() { }
 
@@ -113,9 +118,31 @@ public final class ActiviteDiscord {
         return s != null ? s : SourceEtatPokenyle.PAR_DEFAUT;
     }
 
+    /** L'identifiant à utiliser pour le compte actif, ou "" (inerte : pas d'identifiant, ou compte hors de la cible). */
     static String identifiant() {
-        String distant = ClientPresence.idValide(config().discordAppId());
-        return distant != null ? distant : ID_APPLICATION;
+        String pseudo = null;
+        try {
+            fr.nylerp.launcher.auth.Account a = fr.nylerp.launcher.auth.AccountStore.active();
+            if (a != null) pseudo = a.username();
+        } catch (Throwable ignore) { }
+        return identifiantPour(config(), pseudo);
+    }
+
+    static String identifiantPour(SourceEtatPokenyle c, String pseudo) {
+        String distant = ClientPresence.idValide(c.discordAppId());
+        String id = distant != null ? distant : ClientPresence.idValide(ID_APPLICATION);
+        if (id == null) return "";
+        boolean acces = autorise(c, pseudo);
+        if (!Boolean.valueOf(acces).equals(dernierAcces)) {
+            dernierAcces = acces;
+            if (!acces) LOG.info("Discord : activité réservée aux testeurs pour l'instant (config distante « discordPour »)");
+        }
+        return acces ? id : "";
+    }
+
+    /** {@code discordPour = "tous"}, ou un compte testeur. */
+    static boolean autorise(SourceEtatPokenyle c, String pseudo) {
+        return c.discordPourTous() || c.estTesteur(pseudo);
     }
 
     /** Vrai si {@code mods} contient le mod client {@code nylepresence} (il tient alors l'activité en jeu). */

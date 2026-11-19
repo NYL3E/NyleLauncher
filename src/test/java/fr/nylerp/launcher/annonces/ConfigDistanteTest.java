@@ -171,4 +171,32 @@ class ConfigDistanteTest {
         assertFalse(mauvaise.discordEnFond(), "mauvais type : défaut");
         assertEquals("", mauvaise.discordStatut(), "valeur inconnue : défaut");
     }
+
+    @Test
+    void activationProgressiveDeLActiviteDiscord() {
+        ConfigDistante sans = nouvelle(URI.create("http://127.0.0.1:1/api/launcher/config"));
+        assertFalse(sans.discordPourTous(), "clé absente : testeurs seulement");
+        assertTrue(sans.estTesteur("NYL3E"), "repli : la liste intégrée des testeurs");
+        assertFalse(sans.estTesteur("quelquun"));
+        assertFalse(sans.estTesteur(null));
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42", "\"discordPour\": \"testeurs\"")
+                .replace("\"pokenyleOuvert\": false", "\"pokenyleOuvert\": true");
+        ConfigDistante t = nouvelle(serveur.uri("config"));
+        assertTrue(t.rafraichir());
+        assertFalse(t.discordPourTous());
+        assertTrue(t.estTesteur("MrCedriic"));
+        assertFalse(t.estTesteur("quelquun"), "Pokényle ouvert à tous ne fait pas de tout le monde un testeur");
+        assertTrue(t.ouvertPour("quelquun"), "l'ouverture, elle, reste la même");
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42", "\"discordPour\": \"tous\"");
+        ConfigDistante tous = nouvelle(serveur.uri("config"));
+        assertTrue(tous.rafraichir());
+        assertTrue(tous.discordPourTous());
+
+        serveur.pour("config").corps = CONFIG.replace("\"cleInconnue\": 42", "\"discordPour\": true");
+        ConfigDistante mauvais = nouvelle(serveur.uri("config"));
+        assertTrue(mauvais.rafraichir());
+        assertFalse(mauvais.discordPourTous(), "mauvais type : testeurs seulement");
+    }
 }

@@ -1,6 +1,5 @@
 package fr.nylerp.launcher.discord;
 
-import fr.nylerp.launcher.univers.Services;
 import fr.nylerp.launcher.univers.SourceEtatPokenyle;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,20 +27,27 @@ class ActiviteDiscordTest {
 
     @Test
     void identifiantDeLaConfigDistantePrioritaire() {
-        SourceEtatPokenyle avant = Services.etatPokenyle;
-        try {
-            Services.etatPokenyle = source("987654321098765432");
-            assertEquals("987654321098765432", ActiviteDiscord.identifiant());
-            Services.etatPokenyle = source("n'importe quoi");
-            assertEquals(ActiviteDiscord.ID_APPLICATION, ActiviteDiscord.identifiant(), "invalide : la constante");
-            Services.etatPokenyle = SourceEtatPokenyle.PAR_DEFAUT;
-            assertEquals(ActiviteDiscord.ID_APPLICATION, ActiviteDiscord.identifiant());
-        } finally {
-            Services.etatPokenyle = avant;
-        }
+        assertEquals("987654321098765432", ActiviteDiscord.identifiantPour(source("987654321098765432", true, null), "x"));
+        String constante = ClientPresence.idValide(ActiviteDiscord.ID_APPLICATION) == null ? "" : ActiviteDiscord.ID_APPLICATION;
+        assertEquals(constante, ActiviteDiscord.identifiantPour(source("n'importe quoi", true, null), "x"),
+                "identifiant distant invalide : la constante du launcher (vide = inerte)");
+        assertEquals("", ActiviteDiscord.identifiantPour(SourceEtatPokenyle.PAR_DEFAUT, "quelquun"),
+                "sans config : ni identifiant distant, ni testeur");
     }
 
-    private static SourceEtatPokenyle source(String id) {
+    @Test
+    void activationProgressiveTesteursPuisTous() {
+        String id = "987654321098765432";
+        SourceEtatPokenyle testeurs = source(id, false, "nyl3e");
+        assertEquals(id, ActiviteDiscord.identifiantPour(testeurs, "NYL3E"), "un testeur : connecté");
+        assertEquals("", ActiviteDiscord.identifiantPour(testeurs, "joueur"), "un autre joueur : aucune connexion");
+        assertEquals("", ActiviteDiscord.identifiantPour(testeurs, null), "sans compte : aucune connexion");
+        SourceEtatPokenyle tous = source(id, true, "nyl3e");
+        assertEquals(id, ActiviteDiscord.identifiantPour(tous, "joueur"), "discordPour = tous : tout le monde");
+        assertEquals(id, ActiviteDiscord.identifiantPour(tous, null));
+    }
+
+    private static SourceEtatPokenyle source(String id, boolean pourTous, String testeur) {
         return new SourceEtatPokenyle() {
             @Override public boolean ouvertPour(String pseudo) { return false; }
             @Override public Optional<ZonedDateTime> ouverture() { return Optional.empty(); }
@@ -52,6 +58,8 @@ class ActiviteDiscordTest {
             @Override public String discordUrl() { return ""; }
             @Override public void surChangement(Runnable rappel) { }
             @Override public String discordAppId() { return id; }
+            @Override public boolean discordPourTous() { return pourTous; }
+            @Override public boolean estTesteur(String pseudo) { return pseudo != null && pseudo.equalsIgnoreCase(testeur); }
         };
     }
 }

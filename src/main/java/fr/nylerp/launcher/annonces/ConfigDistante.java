@@ -20,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * L'état de Pokényle piloté depuis le Studio ({@code /api/launcher/config}) : date d'ouverture,
  * ouverture générale, comptes crack, Discord, testeurs, activité Discord ({@code discordAppId},
- * {@code discordEnFond}, {@code discordStatut}).
+ * {@code discordEnFond}, {@code discordStatut}, {@code discordPour}).
  *
  * <p>Toute clé absente ou au mauvais type prend la valeur par défaut du contrat, une à une : une
  * faute de frappe au Studio sur une clé ne fait jamais tomber les autres. Hors ligne, on lit la
@@ -46,9 +46,9 @@ public final class ConfigDistante implements SourceEtatPokenyle {
     /** Valeurs lues, immuables : une lecture concurrente voit toujours un état complet. */
     record Etat(ZonedDateTime ouverture, String libelle, boolean ouvert, boolean crack, String messageCrack,
                 boolean discordActif, String discordUrl, Set<String> testeurs,
-                String discordAppId, boolean discordEnFond, String discordStatut) {
+                String discordAppId, boolean discordEnFond, String discordStatut, boolean discordPourTous) {
         static final Etat DEFAUT = new Etat(null, LIBELLE_DEFAUT, false, false, MESSAGE_CRACK_DEFAUT,
-                false, DISCORD_DEFAUT, null, "", false, "");
+                false, DISCORD_DEFAUT, null, "", false, "", false);
     }
 
     private final PointAcces point;
@@ -83,9 +83,12 @@ public final class ConfigDistante implements SourceEtatPokenyle {
     // ── SourceEtatPokenyle ───────────────────────────────────────────────────
 
     @Override public boolean ouvertPour(String pseudo) {
-        Etat e = etat;
-        if (e.ouvert()) return true;
+        return etat.ouvert() || estTesteur(pseudo);
+    }
+
+    @Override public boolean estTesteur(String pseudo) {
         if (pseudo == null || pseudo.isBlank()) return false;
+        Etat e = etat;
         Set<String> testeurs = e.testeurs() != null ? e.testeurs() : TESTEURS_REPLI;
         return testeurs.contains(pseudo.trim().toLowerCase(Locale.ROOT));
     }
@@ -100,6 +103,7 @@ public final class ConfigDistante implements SourceEtatPokenyle {
     @Override public String discordAppId() { return etat.discordAppId(); }
     @Override public boolean discordEnFond() { return etat.discordEnFond(); }
     @Override public String discordStatut() { return etat.discordStatut(); }
+    @Override public boolean discordPourTous() { return etat.discordPourTous(); }
 
     // ── Lecture tolérante ────────────────────────────────────────────────────
 
@@ -117,7 +121,8 @@ public final class ConfigDistante implements SourceEtatPokenyle {
                 testeurs(c.get("testeursPokenyle")),
                 identifiantDiscord(c.get("discordAppId")),
                 bool(c.get("discordEnFond"), false),
-                "details".equals(texte(c.get("discordStatut"), 20, "")) ? "details" : "");
+                "details".equals(texte(c.get("discordStatut"), 20, "")) ? "details" : "",
+                "tous".equals(texte(c.get("discordPour"), 20, "")));
     }
 
     private static ZonedDateTime date(JsonElement e) {
