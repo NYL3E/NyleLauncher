@@ -99,11 +99,15 @@ public final class ActiviteDiscord {
         reveiller();
     }
 
-    /** Efface l'activité et ferme la connexion (arrêt du launcher). N'attend pas plus d'une seconde et demie. */
+    /**
+     * Efface l'activité et ferme la connexion (arrêt du launcher). Attend le fil 0,4 s au plus : la fermeture du
+     * launcher ne dépend jamais de lui (fil démon, entrées-sorties bornées à 1 s) ; si Discord est figé, la fin du
+     * processus coupe le canal et Discord efface l'activité de lui-même.
+     */
     public static void arreter() {
         ClientPresence c;
         synchronized (ActiviteDiscord.class) { c = client; }
-        if (c != null) c.arreter(1500);
+        if (c != null) c.arreter(400);
     }
 
     // ── Interne ──────────────────────────────────────────────────────────────

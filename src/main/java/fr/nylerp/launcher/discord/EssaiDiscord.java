@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Outil de contrôle : {@code NyleLauncher --discord-test [identifiant] [details] [--duree S]} pose l'activité
- * « En jeu sur Pokényle » pendant 20 s (ou S secondes, 5 à 600), puis l'efface et ferme la connexion ; chaque
+ * « En jeu sur Pokényle » pendant 20 s (ou S secondes, 1 à 600), puis l'efface et ferme la connexion ; chaque
  * changement d'état et la durée de l'arrêt s'écrivent avec l'heure. Sans interface, sans le verrou
  * d'instance (marche même si le launcher tourne déjà), sans lire ni écrire les réglages du joueur.
  *
@@ -35,7 +35,7 @@ public final class EssaiDiscord {
         long duree = DUREE_MS;
         int d = a.indexOf("--duree");
         if (d >= 0 && d + 1 < a.size()) {
-            try { duree = Math.max(5, Math.min(600, Long.parseLong(a.get(d + 1)))) * 1000L; } catch (NumberFormatException ignore) { }
+            try { duree = Math.max(1, Math.min(600, Long.parseLong(a.get(d + 1)))) * 1000L; } catch (NumberFormatException ignore) { }
         }
         JsonObject activite = Activite.pour(new Activite.Situation(Activite.Phase.EN_JEU, true, true,
                 System.currentTimeMillis() / 1000L, false, details));
@@ -55,7 +55,7 @@ public final class EssaiDiscord {
             Thread.sleep(200);
         }
         long t0 = System.nanoTime();
-        boolean arrete = c.arreter(2000);
+        boolean arrete = c.arreter(400); // comme l'arrêt du launcher (ActiviteDiscord.arreter)
         System.out.println(heure() + " Essai Discord : activité effacée, connexion fermée" + (arrete ? "" : " (fil encore vivant)")
                 + " en " + (System.nanoTime() - t0) / 1_000_000 + " ms.");
     }

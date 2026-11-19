@@ -11,11 +11,15 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
-/** Socket Unix de Discord (macOS, Linux), en mode non bloquant : le JDK suffit, aucune dépendance. */
+/**
+ * Socket Unix de Discord (macOS, Linux), en mode NON BLOQUANT du début à la fin : le JDK suffit, aucune dépendance.
+ * Connexion, lecture et écriture sont toutes bornées dans le temps : un Discord figé qui n'accepte plus ou ne lit
+ * plus fait abandonner la connexion au bout d'une seconde au plus, jamais attendre le fil.
+ */
 final class CanalUnix implements Canal {
 
-    /** Une écriture qui n'avance plus pendant ce temps : Discord est figé, on abandonne la connexion. */
-    private static final long ECRITURE_MAX_NS = 2_000_000_000L;
+    /** Une connexion ou une écriture qui n'avance plus pendant ce temps : Discord est figé, on abandonne. */
+    static final long DELAI_MAX_NS = 1_000_000_000L;
 
     private final SocketChannel socket;
 
@@ -28,8 +32,14 @@ final class CanalUnix implements Canal {
         if (!Files.exists(p)) throw new NoSuchFileException(chemin);
         SocketChannel s = SocketChannel.open(StandardProtocolFamily.UNIX);
         try {
-            s.connect(UnixDomainSocketAddress.of(p)); // socket local : acceptée ou refusée sur-le-champ
             s.configureBlocking(false);
+            if (!s.connect(UnixDomainSocketAddress.of(p))) { // local : presque toujours immédiat
+                long limite = System.nanoTime() + DELAI_MAX_NS;
+                while (!s.finishConnect()) {
+                    if (System.nanoTime() > limite) throw new IOException("Discord n'accepte pas la connexion");
+                    pause();
+                }
+            }
             return new CanalUnix(s);
         } catch (IOException | RuntimeException e) {
             try { s.close(); } catch (IOException ignore) { }
@@ -47,16 +57,20 @@ final class CanalUnix implements Canal {
     @Override
     public void ecrire(byte[] b) throws IOException {
         ByteBuffer buf = ByteBuffer.wrap(b);
-        long limite = System.nanoTime() + ECRITURE_MAX_NS;
+        long limite = System.nanoTime() + DELAI_MAX_NS;
         while (buf.hasRemaining()) {
             if (socket.write(buf) > 0) continue;
-            if (System.nanoTime() > limite) throw new IOException("Discord ne lit plus le canal");
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new InterruptedIOException("écriture interrompue");
-            }
+            if (System.nanoTime() > limite) throw new IOException("Discord ne lit plus le canal (écriture abandonnée après 1 s)");
+            pause();
+        }
+    }
+
+    private static void pause() throws InterruptedIOException {
+        try {
+            Thread.sleep(5);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException("interrompu");
         }
     }
 

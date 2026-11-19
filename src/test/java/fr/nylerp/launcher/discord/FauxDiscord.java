@@ -40,6 +40,8 @@ final class FauxDiscord implements AutoCloseable {
     volatile boolean refuser;
     /** SET_ACTIVITY est refusé (évènement ERROR) tant que l'activité contient « name ». */
     volatile boolean refuserNom;
+    /** Discord figé : après READY, plus rien n'est lu (les tampons du client se remplissent). */
+    volatile boolean muet;
 
     private final List<SocketChannel> clients = new CopyOnWriteArrayList<>();
     private volatile ServerSocketChannel serveur;
@@ -133,6 +135,10 @@ final class FauxDiscord implements AutoCloseable {
                         envoyer(c, Trames.FRAME, "{\"cmd\":\"DISPATCH\",\"evt\":\"READY\",\"nonce\":null,\"data\":{\"v\":1,"
                                 + "\"config\":{\"cdn_host\":\"cdn.discordapp.com\",\"api_endpoint\":\"//discord.com/api\","
                                 + "\"environment\":\"production\"},\"user\":{\"id\":\"1\",\"username\":\"essai\"}}}");
+                        if (muet) {
+                            while (c.isOpen()) Thread.sleep(50); // figé : ne lit plus jamais
+                            return;
+                        }
                     }
                     case Trames.FRAME -> {
                         if (!r.setActivity()) continue;
@@ -155,6 +161,8 @@ final class FauxDiscord implements AutoCloseable {
             }
         } catch (IOException | RuntimeException fini) {
             // client parti
+        } catch (InterruptedException fini) {
+            Thread.currentThread().interrupt();
         }
     }
 

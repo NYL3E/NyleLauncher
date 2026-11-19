@@ -208,19 +208,21 @@ class ClientPresenceTest {
         f.attendre(FauxDiscord.Recu::setActivity, 3000);
 
         String dernier = null;
-        for (int i = 0; i < 10; i++) {
+        long d0 = System.nanoTime();
+        for (int i = 0; i < 10; i++) { // dix changements d'affilée, sans pause
             JsonObject a = enJeu(true);
             dernier = "Étape " + i;
             a.addProperty("details", dernier);
             activite.set(a);
             c.reveiller();
-            Thread.sleep(10);
         }
+        long dureeMs = (System.nanoTime() - d0) / 1_000_000;
         String attendu = dernier;
         f.attendre(r -> r.setActivity() && r.activite() != null && attendu.equals(r.activite().get("details").getAsString()), 3000);
 
         List<FauxDiscord.Recu> envois = f.recus.stream().filter(FauxDiscord.Recu::setActivity).toList();
-        assertTrue(envois.size() <= 3, "dix changements regroupés (" + envois.size() + " envois)");
+        long permis = 3 + dureeMs / 400; // même sur une machine très chargée (construction en arrière-plan)
+        assertTrue(envois.size() <= permis, "dix changements regroupés (" + envois.size() + " envois en " + dureeMs + " ms)");
         for (int i = 1; i < envois.size(); i++) {
             long ecartMs = (envois.get(i).nanos() - envois.get(i - 1).nanos()) / 1_000_000;
             assertTrue(ecartMs >= 350, "mises à jour espacées d'au moins l'écart réglé (" + ecartMs + " ms)");
@@ -236,6 +238,45 @@ class ClientPresenceTest {
         FauxDiscord.Recu simple = f.attendre(r -> r.setActivity() && r.activite() != null && !r.activite().has("name"), 3000);
         assertEquals("En jeu sur Pokényle", simple.activite().get("details").getAsString());
         assertTrue(simple.activite().has("buttons"), "seul le nom est retiré au premier repli");
+    }
+
+    @Test
+    void discordFigeQuiNeLitPlusConnexionAbandonneeEtArretImmediat() throws Exception {
+        FauxDiscord f = faux();
+        f.muet = true;
+        JsonObject enorme = enJeu(true);
+        enorme.addProperty("state", "x".repeat(4_000_000)); // plus que les tampons du système : l'écriture ne peut finir
+        ClientPresence c = client(enorme);
+        attendreEtat(c, ClientPresence.EtatConnexion.CONNECTE, 3000);
+        long t0 = System.nanoTime();
+        attendreEtat(c, ClientPresence.EtatConnexion.PERDUE, 4000);
+        long abandonMs = (System.nanoTime() - t0) / 1_000_000;
+        assertTrue(abandonMs < 2500, "écriture abandonnée en ~1 s (" + abandonMs + " ms)");
+
+        attendreEtat(c, ClientPresence.EtatConnexion.CONNECTE, 3000); // réessai : de nouveau coincé dans une écriture
+        Thread.sleep(200);
+        long a0 = System.nanoTime();
+        c.arreter(0); // le jeu : n'attend pas du tout
+        long arretMs = (System.nanoTime() - a0) / 1_000_000;
+        assertTrue(arretMs < 50, "arreter(0) rend la main tout de suite (" + arretMs + " ms)");
+        long fin = System.currentTimeMillis() + 1500;
+        while (c.etat() != ClientPresence.EtatConnexion.ARRETEE && System.currentTimeMillis() < fin) Thread.sleep(10);
+        assertEquals(ClientPresence.EtatConnexion.ARRETEE, c.etat(), "le fil finit seul en moins de 1,5 s, tube bloqué");
+    }
+
+    @Test
+    void arretDuLanceurBorneMemeDiscordFige() throws Exception {
+        FauxDiscord f = faux();
+        f.muet = true;
+        JsonObject enorme = enJeu(true);
+        enorme.addProperty("state", "x".repeat(4_000_000));
+        ClientPresence c = client(enorme);
+        attendreEtat(c, ClientPresence.EtatConnexion.CONNECTE, 3000);
+        Thread.sleep(150); // en pleine écriture coincée
+        long a0 = System.nanoTime();
+        c.arreter(400); // comme ActiviteDiscord.arreter() dans le crochet d'arrêt du launcher
+        long arretMs = (System.nanoTime() - a0) / 1_000_000;
+        assertTrue(arretMs < 600, "le crochet d'arrêt n'attend pas plus de 0,4 s (" + arretMs + " ms)");
     }
 
     @Test

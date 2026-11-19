@@ -101,8 +101,10 @@ public final class ClientPresence {
     }
 
     /**
-     * Efface l'activité, ferme la connexion et arrête le fil. N'attend pas plus de {@code attenteMs} :
-     * le fil est démon, il ne retient jamais la fermeture du launcher.
+     * Demande au fil d'effacer l'activité, de fermer la connexion et de s'arrêter, puis l'attend au plus
+     * {@code attenteMs} (0 ou moins : n'attend pas du tout). Le fil est démon et chaque entrée-sortie est bornée
+     * à une seconde : la fermeture du launcher ou du jeu ne dépend jamais de lui ; si Discord est figé, la
+     * fermeture du processus coupe le canal et Discord efface l'activité de lui-même.
      *
      * @return vrai si le fil est terminé
      */
@@ -112,7 +114,9 @@ public final class ClientPresence {
         Thread f;
         synchronized (this) { f = fil; }
         if (f == null || f == Thread.currentThread()) return true;
-        try { f.join(attenteMs); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        if (attenteMs > 0) {
+            try { f.join(attenteMs); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }
         return !f.isAlive();
     }
 
