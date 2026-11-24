@@ -1,5 +1,6 @@
 package fr.nylerp.launcher.ui.univers;
 
+import fr.nylerp.launcher.ui.univers.vitrine.VitrineMecenes;
 import fr.nylerp.launcher.auth.Account;
 import fr.nylerp.launcher.config.Settings;
 import fr.nylerp.launcher.fond.Fond;
@@ -65,6 +66,8 @@ public final class UniversPokenyle extends StackPane {
     private final Account compte;
     private final ImageView fond = new ImageView();
     private final CielPokenyle ciel;
+    /** La vitrine des mécènes : leurs Pokémon passent dans le pré, juste au-dessus du fond (avec sa parallaxe). */
+    private final VitrineMecenes vitrine;
     private final StackPane zoneAction = new StackPane();
     /** La capsule « Ouverture mi-décembre » / compte à rebours : sous le logo, dans le ciel (jamais sur les Poké Balls). */
     private final StackPane zoneEtat = new StackPane();
@@ -107,7 +110,28 @@ public final class UniversPokenyle extends StackPane {
         ciel = new CielPokenyle(echelle);
         fond.translateXProperty().bind(ciel.parallaxeXProperty().multiply(-6 * echelle));
         fond.translateYProperty().bind(ciel.parallaxeYProperty().multiply(-4 * echelle));
-        setOnMouseMoved(e -> ciel.viser(e.getX() / largeur * 2 - 1, e.getY() / hauteur * 2 - 1));
+        vitrine = new VitrineMecenes(echelle, ZOOM_FOND);
+        vitrine.ouvreur(UniversNylerp::ouvrirNavigateur);
+        // survol des mécènes : la vitrine est sous l'interface (transparente à la souris) ; l'univers lui passe le pointeur,
+        // sauf au-dessus d'un contrôle (boutons, capsule, menu) : jamais de carte ni de clic volé à l'interface
+        setOnMouseMoved(e -> {
+            ciel.viser(e.getX() / largeur * 2 - 1, e.getY() / hauteur * 2 - 1);
+            if (surControle(e.getTarget())) { vitrine.cacherCarte(); setCursor(null); return; }
+            javafx.geometry.Point2D v = vitrine.sceneToLocal(e.getSceneX(), e.getSceneY());
+            boolean sur = vitrine.survoler(v.getX(), v.getY(), e.getX(), e.getY(), getWidth(), getHeight());
+            setCursor(sur ? javafx.scene.Cursor.HAND : null);
+        });
+        setOnMouseExited(e -> { vitrine.cacherCarte(); setCursor(null); });
+        setOnMouseClicked(e -> {
+            if (e.getButton() != javafx.scene.input.MouseButton.PRIMARY || surControle(e.getTarget())) return;
+            javafx.geometry.Point2D v = vitrine.sceneToLocal(e.getSceneX(), e.getSceneY());
+            if (vitrine.cliquer(v.getX(), v.getY())) e.consume();
+        });
+        vitrine.horlogeCiel(ciel::temps);
+        vitrine.translateXProperty().bind(ciel.parallaxeXProperty().multiply(-6 * echelle));
+        vitrine.translateYProperty().bind(ciel.parallaxeYProperty().multiply(-4 * echelle));
+        StackPane.setAlignment(vitrine, Pos.BOTTOM_LEFT);
+        ciel.repliProperty().addListener((o, a, b) -> { if (b) vitrine.eteindre(); });
 
         // voile clair à gauche : le texte reste lisible sur les nuages
         Region voile = new Region();
@@ -144,7 +168,7 @@ public final class UniversPokenyle extends StackPane {
         voileBas.setStyle("-fx-background-color: radial-gradient(center 0% 100%, radius 62%, rgba(6,34,24,0.46) 0%,"
                 + " rgba(6,34,24,0.22) 45%, rgba(6,34,24,0.0) 100%);");
 
-        getChildren().addAll(fond, ciel, voile, voileBas, haut, zoneAction, ciel.avant());
+        getChildren().addAll(fond, ciel, vitrine, voile, voileBas, haut, zoneAction, ciel.avant(), vitrine.carte());
 
         seconde = new Timeline(new KeyFrame(Duration.seconds(1), e -> majCompteur()));
         seconde.setCycleCount(Timeline.INDEFINITE);
@@ -156,7 +180,7 @@ public final class UniversPokenyle extends StackPane {
 
     /** L'univers devient visible : le ciel s'anime, le compte à rebours tourne. */
     public void afficher() {
-        if (!animationEnPause) ciel.demarrer();
+        if (!animationEnPause) { ciel.demarrer(); vitrine.demarrer(); }
         seconde.play();
         rafraichir();
         logo.entrer();
@@ -165,6 +189,7 @@ public final class UniversPokenyle extends StackPane {
     /** L'univers est caché (autre univers, fenêtre rangée) : rien ne tourne. */
     public void cacher() {
         ciel.arreter();
+        vitrine.arreter();
         seconde.stop();
     }
 
@@ -178,7 +203,7 @@ public final class UniversPokenyle extends StackPane {
     /** Met le ciel en pause ou le relance (bouton pause du groupe du bas). */
     public void basculerAnimation() {
         animationEnPause = !animationEnPause;
-        if (animationEnPause) ciel.arreter(); else ciel.demarrer();
+        if (animationEnPause) { ciel.arreter(); vitrine.arreter(); } else { ciel.demarrer(); vitrine.demarrer(); }
     }
 
     /** Vrai si ce joueur peut lancer Pokényle maintenant. */
@@ -299,5 +324,16 @@ public final class UniversPokenyle extends StackPane {
         long j = s / 86400, h = (s % 86400) / 3600, m = (s % 3600) / 60, sec = s % 60;
         compteur.setText(j > 0 ? String.format("%d J  %02d H  %02d MIN  %02d S", j, h, m, sec)
                 : String.format("%02d H  %02d MIN  %02d S", h, m, sec));
+    }
+
+    /** La cible est-elle un contrôle de l'interface (ou dedans) ? Alors le survol des mécènes s'efface. */
+    private static boolean surControle(Object cible) {
+        for (javafx.scene.Node n = cible instanceof javafx.scene.Node x ? x : null; n != null; n = n.getParent()) {
+            if (n instanceof UniversPokenyle) return false;
+            if (n instanceof javafx.scene.control.Control || n == null) return true;
+            // boutons maison (Region + gestionnaires) : tout nœud qui écoute la souris est de l'interface
+            if (n.getOnMouseClicked() != null || n.getOnMousePressed() != null || n.getOnMouseReleased() != null) return true;
+        }
+        return false;
     }
 }

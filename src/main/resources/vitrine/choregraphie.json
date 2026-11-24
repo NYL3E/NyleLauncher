@@ -1,0 +1,1350 @@
+{
+ "v": 1,
+ "note": "Chorégraphie de la vitrine des mécènes : UNE source pour le générateur (rendu, taille) et pour les trois lieux (site, launcher, écran titre). Repère : le fond 1180 × 700.",
+ "rendu": {
+  "ips": 24,
+  "marche": {
+   "lacet": 62,
+   "tangage": -8
+  },
+  "vol": {
+   "lacet": 66,
+   "tangage": -10
+  },
+  "budget": 2048
+ },
+ "taille": {
+  "marche": {
+   "a": 78,
+   "g": 0.5,
+   "min": 64,
+   "max": 118,
+   "surech": 2
+  },
+  "vol": {
+   "a": 64,
+   "g": 0.45,
+   "min": 64,
+   "max": 112,
+   "surech": 2
+  }
+ },
+ "avant_plan": {
+  "note": "les trois coffres-Poké Balls passent DEVANT les marcheurs : contours relevés sur gros plans (repère 1180 × 700)",
+  "coffres": [
+   [
+    [
+     216,
+     519
+    ],
+    [
+     226,
+     516
+    ],
+    [
+     226,
+     504
+    ],
+    [
+     262,
+     497
+    ],
+    [
+     300,
+     493
+    ],
+    [
+     330,
+     492
+    ],
+    [
+     376,
+     504
+    ],
+    [
+     376,
+     519
+    ],
+    [
+     388,
+     521
+    ],
+    [
+     389,
+     646
+    ],
+    [
+     216,
+     646
+    ]
+   ],
+   [
+    [
+     436,
+     646
+    ],
+    [
+     436,
+     575
+    ],
+    [
+     440,
+     561
+    ],
+    [
+     520,
+     540
+    ],
+    [
+     469,
+     486
+    ],
+    [
+     470,
+     471
+    ],
+    [
+     484,
+     447
+    ],
+    [
+     500,
+     438
+    ],
+    [
+     530,
+     436
+    ],
+    [
+     555,
+     441
+    ],
+    [
+     580,
+     449
+    ],
+    [
+     600,
+     460
+    ],
+    [
+     615,
+     481
+    ],
+    [
+     637,
+     509
+    ],
+    [
+     634,
+     540
+    ],
+    [
+     623,
+     550
+    ],
+    [
+     618,
+     568
+    ],
+    [
+     617,
+     615
+    ],
+    [
+     615,
+     646
+    ]
+   ],
+   [
+    [
+     676,
+     532
+    ],
+    [
+     688,
+     531
+    ],
+    [
+     688,
+     519
+    ],
+    [
+     722,
+     510
+    ],
+    [
+     782,
+     507
+    ],
+    [
+     835,
+     519
+    ],
+    [
+     835,
+     531
+    ],
+    [
+     850,
+     535
+    ],
+    [
+     850,
+     646
+    ],
+    [
+     675,
+     646
+    ]
+   ]
+  ]
+ },
+ "repere": {
+  "l": 1180,
+  "h": 700
+ },
+ "sol": {
+  "note": "ligne des pieds des marcheurs = crête RELEVÉE de la colline (outils/profil_sol.py sur l'illustration du héros) + 72 : dans l'herbe à toute abscisse, derrière les coffres au centre ; le corps suit la pente (suivi, borné à inclinaison degrés)",
+  "ligne": [
+   [
+    -92.0,
+    614.9
+   ],
+   [
+    -76.0,
+    612.1
+   ],
+   [
+    -60.0,
+    609.3
+   ],
+   [
+    -44.0,
+    606.7
+   ],
+   [
+    -28.0,
+    603.0
+   ],
+   [
+    -12.0,
+    599.9
+   ],
+   [
+    4.0,
+    598.2
+   ],
+   [
+    20.0,
+    598.0
+   ],
+   [
+    36.0,
+    598.1
+   ],
+   [
+    52.0,
+    598.3
+   ],
+   [
+    68.0,
+    598.0
+   ],
+   [
+    84.0,
+    596.9
+   ],
+   [
+    100.0,
+    595.3
+   ],
+   [
+    116.0,
+    593.7
+   ],
+   [
+    132.0,
+    592.5
+   ],
+   [
+    148.0,
+    592.5
+   ],
+   [
+    164.0,
+    592.4
+   ],
+   [
+    180.0,
+    591.3
+   ],
+   [
+    196.0,
+    590.8
+   ],
+   [
+    212.0,
+    588.9
+   ],
+   [
+    228.0,
+    586.7
+   ],
+   [
+    244.0,
+    584.8
+   ],
+   [
+    260.0,
+    582.9
+   ],
+   [
+    276.0,
+    581.0
+   ],
+   [
+    292.0,
+    579.2
+   ],
+   [
+    308.0,
+    577.3
+   ],
+   [
+    324.0,
+    575.4
+   ],
+   [
+    340.0,
+    573.5
+   ],
+   [
+    356.0,
+    571.7
+   ],
+   [
+    372.0,
+    569.8
+   ],
+   [
+    388.0,
+    568.0
+   ],
+   [
+    404.0,
+    566.4
+   ],
+   [
+    420.0,
+    564.7
+   ],
+   [
+    436.0,
+    563.6
+   ],
+   [
+    452.0,
+    563.1
+   ],
+   [
+    468.0,
+    562.7
+   ],
+   [
+    484.0,
+    562.3
+   ],
+   [
+    500.0,
+    562.0
+   ],
+   [
+    516.0,
+    561.6
+   ],
+   [
+    532.0,
+    561.2
+   ],
+   [
+    548.0,
+    560.8
+   ],
+   [
+    564.0,
+    560.4
+   ],
+   [
+    580.0,
+    560.1
+   ],
+   [
+    596.0,
+    559.7
+   ],
+   [
+    612.0,
+    559.3
+   ],
+   [
+    628.0,
+    558.9
+   ],
+   [
+    644.0,
+    558.7
+   ],
+   [
+    660.0,
+    559.0
+   ],
+   [
+    676.0,
+    559.4
+   ],
+   [
+    692.0,
+    559.9
+   ],
+   [
+    708.0,
+    560.5
+   ],
+   [
+    724.0,
+    561.2
+   ],
+   [
+    740.0,
+    561.8
+   ],
+   [
+    756.0,
+    562.5
+   ],
+   [
+    772.0,
+    563.1
+   ],
+   [
+    788.0,
+    563.7
+   ],
+   [
+    804.0,
+    564.4
+   ],
+   [
+    820.0,
+    565.0
+   ],
+   [
+    836.0,
+    565.6
+   ],
+   [
+    852.0,
+    566.2
+   ],
+   [
+    868.0,
+    567.1
+   ],
+   [
+    884.0,
+    568.5
+   ],
+   [
+    900.0,
+    569.9
+   ],
+   [
+    916.0,
+    568.8
+   ],
+   [
+    932.0,
+    567.7
+   ],
+   [
+    948.0,
+    566.7
+   ],
+   [
+    964.0,
+    565.7
+   ],
+   [
+    980.0,
+    565.0
+   ],
+   [
+    996.0,
+    564.4
+   ],
+   [
+    1012.0,
+    564.4
+   ],
+   [
+    1028.0,
+    564.5
+   ],
+   [
+    1044.0,
+    564.7
+   ],
+   [
+    1060.0,
+    564.9
+   ],
+   [
+    1076.0,
+    565.0
+   ],
+   [
+    1092.0,
+    564.6
+   ],
+   [
+    1108.0,
+    564.3
+   ],
+   [
+    1124.0,
+    564.6
+   ],
+   [
+    1140.0,
+    566.3
+   ],
+   [
+    1156.0,
+    568.2
+   ],
+   [
+    1172.0,
+    571.0
+   ],
+   [
+    1188.0,
+    574.5
+   ],
+   [
+    1204.0,
+    578.7
+   ],
+   [
+    1220.0,
+    583.0
+   ],
+   [
+    1236.0,
+    586.5
+   ],
+   [
+    1252.0,
+    590.2
+   ],
+   [
+    1268.0,
+    594.4
+   ],
+   [
+    1284.0,
+    597.4
+   ],
+   [
+    1300.0,
+    599.8
+   ],
+   [
+    1316.0,
+    603.7
+   ],
+   [
+    1332.0,
+    607.9
+   ],
+   [
+    1348.0,
+    612.0
+   ],
+   [
+    1364.0,
+    616.7
+   ],
+   [
+    1380.0,
+    621.5
+   ],
+   [
+    1396.0,
+    621.0
+   ],
+   [
+    1412.0,
+    620.4
+   ],
+   [
+    1428.0,
+    619.9
+   ],
+   [
+    1444.0,
+    619.1
+   ]
+  ],
+  "echelle": 1.0,
+  "ombre": {
+   "alpha": 0.34,
+   "largeur": 0.92,
+   "hauteur": 0.2,
+   "decalage": -0.12,
+   "note": "v2 : ombre portée sous chaque marcheur : ellipse floue de la largeur RÉELLE de l'image (largeur × boîte opaque), hauteur × largeur, décalée vers la gauche (soleil en haut à droite du décor)"
+  },
+  "crete": [
+   [
+    -92.0,
+    574.9
+   ],
+   [
+    -76.0,
+    572.1
+   ],
+   [
+    -60.0,
+    569.3
+   ],
+   [
+    -44.0,
+    566.7
+   ],
+   [
+    -28.0,
+    563.0
+   ],
+   [
+    -12.0,
+    558.7
+   ],
+   [
+    4.0,
+    554.7
+   ],
+   [
+    20.0,
+    552.2
+   ],
+   [
+    36.0,
+    550.0
+   ],
+   [
+    52.0,
+    547.8
+   ],
+   [
+    68.0,
+    545.2
+   ],
+   [
+    84.0,
+    541.8
+   ],
+   [
+    100.0,
+    537.8
+   ],
+   [
+    116.0,
+    533.9
+   ],
+   [
+    132.0,
+    530.4
+   ],
+   [
+    148.0,
+    528.1
+   ],
+   [
+    164.0,
+    525.6
+   ],
+   [
+    180.0,
+    522.2
+   ],
+   [
+    196.0,
+    519.4
+   ],
+   [
+    212.0,
+    516.9
+   ],
+   [
+    228.0,
+    514.7
+   ],
+   [
+    244.0,
+    512.8
+   ],
+   [
+    260.0,
+    510.9
+   ],
+   [
+    276.0,
+    509.0
+   ],
+   [
+    292.0,
+    507.2
+   ],
+   [
+    308.0,
+    505.3
+   ],
+   [
+    324.0,
+    503.4
+   ],
+   [
+    340.0,
+    501.5
+   ],
+   [
+    356.0,
+    499.7
+   ],
+   [
+    372.0,
+    497.8
+   ],
+   [
+    388.0,
+    496.0
+   ],
+   [
+    404.0,
+    494.4
+   ],
+   [
+    420.0,
+    492.7
+   ],
+   [
+    436.0,
+    491.6
+   ],
+   [
+    452.0,
+    491.1
+   ],
+   [
+    468.0,
+    490.7
+   ],
+   [
+    484.0,
+    490.3
+   ],
+   [
+    500.0,
+    490.0
+   ],
+   [
+    516.0,
+    489.6
+   ],
+   [
+    532.0,
+    489.2
+   ],
+   [
+    548.0,
+    488.8
+   ],
+   [
+    564.0,
+    488.4
+   ],
+   [
+    580.0,
+    488.1
+   ],
+   [
+    596.0,
+    487.7
+   ],
+   [
+    612.0,
+    487.3
+   ],
+   [
+    628.0,
+    486.9
+   ],
+   [
+    644.0,
+    486.7
+   ],
+   [
+    660.0,
+    487.0
+   ],
+   [
+    676.0,
+    487.4
+   ],
+   [
+    692.0,
+    487.9
+   ],
+   [
+    708.0,
+    488.5
+   ],
+   [
+    724.0,
+    489.2
+   ],
+   [
+    740.0,
+    489.8
+   ],
+   [
+    756.0,
+    490.5
+   ],
+   [
+    772.0,
+    491.1
+   ],
+   [
+    788.0,
+    491.7
+   ],
+   [
+    804.0,
+    492.4
+   ],
+   [
+    820.0,
+    493.0
+   ],
+   [
+    836.0,
+    493.6
+   ],
+   [
+    852.0,
+    494.2
+   ],
+   [
+    868.0,
+    495.1
+   ],
+   [
+    884.0,
+    496.5
+   ],
+   [
+    900.0,
+    497.9
+   ],
+   [
+    916.0,
+    499.1
+   ],
+   [
+    932.0,
+    500.4
+   ],
+   [
+    948.0,
+    501.7
+   ],
+   [
+    964.0,
+    503.0
+   ],
+   [
+    980.0,
+    504.6
+   ],
+   [
+    996.0,
+    506.4
+   ],
+   [
+    1012.0,
+    508.7
+   ],
+   [
+    1028.0,
+    511.1
+   ],
+   [
+    1044.0,
+    513.6
+   ],
+   [
+    1060.0,
+    516.2
+   ],
+   [
+    1076.0,
+    518.6
+   ],
+   [
+    1092.0,
+    520.5
+   ],
+   [
+    1108.0,
+    522.6
+   ],
+   [
+    1124.0,
+    524.6
+   ],
+   [
+    1140.0,
+    526.3
+   ],
+   [
+    1156.0,
+    528.2
+   ],
+   [
+    1172.0,
+    531.0
+   ],
+   [
+    1188.0,
+    534.5
+   ],
+   [
+    1204.0,
+    538.7
+   ],
+   [
+    1220.0,
+    543.0
+   ],
+   [
+    1236.0,
+    546.5
+   ],
+   [
+    1252.0,
+    550.2
+   ],
+   [
+    1268.0,
+    554.4
+   ],
+   [
+    1284.0,
+    557.4
+   ],
+   [
+    1300.0,
+    559.8
+   ],
+   [
+    1316.0,
+    563.7
+   ],
+   [
+    1332.0,
+    567.9
+   ],
+   [
+    1348.0,
+    572.0
+   ],
+   [
+    1364.0,
+    576.7
+   ],
+   [
+    1380.0,
+    581.5
+   ],
+   [
+    1396.0,
+    586.3
+   ],
+   [
+    1412.0,
+    591.1
+   ],
+   [
+    1428.0,
+    595.9
+   ],
+   [
+    1444.0,
+    600.4
+   ]
+  ],
+  "inclinaison": 8,
+  "suivi": 0.8,
+  "herbe": {
+   "note": "v2 (owner 24/11) : herbe d'avant-plan devant les pieds, tirée du décor (outils/avant_plan.py) ; zones du repère où les marcheurs ont les pieds dans l'herbe ; hauteur des brins (unités du repère) bornée : jamais plus haut que le bas des jambes",
+   "zones": [
+    [
+     -92,
+     150
+    ],
+    [
+     250,
+     330
+    ],
+    [
+     420,
+     640
+    ],
+    [
+     730,
+     960
+    ],
+    [
+     1040,
+     1250
+    ],
+    [
+     1330,
+     1444
+    ]
+   ],
+   "hauteur": [
+    4,
+    10
+   ],
+   "bord": 24,
+   "pas": 1.3,
+   "sous": 3,
+   "enfonce": 1.5
+  }
+ },
+ "ciel": {
+  "note": "ligne des pieds des volants (repère 1180 × 700) ; un lieu peut la redéfinir (ciel_y) : sous la barre du launcher, sous le haut de l'écran titre",
+  "y": [
+   160,
+   240
+  ],
+  "arc": [
+   10,
+   34
+  ],
+  "inclinaison": 5
+ },
+ "hooh": {
+  "note": "le passage de Ho-Oh (trajets.json : délai 8 s, période 150 s, 30 % de traversée) : aucun volant ne passe en même temps",
+  "debut": 8,
+  "periode": 150,
+  "duree": 48
+ },
+ "rythme": {
+  "premier": [
+   1,
+   2
+  ],
+  "ecart": [
+   1,
+   3.5
+  ],
+  "simultane": 1.0,
+  "decalage": [
+   2,
+   5
+  ],
+  "flane": 0.85,
+  "stationnaire": 1.0,
+  "pause": [
+   3,
+   5.5
+  ],
+  "traversee_sol": [
+   26,
+   40
+  ],
+  "traversee_ciel": [
+   18,
+   26
+  ],
+  "cadence": [
+   0.85,
+   2.0
+  ],
+  "avance": 0.5,
+  "repos": 0.12,
+  "note_repos": "absence après un passage = sa durée × repos × (0,8 à 1,2), bornée par ecart ; le suivant entre souvent pendant le passage (simultane, decalage)",
+  "visite_marche": 12,
+  "note_visite": "une visite : l'arrêt est à au plus 12 s de marche du bord (et entre 60 et 200 unités du bord visible)",
+  "pause_ciel": [
+   5,
+   8
+  ],
+  "voies_sol": 2,
+  "voies_ciel": 2,
+  "voie_sol_dy": -26,
+  "voie_sol_echelle": 0.86,
+  "voie_ciel_dy": 42,
+  "note_voies": "v2 (owner 24/11) : passages plus longs, absences courtes, jusqu'à trois mécènes ensemble : deux voies au sol (la 1 plus haut sur la colline, ×0,86) et deux au ciel (la 1 plus bas de 42) ; un mécène n'est jamais deux fois à l'écran ; un volant reste toujours un moment sur place (vol stationnaire du modèle s'il existe, sinon son battement sans avancer)"
+ },
+ "etiquette": {
+  "police": "Kanit",
+  "graisse": 600,
+  "taille": 12,
+  "ecart": 5,
+  "fondu": 0.6,
+  "plaque": [
+   0,
+   0,
+   0,
+   0.25
+  ],
+  "marge": [
+   4,
+   1.6
+  ],
+  "couronne": {
+   "1": [
+    "#FDE7A2",
+    "#D39528"
+   ],
+   "2": [
+    "#F5F7FB",
+    "#9AA4B8"
+   ],
+   "3": [
+    "#F6CFA6",
+    "#A4643A"
+   ]
+  },
+  "ombre_texte": [
+   0,
+   0.08,
+   0,
+   0,
+   0,
+   0.45
+  ],
+  "bord": 20,
+  "zone": 18,
+  "note_min": "taille minimale de la police en pixels réels, par lieu (etiquette_min_px) : site 14 px CSS (12 sous 768 px de large), launcher 15 px, écran titre 16 px de l'interface 720p (24 px en 1080p)"
+ },
+ "lieux": {
+  "note": "x0, x1 : étendue visible du repère ; pause_sol : arrêt d'une traversée ; visite_droite / visite_gauche : arrêt d'une visite (entrée et sortie par ce bord ; null = pas de visite de ce côté) ; pause_ciel : vol stationnaire. Jamais derrière un coffre ni sous l'interface. interdits : rectangles [x, y, l, h] du repère où une étiquette ne passe pas (logo, boutons, menu) : elle s'y efface.",
+  "defaut": {
+   "x0": 0,
+   "x1": 1180,
+   "pause_sol": [
+    880,
+    1110
+   ],
+   "pause_ciel": [
+    520,
+    980
+   ],
+   "visite_droite": [
+    900,
+    1080
+   ],
+   "visite_gauche": [
+    60,
+    180
+   ],
+   "interdits": []
+  },
+  "site": {
+   "note": "héros du site : l'illustration (heros-2880.webp, 2880 px) ; recalage du fond du launcher sur elle par corrélation (outils/recaler.py, 0,999) : X = ox + x·k",
+   "recalage": {
+    "image": "public/img/fil/heros-2880.webp",
+    "largeur": 2880,
+    "k": 1.86419,
+    "ox": 172.162,
+    "oy": 113.719
+   },
+   "pause_sol": [
+    880,
+    1180
+   ],
+   "pause_ciel": [
+    900,
+    1220
+   ],
+   "visite_droite": [
+    900,
+    1200
+   ],
+   "visite_gauche": [
+    -40,
+    170
+   ],
+   "interdits": [
+    [
+     440,
+     20,
+     380,
+     410
+    ]
+   ],
+   "ciel_y": [
+    150,
+    240
+   ],
+   "etiquette_min_px": 14,
+   "etiquette_min_px_etroit": 12
+  },
+  "launcher": {
+   "note": "fond agrandi ×1,14 calé en bas à gauche : repère visible x 0..1035",
+   "pause_sol": [
+    860,
+    985
+   ],
+   "pause_ciel": [
+    520,
+    880
+   ],
+   "visite_droite": [
+    880,
+    975
+   ],
+   "visite_gauche": [
+    40,
+    170
+   ],
+   "interdits": [
+    [
+     20,
+     50,
+     420,
+     250
+    ],
+    [
+     30,
+     575,
+     270,
+     95
+    ],
+    [
+     860,
+     575,
+     170,
+     95
+    ],
+    [
+     60,
+     0,
+     280,
+     50
+    ],
+    [
+     680,
+     0,
+     360,
+     50
+    ]
+   ],
+   "ciel_y": [
+    250,
+    330
+   ],
+   "etiquette_min_px": 15,
+   "marche_min": 150,
+   "voies_sol": 1
+  },
+  "ecran_titre": {
+   "note": "Ciel.Cadre(k = max(l/1180, h/700) × 1,05 × zoom, centré) : repère visible ≈ 28..1152 en 16:9",
+   "pause_sol": [
+    880,
+    1110
+   ],
+   "pause_ciel": [
+    560,
+    1000
+   ],
+   "visite_droite": [
+    900,
+    1090
+   ],
+   "visite_gauche": null,
+   "interdits": [
+    [
+     0,
+     180,
+     420,
+     420
+    ],
+    [
+     880,
+     0,
+     300,
+     70
+    ],
+    [
+     700,
+     620,
+     480,
+     80
+    ]
+   ],
+   "ciel_y": [
+    200,
+    265
+   ],
+   "etiquette_min_px": 16,
+   "marche_min_gui": 440,
+   "voies_sol": 1
+  },
+  "note_marche_min": "zone couverte à gauche : les marcheurs restent à sa droite (entrent par la droite, demi-tour avant). launcher : à droite du bouton « Me prévenir » (repère 150) ; écran titre : à droite de la colonne du menu (440 px d'interface 720p, converti par le lieu à chaque image)"
+ },
+ "rangs": {
+  "note": "part du TEMPS D'ÉCRAN par rang (selon le nombre de mécènes) : le suivant est celui qui est le plus en retard sur sa part, jamais le même deux fois de suite ; le 1er passe aussi un peu plus près (plus grand)",
+  "1": {
+   "echelle": 1.12,
+   "sol": 0,
+   "ciel": 16
+  },
+  "2": {
+   "echelle": 1.0,
+   "sol": 0,
+   "ciel": 0
+  },
+  "3": {
+   "echelle": 0.94,
+   "sol": 0,
+   "ciel": -10
+  },
+  "part": {
+   "1": [
+    1
+   ],
+   "2": [
+    0.6,
+    0.4
+   ],
+   "3": [
+    0.43,
+    0.285,
+    0.285
+   ]
+  }
+ },
+ "echelle": 1,
+ "note_echelle": "taille des Pokémon, réglage unique (1 = conception ; 0,6 à 1,4 sans perte de netteté : les planches sont rendues 1,4 à 2 fois plus fines que l'affichage). Le catalogue du site (reglages.echelle) le remplace à chaud dans les trois lieux.",
+ "survol": {
+  "ralenti": 0,
+  "arret": 0.3,
+  "note": "v2 (owner 24/11 18:45) : au survol le duo S'ARRÊTE (≈ 0,3 s), il joue sur place son repos (marcheur) ou son vol stationnaire (volant), puis repart à la sortie"
+ }
+}
